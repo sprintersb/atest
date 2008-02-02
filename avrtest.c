@@ -104,7 +104,11 @@ enum decoder_operand_masks {
 	mask_A_6      = 0x060F
 };
 // ---------------------------------------------------------------------------------
-//     some helpful types
+//     some helpful types and constants
+
+#define EXIT_STATUS_EXIT	0
+#define EXIT_STATUS_ABORTED	1
+#define EXIT_STATUS_TIMEOUT	2
 
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -174,8 +178,8 @@ extern opcode_data opcode_func_array[];
 static int flash_size;
 static int PC_is_22_bits;
 
-// maximum number of execution cycles (used as a timeout)
-static dword program_cycles_limit;
+// maximum number of executed instructions (used as a timeout)
+static dword max_instr_count;
 
 // filename of the file being executed
 static char program_name[256];
@@ -198,31 +202,91 @@ static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
 // ---------------------------------------------------------------------------------
 //     log functions
 
-#define LOG_SIZE	128
+#ifdef LOG_DUMP
 
-static char log_data[LOG_SIZE][256];
-int cur_log_pos;
+static char log_data[256];
+char *cur_log_pos = log_data;
 
-void log_add_data(char *data)
+static void log_add_data(char *data)
 {
-	strcat(log_data[cur_log_pos], data);
+	int len = strlen(data);
+	memcpy(cur_log_pos, data, len);
+	cur_log_pos += len;
 }
 
-void log_dump_line(void)
+static void log_add_instr(const char *instr)
 {
-	// right now, dump everything (this is to be replaced
-	// by a proper crash dump with just LOG_SIZE lines)
-	printf("%s\n", log_data[cur_log_pos]);
-
-	cur_log_pos++;
-	if (cur_log_pos >= LOG_SIZE)
-		cur_log_pos = 0;
-	log_data[cur_log_pos][0] = '\0';
+	char buf[32];
+	sprintf(buf, "%04x: %-5s ", cpu_PC * 2, instr);
+	log_add_data(buf);
 }
 
-static void leave(void)
+static void log_add_data_mov(const char *format, int addr, int value)
 {
-	printf(" (total cycles: %d)\n", program_cycles);
+	char buf[32], adname[16];
+
+	if (addr < 32) {
+		sprintf(adname, "R%d", addr);
+	} else {
+		switch (addr) {
+		case SREG: strcpy(adname, "SREG"); break;
+		case SPH: strcpy(adname, "SPH"); break;
+		case SPL: strcpy(adname, "SPL"); break;
+		default:
+			if (addr < 256)
+				sprintf(adname, "%02x", addr);
+			else
+				sprintf(adname, "%04x", addr);
+		}
+	}
+
+	sprintf(buf, format, adname, value);
+	log_add_data(buf);
+}
+
+static void log_dump_line(void)
+{
+	*cur_log_pos = '\0';
+	puts(log_data);
+	cur_log_pos = log_data;
+}
+
+#else
+
+// empty placeholders to keep the rest of the code clean while allowing the compiler to
+// optimize these calls away
+
+static void log_add_instr(const char *instr)
+{}
+
+static void log_add_data_mov(const char *format, int addr, int value)
+{}
+
+static void log_dump_line(void)
+{}
+
+#endif
+
+
+static const char *exit_status_text[] = {
+	[EXIT_STATUS_EXIT]    = "EXIT",
+	[EXIT_STATUS_ABORTED] = "ABORTED",
+	[EXIT_STATUS_TIMEOUT] = "TIMEOUT"
+};
+
+static void leave(int status, const char *reason)
+{
+	// make sure we print the last log line before leaving
+	log_dump_line();
+
+	printf("\n"
+		" exit status: %s\n"
+		"      reason: %s\n"
+		"     program: %s\n"
+		"exit address: %04x\n"
+		"total cycles: %u\n\n",
+		exit_status_text[status], reason, program_name,
+		cpu_PC * 2, program_cycles);
 	exit(0);
 }
 
@@ -248,9 +312,10 @@ static void data_write_byte_raw(int address, int value)
 			putchar(value);
 			return;
 		case EXIT_PORT:
+			leave(value ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT, "exit function called");
+			break;
 		case ABORT_PORT:
-			printf("%s %s at address %04x", (address == ABORT_PORT || value) ? "ABORTED" : "EXIT", program_name, cpu_PC);
-			leave();
+			leave(EXIT_STATUS_ABORTED, "abort function called");
 			break;
 	}
 
@@ -268,40 +333,12 @@ static int flash_read_byte(int address)
 
 // mid-level memory accessors
 
-#ifdef LOG_DUMP
-static void get_address_name(int addr, char *result)
-{
-	if (addr < 32) {
-		sprintf(result, "R%d", addr);
-		return;
-	}
-
-	switch (addr) {
-		case SREG: strcpy(result, "SREG"); return;
-		case SPH: strcpy(result, "SPH"); return;
-		case SPL: strcpy(result, "SPL"); return;
-	}
-
-	if (addr < 256)
-		sprintf(result, "%02x", addr);
-	else
-		sprintf(result, "%04x", addr);
-}
-#endif
-
 // read a byte from memory / ioport / register
 
 static int data_read_byte(int address)
 {
-	int ret;
-
-	ret = data_read_byte_raw(address);
-#ifdef LOG_DUMP
-	char buf[32], adname[16];
-	get_address_name(address, adname);
-	sprintf(buf, "(%s)->%02x ", adname, ret);
-	log_add_data(buf);
-#endif
+	int ret = data_read_byte_raw(address);
+	log_add_data_mov("(%s)->%02x ", address, ret);
 	return ret;
 }
 
@@ -309,12 +346,7 @@ static int data_read_byte(int address)
 
 static void data_write_byte(int address, int value)
 {
-#ifdef LOG_DUMP
-	char buf[32], adname[16];
-	get_address_name(address, adname);
-	sprintf(buf, "(%s)<-%02x ", adname, value);
-	log_add_data(buf);
-#endif
+	log_add_data_mov("(%s)<-%02x ", address, value);
 	data_write_byte_raw(address, value);
 }
 
@@ -323,21 +355,13 @@ static void data_write_byte(int address, int value)
 
 static byte get_reg(int address)
 {
-#ifdef LOG_DUMP
-	char buf[32];
-	sprintf(buf, "(R%d)->%02x ", address, cpu_data[address]);
-	log_add_data(buf);
-#endif
+	log_add_data_mov("(%s)->%02x ", address, cpu_data[address]);
 	return cpu_data[address];
 }
 
 static void put_reg(int address, byte value)
 {
-#ifdef LOG_DUMP
-	char buf[32];
-	sprintf(buf, "(R%d)<-%02x ", address, value);
-	log_add_data(buf);
-#endif
+	log_add_data_mov("(%s)<-%02x ", address, value);
 	cpu_data[address] = value;
 }
 
@@ -345,15 +369,8 @@ static void put_reg(int address, byte value)
 
 static int data_read_word(int address)
 {
-	int ret;
-
-	ret = data_read_byte_raw(address) | (data_read_byte_raw(address + 1) << 8);
-#ifdef LOG_DUMP
-	char buf[32], adname[16];
-	get_address_name(address, adname);
-	sprintf(buf, "(%s)->%04x ", adname, ret);
-	log_add_data(buf);
-#endif
+	int ret = data_read_byte_raw(address) | (data_read_byte_raw(address + 1) << 8);
+	log_add_data_mov("(%s)->%04x ", address, ret);
 	return ret;
 }
 
@@ -362,12 +379,7 @@ static int data_read_word(int address)
 static void data_write_word(int address, int value)
 {
 	value &= 0xffff;
-#ifdef LOG_DUMP
-	char buf[32], adname[16];
-	get_address_name(address, adname);
-	sprintf(buf, "(%s)<-%04x ", adname, value);
-	log_add_data(buf);
-#endif
+	log_add_data_mov("(%s)<-%04x ", address, value);
 	data_write_byte_raw(address, value & 0xFF);
 	data_write_byte_raw(address + 1, value >> 8);
 }
@@ -375,18 +387,17 @@ static void data_write_word(int address, int value)
 // ---------------------------------------------------------------------------------
 //     helper functions
 
-static void add_program_cycles(int cycles)
+static void add_program_cycles(dword cycles)
 {
 	program_cycles += cycles;
-	if (program_cycles_limit && program_cycles >= program_cycles_limit) {
-		printf("TIMEOUT executing %s", program_name);
-		leave();
-	}
 }
 
 static void push_byte(int value)
 {
 	int sp = data_read_word(SPL);
+	// temporary hack to disallow growing the stack over the reserved register area
+	if (sp < 0x60)
+		leave(EXIT_STATUS_ABORTED, "stack pointer overflow");
 	data_write_byte(sp, value);
 	data_write_word(SPL, sp - 1);
 }
@@ -402,6 +413,9 @@ static int pop_byte(void)
 static void push_PC(void)
 {
 	int sp = data_read_word(SPL);
+	// temporary hack to disallow growing the stack over the reserved register area
+	if (sp < 0x60)
+		leave(EXIT_STATUS_ABORTED, "stack pointer overflow");
 	data_write_byte(sp, cpu_PC & 0xFF);
 	sp--;
 	data_write_byte(sp, (cpu_PC >> 8) & 0xFF);
@@ -629,8 +643,9 @@ static void do_multiply(int rd, int rr, int signed1, int signed2, int shift)
 // handle illegal instructions
 void avr_op_ILLEGAL(int rd, int rr)
 {
-	printf("ABORTED: Illegal opcode %04x at address %04x", rr, cpu_PC);
-	leave();
+	char buf[128];
+	sprintf(buf, "illegal opcode %04x", rr);
+	leave(EXIT_STATUS_ABORTED, buf);
 }
 
 // ---------------------------------------------------------------------------------
@@ -1249,10 +1264,8 @@ static void avr_op_RJMP(int rd, int rr)
 	if (delta & 0x800) delta |= 0xFFFFF000;
 
 	// special case: endless loop usually means that the program has ended
-	if (delta == -1) {
-		printf("EXIT: normal program exit");
-		leave();
-	}
+	if (delta == -1)
+		leave(EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
 	cpu_PC += delta;
 }
 
@@ -1337,7 +1350,7 @@ static int parse_args(int argc, char *argv[])
 
 	// setup default values
 	flash_size = 128 * 1024;
-	program_cycles_limit = 2000000000;
+	max_instr_count = 1000000000;
 
 	// parse command line arguments
 	for (i = 1; i < argc; i++) {
@@ -1696,35 +1709,29 @@ static int execute(void)
 {
 	decoded_op dop;
 	opcode_data *data;
-#ifdef LOG_DUMP
-	char buf[32];
-#endif
+	dword count;
+
 	program_cycles = 0;
 	cpu_PC = 0;
 
-	while (1) {
+	for (count = 0; count < max_instr_count; count++) {
 		// fetch decoded instruction
 		dop = decoded_flash[cpu_PC];
-		if (!dop.data_index) {
-			printf("ABORTED: program counter out of range.");
-			leave();
-		}
+		if (!dop.data_index)
+			leave(EXIT_STATUS_ABORTED, "program counter out of program space");
 		// execute instruction
 		data = &opcode_func_array[dop.data_index];
-#ifdef LOG_DUMP
-		sprintf(buf, "%04x: %-5s ", cpu_PC * 2, data->hreadable);
-		log_add_data(buf);
-#endif
+		log_add_instr(data->hreadable);
 		cpu_PC += data->size;
 		add_program_cycles(data->cycles);
 		data->func(dop.oper1, dop.oper2);
-#ifdef LOG_DUMP
 		log_dump_line();
-#endif
 	}
+
+	leave(EXIT_STATUS_TIMEOUT, "instruction count limit reached");
+
 	return 0;
 }
-
 
 
 // main: as simple as it gets
