@@ -121,7 +121,9 @@ typedef struct {
 	word oper2;
 } decoded_op;
 
-typedef void (*opcode_func)(int,int);
+#define OP_FUNC_TYPE	void __attribute__((fastcall))
+
+typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 
 typedef struct {
 	opcode_func func;
@@ -365,6 +367,20 @@ static void put_reg(int address, byte value)
 	cpu_data[address] = value;
 }
 
+static int get_word_reg(int address)
+{
+	int ret = cpu_data[address] | (cpu_data[address + 1] << 8);
+	log_add_data_mov("(%s)->%04x ", address, ret);
+	return ret;
+}
+
+static void put_word_reg(int address, int value)
+{
+	log_add_data_mov("(%s)<-%04x ", address, value & 0xFFFF);
+	cpu_data[address] = value;
+	cpu_data[address + 1] = value >> 8;
+}
+
 // read a word from memory / ioport / register
 
 static int data_read_word(int address)
@@ -385,12 +401,137 @@ static void data_write_word(int address, int value)
 }
 
 // ---------------------------------------------------------------------------------
+//     flag manipulation functions
+
+static void update_flags(int flags, int new_values)
+{
+	int sreg = data_read_byte(SREG);
+	sreg = (sreg & ~flags) | new_values;
+	data_write_byte(SREG, sreg);
+}
+
+static int get_carry(void)
+{
+	return (data_read_byte(SREG) & FLAG_C) != 0;
+}
+
+// fast flag update tables to avoid conditional branches on frequently used operations
+
+#define FUT_ADD8_RES	0x01FF
+#define FUT_ADD8_V2_80	0x0200
+#define FUT_ADD8_V1_80	0x0400
+#define FUT_ADD8_V2_08	0x0800
+#define FUT_ADD8_V1_08	0x1000
+
+static byte flag_update_table_add8[8192];
+
+#define FUT_ADD_SUB_INDEX(v1,v2,res)	\
+	((((v1) & 0x08) << 9) | (((v2) & 0x08) << 8) | (((v1) & 0x80) << 3) | (((v2) & 0x80) << 2) | ((res) & 0x1FF))
+
+#define FUT_ADDSUB16_INDEX(v1, res)	\
+	( ((((v1) >> 8) & 0x80) << 3) | (((res) >> 8) & 0x1FF))
+
+#define FUT_SUB8_RES	0x01FF
+#define FUT_SUB8_V2_80	0x0200
+#define FUT_SUB8_V1_80	0x0400
+#define FUT_SUB8_V2_08	0x0800
+#define FUT_SUB8_V1_08	0x1000
+
+static byte flag_update_table_sub8[8192];
+
+static byte flag_update_table_ror8[512];
+
+static byte flag_update_table_inc[256];
+static byte flag_update_table_dec[256];
+
+static byte flag_update_table_logical[256];
+
+
+static byte update_zns_flags(int result, byte sreg)
+{
+	if ((result & 0xFF) == 0x00)
+		sreg |= FLAG_Z;
+	if (result & 0x80)
+		sreg |= FLAG_N;
+	if (((sreg & FLAG_N) != 0) != ((sreg & FLAG_V) != 0))
+		sreg |= FLAG_S;
+	return sreg;
+}
+
+static void init_flag_update_tables(void)
+{
+	int i, result, sreg;
+
+	// build flag update table for 8 bit addition
+	for (i = 0; i < 8192; i++) {
+		result = i & FUT_ADD8_RES;
+		sreg = 0;
+		if ((!(i & FUT_ADD8_V1_80) == !(i & FUT_ADD8_V2_80)) && (!(result & 0x80) != !(i & FUT_ADD8_V1_80)))
+			sreg |= FLAG_V;
+		if (result & 0x100)
+			sreg |= FLAG_C;
+		if (((i & 0x1800) == 0x1800) || ((result & 0x08) == 0 && ((i & 0x1800) != 0x0000)))
+			sreg |= FLAG_H;
+		sreg = update_zns_flags(result, sreg);
+		flag_update_table_add8[i] = sreg;
+	}
+
+	// build flag update table for 8 bit subtraction
+	for (i = 0; i < 8192; i++) {
+		result = i & FUT_SUB8_RES;
+		sreg = 0;
+		if ((!(result & 0x80) == !(i & FUT_SUB8_V2_80)) && (!(i & FUT_SUB8_V1_80) != !(i & FUT_SUB8_V2_80)))
+			sreg |= FLAG_V;
+		if (result & 0x100)
+			sreg |= FLAG_C;
+		if (((i & 0x1800) == 0x1800) || ((result & 0x08) == 0 && ((i & 0x1800) != 0x0000)))
+			sreg |= FLAG_H;
+		sreg = update_zns_flags(result, sreg);
+		flag_update_table_sub8[i] = sreg;
+	}
+
+	// build flag update table for 8 bit rotation
+	for (i = 0; i < 512; i++) {
+		result = i >> 1;
+		sreg = 0;
+		if (i & 0x01)
+			sreg |= FLAG_C;
+		if (((result & 0x80) != 0) != ((sreg & FLAG_C) != 0))
+			sreg |= FLAG_V;
+		sreg = update_zns_flags(result, sreg);
+		flag_update_table_ror8[i] = sreg;
+	}
+
+	// build flag update table for increment
+	for (i = 0; i < 256; i++) {
+		sreg = (i == 0x80) ? FLAG_V : 0;
+		sreg = update_zns_flags(i, sreg);
+		flag_update_table_inc[i] = sreg;
+	}
+
+	// build flag update table for decrement
+	for (i = 0; i < 256; i++) {
+		sreg = (i == 0x7F) ? FLAG_V : 0;
+		sreg = update_zns_flags(i, sreg);
+		flag_update_table_dec[i] = sreg;
+	}
+
+	// build flag update table for logical operations
+	for (i = 0; i < 256; i++) {
+		sreg = update_zns_flags(i, 0);
+		flag_update_table_logical[i] = sreg;
+	}
+}
+
+
+// ---------------------------------------------------------------------------------
 //     helper functions
 
 static void add_program_cycles(dword cycles)
 {
 	program_cycles += cycles;
 }
+
 
 static void push_byte(int value)
 {
@@ -442,43 +583,6 @@ static void pop_PC(void)
 	data_write_word(SPL, sp);
 }
 
-static void set_flags(int flags)
-{
-	data_write_byte(SREG, data_read_byte(SREG) | flags);
-}
-
-static void clear_flags(int flags)
-{
-	data_write_byte(SREG, data_read_byte(SREG) & (~flags));
-}
-
-static void update_flags(int flags, int new_values)
-{
-	int sreg = data_read_byte(SREG);
-	sreg &= ~flags;
-	sreg |= new_values;
-	data_write_byte(SREG, sreg);
-}
-
-
-static int get_carry(void)
-{
-	return (data_read_byte(SREG) & FLAG_C) != 0;
-}
-
-// set the appropriate flags after a basic arithmetic operation (add or sub)
-static void set_arith_8_flags(int sreg, int value1, int value2, int result)
-{
-	if (result & 0x80)
-		sreg |= FLAG_N;
-	if (result & 0xFF00)
-		sreg |= FLAG_C;
-	if (((value1 & value2) | (~result & value1) | (~result & value2)) & 0x08)
-		sreg |= FLAG_H;
-	if (((sreg & FLAG_N) != 0) != ((sreg & FLAG_V) != 0))
-		sreg |= FLAG_S;
-	update_flags(FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
-}
 
 // perform the addition and set the appropriate flags
 static void do_addition_8(int rd, int rr, int carry)
@@ -490,13 +594,8 @@ static void do_addition_8(int rd, int rr, int carry)
 
 	result = value1 + value2 + carry;
 
-	if (((value1 & 0x80) == (value2 & 0x80)) && ((result & 0x80) != (value1 & 0x80)))
-		sreg = FLAG_V;
-	else
-		sreg = 0;
-	if ((result & 0xFF) == 0x00)
-		sreg |= FLAG_Z;
-	set_arith_8_flags(sreg, value1, value2, result);
+	sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX(value1, value2, result)];
+	update_flags(FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
 	put_reg(rd, result & 0xFF);
 }
@@ -506,32 +605,18 @@ static int do_subtraction_8(int value1, int value2, int carry, int use_carry)
 {
 	int sreg, result = value1 - value2 - carry;
 
-	if (((result & 0x80) == (value2 & 0x80)) && ((value1 & 0x80) != (value2 & 0x80)))
-		sreg = FLAG_V;
-	else
-		sreg = 0;
-	if ((result & 0xFF) == 0x00) {
-		if (!use_carry || (use_carry && (data_read_byte(SREG) & FLAG_Z)))
-			sreg |= FLAG_Z;
-	}
-	set_arith_8_flags(sreg, value1, value2, result);
+	sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX(value1, value2, result)];
+	if (use_carry && ((data_read_byte(SREG) & FLAG_Z) == 0))
+		sreg &= ~FLAG_Z;
+	update_flags(FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
 	return result & 0xFF;
 }
 
 static void store_logical_result(int rd, int result)
 {
-	int sreg;
-
-	result &= 0xFF;
 	put_reg(rd, result);
-
-	sreg = 0;
-	if (result == 0)
-		sreg |= FLAG_Z;
-	if (result & 0x80)
-		sreg |= FLAG_N | FLAG_S;
-	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, sreg);
+	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, flag_update_table_logical[result]);
 }
 
 /* 10q0 qq0d dddd 1qqq | LDD */
@@ -539,7 +624,7 @@ static void store_logical_result(int rd, int result)
 static void load_indirect(int rd, int ind_register, int adjust, int displacement_bits)
 {
 	//TODO: use RAMPx registers to address more than 64kb of RAM
-	int ind_value = data_read_word(ind_register);
+	int ind_value = get_word_reg(ind_register);
 
 	if (adjust < 0)
 		ind_value += adjust;
@@ -547,13 +632,13 @@ static void load_indirect(int rd, int ind_register, int adjust, int displacement
 	if (adjust > 0)
 		ind_value += adjust;
 	if (adjust)
-		data_write_word(ind_register, ind_value);
+		put_word_reg(ind_register, ind_value);
 }
 
 static void store_indirect(int rd, int ind_register, int adjust, int displacement_bits)
 {
 	//TODO: use RAMPx registers to address more than 64kb of RAM
-	int ind_value = data_read_word(ind_register);
+	int ind_value = get_word_reg(ind_register);
 
 	if (adjust < 0)
 		ind_value += adjust;
@@ -561,18 +646,18 @@ static void store_indirect(int rd, int ind_register, int adjust, int displacemen
 	if (adjust > 0)
 		ind_value += adjust;
 	if (adjust)
-		data_write_word(ind_register, ind_value);
+		put_word_reg(ind_register, ind_value);
 }
 
 static void load_program_memory(int rd, int use_RAMPZ, int incr)
 {
-	int address = data_read_word(REGZ);
+	int address = get_word_reg(REGZ);
 	if (use_RAMPZ)
 		address |= data_read_byte(RAMPZ) << 16;
 	put_reg(rd, flash_read_byte(address));
 	if (incr) {
 		address++;
-		data_write_word(REGZ, address & 0xFFFF);
+		put_word_reg(REGZ, address & 0xFFFF);
 		if (use_RAMPZ)
 			data_write_byte(RAMPZ, address >> 16);
 	}
@@ -600,25 +685,11 @@ static void branch_on_sreg_condition(int rd, int rr, int flag_value)
 
 static void rotate_right(int rd, int value, int top_bit)
 {
-	int sreg, result;
-
-	sreg = 0;
-	if (value & 1)
-		sreg |= FLAG_C;
-	result = value >> 1;
 	if (top_bit)
-		result |= 0x80;
-	put_reg(rd, result);
+		value |= 0x100;
+	put_reg(rd, value >> 1);
 
-	if (result == 0)
-		sreg |= FLAG_Z;
-	if (result & 0x80)
-		sreg |= FLAG_N;
-	if (((sreg & FLAG_N) != 0) ^ ((sreg & FLAG_V) != 0))
-		sreg |= FLAG_S;
-	if (((sreg & FLAG_N) != 0) ^ ((sreg & FLAG_C) != 0))
-		sreg |= FLAG_V;
-	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, flag_update_table_ror8[value]);
 }
 
 static void do_multiply(int rd, int rr, int signed1, int signed2, int shift)
@@ -637,11 +708,11 @@ static void do_multiply(int rd, int rr, int signed1, int signed2, int shift)
 	if (result == 0)
 		sreg |= FLAG_Z;
 	update_flags(FLAG_Z | FLAG_C, sreg);
-	data_write_word(0, result);
+	put_word_reg(0, result);
 }
 
 // handle illegal instructions
-void avr_op_ILLEGAL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ILLEGAL(int rd, int rr)
 {
 	char buf[128];
 	sprintf(buf, "illegal opcode %04x", rr);
@@ -653,60 +724,60 @@ void avr_op_ILLEGAL(int rd, int rr)
 
 /* opcodes with no operands */
 /* 1001 0101 0001 1001 | EICALL */
-static void avr_op_EICALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_EICALL(int rd, int rr)
 {
 	avr_op_ILLEGAL(0,0x9519);
 	//TODO
 }
 
 /* 1001 0100 0001 1001 | EIJMP */
-static void avr_op_EIJMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_EIJMP(int rd, int rr)
 {
 	avr_op_ILLEGAL(0,0x9419);
 	//TODO
 }
 
 /* 1001 0101 1101 1000 | ELPM */
-static void avr_op_ELPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ELPM(int rd, int rr)
 {
 	load_program_memory(0, 1, 0);
 }
 
 /* 1001 0101 1111 1000 | ESPM */
-static void avr_op_ESPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ESPM(int rd, int rr)
 {
 	avr_op_ILLEGAL(0, 0x95F8);
 	//TODO
 }
 
 /* 1001 0101 0000 1001 | ICALL */
-static void avr_op_ICALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ICALL(int rd, int rr)
 {
 	push_PC();
-	cpu_PC = data_read_word(REGZ);
+	cpu_PC = get_word_reg(REGZ);
 	if (PC_is_22_bits)
 		add_program_cycles(1);
 }
 
 /* 1001 0100 0000 1001 | IJMP */
-static void avr_op_IJMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_IJMP(int rd, int rr)
 {
-	cpu_PC = data_read_word(REGZ);
+	cpu_PC = get_word_reg(REGZ);
 }
 
 /* 1001 0101 1100 1000 | LPM */
-static void avr_op_LPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LPM(int rd, int rr)
 {
 	load_program_memory(0, 0, 0);
 }
 
 /* 0000 0000 0000 0000 | NOP */
-static void avr_op_NOP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_NOP(int rd, int rr)
 {
 }
 
 /* 1001 0101 0000 1000 | RET */
-static void avr_op_RET(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RET(int rd, int rr)
 {
 	pop_PC();
 	if (PC_is_22_bits)
@@ -714,27 +785,27 @@ static void avr_op_RET(int rd, int rr)
 }
 
 /* 1001 0101 0001 1000 | RETI */
-static void avr_op_RETI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RETI(int rd, int rr)
 {
 	avr_op_RET(rd,rr);
-	set_flags(FLAG_I);
+	update_flags(FLAG_I, FLAG_I);
 }
 
 /* 1001 0101 1000 1000 | SLEEP */
-static void avr_op_SLEEP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SLEEP(int rd, int rr)
 {
 	// we don't have anything to wake us up, so just pretend we wake up immediately
 }
 
 /* 1001 0101 1110 1000 | SPM */
-static void avr_op_SPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SPM(int rd, int rr)
 {
 	avr_op_ILLEGAL(0,0x95E8);
 	//TODO
 }
 
 /* 1001 0101 1010 1000 | WDR */
-static void avr_op_WDR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_WDR(int rd, int rr)
 {
 	// we don't have a watchdog, so do nothing
 }
@@ -742,76 +813,76 @@ static void avr_op_WDR(int rd, int rr)
 
 /* opcodes with two 5-bit register (Rd and Rr) operands */
 /* 0001 11rd dddd rrrr | ADC or ROL */
-static void avr_op_ADC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ADC(int rd, int rr)
 {
 	do_addition_8(rd,rr,get_carry());
 }
 
 /* 0000 11rd dddd rrrr | ADD or LSL */
-static void avr_op_ADD(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ADD(int rd, int rr)
 {
 	do_addition_8(rd,rr,0);
 }
 
 /* 0010 00rd dddd rrrr | AND or TST */
-static void avr_op_AND(int rd, int rr)
+static OP_FUNC_TYPE avr_op_AND(int rd, int rr)
 {
 	int result = get_reg(rd) & get_reg(rr);
 	store_logical_result(rd,result);
 }
 
 /* 0001 01rd dddd rrrr | CP */
-static void avr_op_CP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CP(int rd, int rr)
 {
 	do_subtraction_8(get_reg(rd), get_reg(rr), 0, 0);
 }
 
 /* 0000 01rd dddd rrrr | CPC */
-static void avr_op_CPC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CPC(int rd, int rr)
 {
 	do_subtraction_8(get_reg(rd), get_reg(rr), get_carry(), 1);
 }
 
 /* 0001 00rd dddd rrrr | CPSE */
-static void avr_op_CPSE(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CPSE(int rd, int rr)
 {
 	skip_instruction_on_condition(get_reg(rd) ==  get_reg(rr));
 }
 
 /* 0010 01rd dddd rrrr | EOR or CLR */
-static void avr_op_EOR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_EOR(int rd, int rr)
 {
 	int result = get_reg(rd) ^ get_reg(rr);
 	store_logical_result(rd,result);
 }
 
 /* 0010 11rd dddd rrrr | MOV */
-static void avr_op_MOV(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MOV(int rd, int rr)
 {
 	put_reg(rd, get_reg(rr));
 }
 
 /* 1001 11rd dddd rrrr | MUL */
-static void avr_op_MUL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MUL(int rd, int rr)
 {
 	do_multiply(rd,rr,0,0,0);
 }
 
 /* 0010 10rd dddd rrrr | OR */
-static void avr_op_OR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_OR(int rd, int rr)
 {
 	int result = get_reg(rd) | get_reg(rr);
 	store_logical_result(rd, result);
 }
 
 /* 0000 10rd dddd rrrr | SBC */
-static void avr_op_SBC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBC(int rd, int rr)
 {
 	put_reg(rd, do_subtraction_8(get_reg(rd), get_reg(rr), get_carry(), 1));
 }
 
 /* 0001 10rd dddd rrrr | SUB */
-static void avr_op_SUB(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SUB(int rd, int rr)
 {
 	put_reg(rd, do_subtraction_8(get_reg(rd), get_reg(rr), 0, 0));
 }
@@ -819,214 +890,190 @@ static void avr_op_SUB(int rd, int rr)
 
 /* opcode with a single register (Rd) as operand */
 /* 1001 010d dddd 0101 | ASR */
-static void avr_op_ASR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ASR(int rd, int rr)
 {
 	int value = get_reg(rd);
 	rotate_right(rd, value, value & 0x80);
 }
 
 /* 1001 010d dddd 0000 | COM */
-static void avr_op_COM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_COM(int rd, int rr)
 {
-	int sreg, result;
-
-	result = ~get_reg(rd);
+	int result = (~get_reg(rd)) & 0xFF;
 	put_reg(rd, result);
-
-	sreg = FLAG_C;
-	if ((result & 0xFF) == 0)
-		sreg |= FLAG_Z;
-	if (result & 0x80)
-		sreg |= FLAG_N | FLAG_S;
-	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, flag_update_table_logical[result] | FLAG_C);
 }
 
 /* 1001 010d dddd 1010 | DEC */
-static void avr_op_INC_DEC(int rd, int inc)
+static OP_FUNC_TYPE avr_op_DEC(int rd, int rr)
 {
-	int sreg, value, result;
-
-	value = get_reg(rd);
-	result = (value + inc) & 0xFF;
+	int result = (get_reg(rd) - 1) & 0xFF;
 	put_reg(rd, result);
-
-	sreg = 0;
-	if (result == 0)
-		sreg |= FLAG_Z;
-	if (result & 0x80)
-		sreg |= FLAG_N;
-	if ((result & 0x80) ^ (value & 0x80))
-		sreg |= FLAG_V;
-	if (((sreg & FLAG_N) != 0) ^ ((sreg & FLAG_V) != 0))
-		sreg |= FLAG_S;
-	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, sreg);
-}
-
-static void avr_op_DEC(int rd, int rr)
-{
-	avr_op_INC_DEC(rd, -1);
+	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, flag_update_table_dec[result]);
 }
 
 /* 1001 000d dddd 0110 | ELPM */
-static void avr_op_ELPM_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ELPM_Z(int rd, int rr)
 {
 	load_program_memory(rd, 1, 0);
 }
 
 /* 1001 000d dddd 0111 | ELPM */
-static void avr_op_ELPM_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ELPM_Z_incr(int rd, int rr)
 {
 	load_program_memory(rd, 1, 1);
 }
 
 /* 1001 010d dddd 0011 | INC */
-static void avr_op_INC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_INC(int rd, int rr)
 {
-	avr_op_INC_DEC(rd, 1);
+	int result = (get_reg(rd) + 1) & 0xFF;
+	put_reg(rd, result);
+	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, flag_update_table_inc[result]);
 }
 
 /* 1001 000d dddd 0000 | LDS */
-static void avr_op_LDS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDS(int rd, int rr)
 {
 	//TODO:RAMPD
 	put_reg(rd, data_read_byte(rr));
 }
 
 /* 1001 000d dddd 1100 | LD */
-static void avr_op_LD_X(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_X(int rd, int rr)
 {
 	load_indirect(rd, REGX, 0, 0);
 }
 
 /* 1001 000d dddd 1110 | LD */
-static void avr_op_LD_X_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_X_decr(int rd, int rr)
 {
 	load_indirect(rd, REGX, -1, 0);
 }
 
 /* 1001 000d dddd 1101 | LD */
-static void avr_op_LD_X_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_X_incr(int rd, int rr)
 {
 	load_indirect(rd, REGX, 1, 0);
 }
 
 /* 1001 000d dddd 1010 | LD */
-static void avr_op_LD_Y_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Y_decr(int rd, int rr)
 {
 	load_indirect(rd, REGY, -1, 0);
 }
 
 /* 1001 000d dddd 1001 | LD */
-static void avr_op_LD_Y_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Y_incr(int rd, int rr)
 {
 	load_indirect(rd, REGY, 1, 0);
 }
 
 /* 1001 000d dddd 0010 | LD */
-static void avr_op_LD_Z_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Z_decr(int rd, int rr)
 {
 	load_indirect(rd, REGZ, -1, 0);
 }
 
 /* 1001 000d dddd 0010 | LD */
-static void avr_op_LD_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Z_incr(int rd, int rr)
 {
 	load_indirect(rd, REGZ, 1, 0);
 }
 
 /* 1001 000d dddd 0100 | LPM Z */
-static void avr_op_LPM_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LPM_Z(int rd, int rr)
 {
 	load_program_memory(rd, 0, 0);
 }
 
 /* 1001 000d dddd 0101 | LPM Z+ */
-static void avr_op_LPM_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LPM_Z_incr(int rd, int rr)
 {
 	load_program_memory(rd, 0, 1);
 }
 
 /* 1001 010d dddd 0110 | LSR */
-static void avr_op_LSR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LSR(int rd, int rr)
 {
 	rotate_right(rd, get_reg(rd), 0);
 }
 
 /* 1001 010d dddd 0001 | NEG */
-static void avr_op_NEG(int rd, int rr)
+static OP_FUNC_TYPE avr_op_NEG(int rd, int rr)
 {
 	put_reg(rd, do_subtraction_8(0, get_reg(rd), 0, 0));
 }
 
 /* 1001 000d dddd 1111 | POP */
-static void avr_op_POP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_POP(int rd, int rr)
 {
 	put_reg(rd, pop_byte());
 }
 
 /* 1001 001d dddd 1111 | PUSH */
-static void avr_op_PUSH(int rd, int rr)
+static OP_FUNC_TYPE avr_op_PUSH(int rd, int rr)
 {
 	push_byte(get_reg(rd));
 }
 
 /* 1001 010d dddd 0111 | ROR */
-static void avr_op_ROR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ROR(int rd, int rr)
 {
 	rotate_right(rd, get_reg(rd), get_carry());
 }
 
 /* 1001 001d dddd 0000 | STS */
-static void avr_op_STS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_STS(int rd, int rr)
 {
 	//TODO:RAMPD
 	data_write_byte(rr, get_reg(rd));
 }
 
 /* 1001 001d dddd 1100 | ST */
-static void avr_op_ST_X(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_X(int rd, int rr)
 {
 	store_indirect(rd, REGX, 0, 0);
 }
 
 /* 1001 001d dddd 1110 | ST */
-static void avr_op_ST_X_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_X_decr(int rd, int rr)
 {
 	store_indirect(rd, REGX, -1, 0);
 }
 
 /* 1001 001d dddd 1101 | ST */
-static void avr_op_ST_X_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_X_incr(int rd, int rr)
 {
 	store_indirect(rd, REGX, 1, 0);
 }
 
 /* 1001 001d dddd 1010 | ST */
-static void avr_op_ST_Y_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Y_decr(int rd, int rr)
 {
 	store_indirect(rd, REGY, -1, 0);
 }
 
 /* 1001 001d dddd 1001 | ST */
-static void avr_op_ST_Y_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Y_incr(int rd, int rr)
 {
 	store_indirect(rd, REGY, 1, 0);
 }
 
 /* 1001 001d dddd 0010 | ST */
-static void avr_op_ST_Z_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Z_decr(int rd, int rr)
 {
 	store_indirect(rd, REGZ, -1, 0);
 }
 
 /* 1001 001d dddd 0001 | ST */
-static void avr_op_ST_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Z_incr(int rd, int rr)
 {
 	store_indirect(rd, REGZ, 1, 0);
 }
 
 /* 1001 010d dddd 0010 | SWAP */
-static void avr_op_SWAP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SWAP(int rd, int rr)
 {
 	int value = get_reg(rd);
 	put_reg(rd, ((value << 4) & 0xF0) | ((value >> 4) & 0x0F));
@@ -1034,26 +1081,26 @@ static void avr_op_SWAP(int rd, int rr)
 
 /* opcodes with a register (Rd) and a constant data (K) as operands */
 /* 0111 KKKK dddd KKKK | CBR or ANDI */
-static void avr_op_ANDI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ANDI(int rd, int rr)
 {
 	int result = get_reg(rd) & rr;
 	store_logical_result(rd, result);
 }
 
 /* 0011 KKKK dddd KKKK | CPI */
-static void avr_op_CPI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CPI(int rd, int rr)
 {
 	do_subtraction_8(get_reg(rd), rr, 0, 0);
 }
 
 /* 1110 KKKK dddd KKKK | LDI or SER */
-static void avr_op_LDI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDI(int rd, int rr)
 {
 	put_reg(rd, rr);
 }
 
 /* 0110 KKKK dddd KKKK | SBR or ORI */
-static void avr_op_ORI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ORI(int rd, int rr)
 {
 	int result = get_reg(rd) | rr;
 	store_logical_result(rd, result);
@@ -1061,17 +1108,17 @@ static void avr_op_ORI(int rd, int rr)
 
 /* 0100 KKKK dddd KKKK | SBCI */
 /* 0101 KKKK dddd KKKK | SUBI */
-static void avr_op_SBCI_SUBI(int rd, int rr, int carry, int use_carry)
+static OP_FUNC_TYPE avr_op_SBCI_SUBI(int rd, int rr, int carry, int use_carry)
 {
 	put_reg(rd, do_subtraction_8(get_reg(rd), rr, carry, use_carry));
 }
 
-static void avr_op_SBCI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBCI(int rd, int rr)
 {
 	avr_op_SBCI_SUBI(rd, rr, get_carry(), 1);
 }
 
-static void avr_op_SUBI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SUBI(int rd, int rr)
 {
 	avr_op_SBCI_SUBI(rd, rr, 0, 0);
 }
@@ -1079,7 +1126,7 @@ static void avr_op_SUBI(int rd, int rr)
 
 /* opcodes with a register (Rd) and a register bit number (b) as operands */
 /* 1111 100d dddd 0bbb | BLD */
-static void avr_op_BLD(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BLD(int rd, int rr)
 {
 	int value = get_reg(rd);
 	if (data_read_byte(SREG) & FLAG_T)
@@ -1090,33 +1137,33 @@ static void avr_op_BLD(int rd, int rr)
 }
 
 /* 1111 101d dddd 0bbb | BST */
-static void avr_op_BST(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BST(int rd, int rr)
 {
 	int bit = get_reg(rd) & rr;
 	update_flags(FLAG_T, bit ? FLAG_T : 0);
 }
 
 /* 1111 110d dddd 0bbb | SBRC */
-static void avr_op_SBRC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBRC(int rd, int rr)
 {
 	skip_instruction_on_condition(!(get_reg(rd) & rr));
 }
 
 /* 1111 111d dddd 0bbb | SBRS */
-static void avr_op_SBRS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBRS(int rd, int rr)
 {
 	skip_instruction_on_condition(get_reg(rd) & rr);
 }
 
 /* opcodes with a relative 7-bit address (k) and a register bit number (b) as operands */
 /* 1111 01kk kkkk kbbb | BRBC */
-static void avr_op_BRBC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BRBC(int rd, int rr)
 {
 	branch_on_sreg_condition(rd, rr, 0);
 }
 
 /* 1111 00kk kkkk kbbb | BRBS */
-static void avr_op_BRBS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BRBS(int rd, int rr)
 {
 	branch_on_sreg_condition(rd, rr, 1);
 }
@@ -1124,25 +1171,25 @@ static void avr_op_BRBS(int rd, int rr)
 
 /* opcodes with a 6-bit address displacement (q) and a register (Rd) as operands */
 /* 10q0 qq0d dddd 1qqq | LDD */
-static void avr_op_LDD_Y(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDD_Y(int rd, int rr)
 {
 	load_indirect(rd, REGY, 0, rr);
 }
 
 /* 10q0 qq0d dddd 0qqq | LDD */
-static void avr_op_LDD_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDD_Z(int rd, int rr)
 {
 	load_indirect(rd, REGZ, 0, rr);
 }
 
 /* 10q0 qq1d dddd 1qqq | STD */
-static void avr_op_STD_Y(int rd, int rr)
+static OP_FUNC_TYPE avr_op_STD_Y(int rd, int rr)
 {
 	store_indirect(rd, REGY, 0, rr);
 }
 
 /* 10q0 qq1d dddd 0qqq | STD */
-static void avr_op_STD_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_STD_Z(int rd, int rr)
 {
 	store_indirect(rd, REGZ, 0, rr);
 }
@@ -1150,13 +1197,13 @@ static void avr_op_STD_Z(int rd, int rr)
 
 /* opcodes with a absolute 22-bit address (k) operand */
 /* 1001 010k kkkk 110k | JMP */
-static void avr_op_JMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_JMP(int rd, int rr)
 {
 	cpu_PC = rr | (rd << 16);
 }
 
 /* 1001 010k kkkk 111k | CALL */
-static void avr_op_CALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CALL(int rd, int rr)
 {
 	push_PC();
 	cpu_PC = rr | (rd << 16);
@@ -1169,74 +1216,75 @@ static void avr_op_CALL(int rd, int rr)
 /* BCLR takes place of CL{C,Z,N,V,S,H,T,I} */
 /* BSET takes place of SE{C,Z,N,V,S,H,T,I} */
 /* 1001 0100 1sss 1000 | BCLR */
-static void avr_op_BCLR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BCLR(int rd, int rr)
 {
-	clear_flags(rd);
+	update_flags(rd, 0);
 }
 
 /* 1001 0100 0sss 1000 | BSET */
-static void avr_op_BSET(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BSET(int rd, int rr)
 {
-	set_flags(rd);
+	update_flags(rd, rd);
 }
 
 
 /* opcodes with a 6-bit constant (K) and a register (Rd) as operands */
 /* 1001 0110 KKdd KKKK | ADIW */
-/* 1001 0111 KKdd KKKK | SBIW */
-static void avr_op_ADIW_SBIW(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ADIW(int rd, int rr)
 {
-	int delta, svalue, evalue, sreg;
+	int svalue, evalue, sreg;
 
-	delta = rr & 0x3F;
-	if (rr & 0x40)
-		delta = -delta;
+	svalue = get_word_reg(rd);
+	evalue = svalue + rr;
+	put_word_reg(rd, evalue);
 
-	svalue = data_read_word(rd);
-	evalue = svalue + delta;
-	data_write_word(rd, evalue);
+	sreg = flag_update_table_add8[FUT_ADDSUB16_INDEX(svalue, evalue)];
+	sreg &= ~FLAG_H;
+	if ((evalue & 0xFFFF) != 0x0000)
+		sreg &= ~FLAG_Z;
 
-	sreg = 0;
-	if (evalue & 0x8000)
-		sreg |= FLAG_N;
-	if ((evalue & 0xFFFF) == 0x0000)
-		sreg |= FLAG_Z;
-	if (delta < 0) {
-		if ((svalue & 0x8000) && !(evalue & 0x8000))
-			sreg |= FLAG_V;
-	} else {
-		if (!(svalue & 0x8000) && (evalue & 0x8000))
-			sreg |= FLAG_V;
-	}
-	if (evalue & 0xFFFF0000)
-		sreg |= FLAG_C;
-	if (((sreg & FLAG_N) != 0) ^ ((sreg & FLAG_V) != 0))
-		sreg |= FLAG_S;
+	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+}
+
+/* 1001 0111 KKdd KKKK | SBIW */
+static OP_FUNC_TYPE avr_op_SBIW(int rd, int rr)
+{
+	int svalue, evalue, sreg;
+
+	svalue = get_word_reg(rd);
+	evalue = svalue - rr;
+	put_word_reg(rd, evalue);
+
+	sreg = flag_update_table_sub8[FUT_ADDSUB16_INDEX(svalue, evalue)];
+	sreg &= ~FLAG_H;
+	if ((evalue & 0xFFFF) != 0x0000)
+		sreg &= ~FLAG_Z;
+
 	update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 }
 
 
 /* opcodes with a 5-bit IO Addr (A) and register bit number (b) as operands */
 /* 1001 1000 AAAA Abbb | CBI */
-static void avr_op_CBI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CBI(int rd, int rr)
 {
 	data_write_byte(rd, data_read_byte(rd) & ~(rr));
 }
 
 /* 1001 1010 AAAA Abbb | SBI */
-static void avr_op_SBI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBI(int rd, int rr)
 {
 	data_write_byte(rd, data_read_byte(rd) | rr);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC */
-static void avr_op_SBIC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBIC(int rd, int rr)
 {
 	skip_instruction_on_condition(!(data_read_byte(rd) & rr));
 }
 
 /* 1001 1011 AAAA Abbb | SBIS */
-static void avr_op_SBIS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBIS(int rd, int rr)
 {
 	skip_instruction_on_condition(data_read_byte(rd) & rr);
 }
@@ -1244,13 +1292,13 @@ static void avr_op_SBIS(int rd, int rr)
 
 /* opcodes with a 6-bit IO Addr (A) and register (Rd) as operands */
 /* 1011 0AAd dddd AAAA | IN */
-static void avr_op_IN(int rd, int rr)
+static OP_FUNC_TYPE avr_op_IN(int rd, int rr)
 {
 	put_reg(rd, data_read_byte(rr));
 }
 
 /* 1011 1AAd dddd AAAA | OUT */
-static void avr_op_OUT(int rd, int rr)
+static OP_FUNC_TYPE avr_op_OUT(int rd, int rr)
 {
 	data_write_byte(rr, get_reg(rd));
 }
@@ -1258,7 +1306,7 @@ static void avr_op_OUT(int rd, int rr)
 
 /* opcodes with a relative 12-bit address (k) operand */
 /* 1100 kkkk kkkk kkkk | RJMP */
-static void avr_op_RJMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RJMP(int rd, int rr)
 {
 	int delta = rr;
 	if (delta & 0x800) delta |= 0xFFFFF000;
@@ -1270,7 +1318,7 @@ static void avr_op_RJMP(int rd, int rr)
 }
 
 /* 1101 kkkk kkkk kkkk | RCALL */
-static void avr_op_RCALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RCALL(int rd, int rr)
 {
 	int delta = rr;
 	if (delta & 0x800) delta |= 0xFFFFF000;
@@ -1284,38 +1332,38 @@ static void avr_op_RCALL(int rd, int rr)
 
 /* opcodes with two 4-bit register (Rd and Rr) operands */
 /* 0000 0001 dddd rrrr | MOVW */
-static void avr_op_MOVW(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MOVW(int rd, int rr)
 {
-	data_write_word(rd, data_read_word(rr));
+	put_word_reg(rd, get_word_reg(rr));
 }
 
 /* 0000 0010 dddd rrrr | MULS */
-static void avr_op_MULS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MULS(int rd, int rr)
 {
 	do_multiply(rd, rr, 1, 1, 0);
 }
 
 /* opcodes with two 3-bit register (Rd and Rr) operands */
 /* 0000 0011 0ddd 0rrr | MULSU */
-static void avr_op_MULSU(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MULSU(int rd, int rr)
 {
 	do_multiply(rd, rr, 1, 0, 0);
 }
 
 /* 0000 0011 0ddd 1rrr | FMUL */
-static void avr_op_FMUL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_FMUL(int rd, int rr)
 {
 	do_multiply(rd, rr, 0, 0, 1);
 }
 
 /* 0000 0011 1ddd 0rrr | FMULS */
-static void avr_op_FMULS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_FMULS(int rd, int rr)
 {
 	do_multiply(rd, rr, 1, 1, 1);
 }
 
 /* 0000 0011 1ddd 1rrr | FMULSU */
-static void avr_op_FMULSU(int rd, int rr)
+static OP_FUNC_TYPE avr_op_FMULSU(int rd, int rr)
 {
 	do_multiply(rd, rr, 1, 0, 1);
 }
@@ -1350,7 +1398,8 @@ static int parse_args(int argc, char *argv[])
 
 	// setup default values
 	flash_size = 128 * 1024;
-	max_instr_count = 1000000000;
+	//max_instr_count = 1000000000;
+	max_instr_count = 0;
 
 	// parse command line arguments
 	for (i = 1; i < argc; i++) {
@@ -1385,8 +1434,8 @@ opcode_data opcode_func_array[] = {
 
 	[avr_op_index_ADC] =       { avr_op_ADC,         1, 1, "ADC"     },
 	[avr_op_index_ADD] =       { avr_op_ADD,         1, 1, "ADD"     },
-	[avr_op_index_ADIW] =      { avr_op_ADIW_SBIW,   1, 2, "ADIW"    },
-	[avr_op_index_SBIW] =      { avr_op_ADIW_SBIW,   1, 2, "SBIW"    },
+	[avr_op_index_ADIW] =      { avr_op_ADIW,        1, 2, "ADIW"    },
+	[avr_op_index_SBIW] =      { avr_op_SBIW,        1, 2, "SBIW"    },
 	[avr_op_index_AND] =       { avr_op_AND,         1, 1, "AND"     },
 	[avr_op_index_ANDI] =      { avr_op_ANDI,        1, 1, "ANDI"    },
 	[avr_op_index_ASR] =       { avr_op_ASR,         1, 1, "ASR"     },
@@ -1626,7 +1675,7 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
 
 	/* opcodes with a 6-bit constant (K) and a register (Rd) as operands */
 	op->oper1 = ((opcode1 >> 3) & 0x06) + 24;
-	op->oper2 = ((opcode1 & 0xF) | ((opcode1 >> 2) & 0x70));
+	op->oper2 = ((opcode1 & 0xF) | ((opcode1 >> 2) & 0x30));
 	decode = opcode1 & ~(mask_K_6 | mask_Rd_2);
 	switch ( decode ) {
 		case 0x9600: return avr_op_index_ADIW;        /* 1001 0110 KKdd KKKK | ADIW */
@@ -1701,37 +1750,45 @@ static void decode_flash(void)
 	}
 }
 
-
 // ---------------------------------------------------------------------------------
 //     main execution loop
 
-static int execute(void)
+static void do_step(void)
 {
 	decoded_op dop;
 	opcode_data *data;
+
+	// fetch decoded instruction
+	dop = decoded_flash[cpu_PC];
+	if (!dop.data_index)
+		leave(EXIT_STATUS_ABORTED, "program counter out of program space");
+
+	// execute instruction
+	data = &opcode_func_array[dop.data_index];
+	log_add_instr(data->hreadable);
+	cpu_PC += data->size;
+	add_program_cycles(data->cycles);
+	data->func(dop.oper1, dop.oper2);
+	log_dump_line();
+}
+
+static void execute(void)
+{
 	dword count;
 
 	program_cycles = 0;
 	cpu_PC = 0;
 
-	for (count = 0; count < max_instr_count; count++) {
-		// fetch decoded instruction
-		dop = decoded_flash[cpu_PC];
-		if (!dop.data_index)
-			leave(EXIT_STATUS_ABORTED, "program counter out of program space");
-		// execute instruction
-		data = &opcode_func_array[dop.data_index];
-		log_add_instr(data->hreadable);
-		cpu_PC += data->size;
-		add_program_cycles(data->cycles);
-		data->func(dop.oper1, dop.oper2);
-		log_dump_line();
+	if (!max_instr_count) {
+		for (;;)
+			do_step();
+	} else {
+		for (count = 0; count < max_instr_count; count++)
+			do_step();
+		leave(EXIT_STATUS_TIMEOUT, "instruction count limit reached");
 	}
-
-	leave(EXIT_STATUS_TIMEOUT, "instruction count limit reached");
-
-	return 0;
 }
+
 
 
 // main: as simple as it gets
@@ -1740,7 +1797,10 @@ int main(int argc, char *argv[])
 	if (parse_args(argc, argv))
 		return 1;
 
-	decode_flash();
+	init_flag_update_tables();
 
-	return execute();
+	decode_flash();
+	execute();
+
+	return 0;
 }
