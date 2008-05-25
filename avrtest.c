@@ -183,8 +183,11 @@ static int PC_is_22_bits;
 // maximum number of executed instructions (used as a timeout)
 static dword max_instr_count;
 
+// Initialize sram from .data segment.
+static int flag_initialize_sram;
+
 // filename of the file being executed
-static char program_name[256];
+static const char *program_name;
 static int program_size;
 
 // ---------------------------------------------------------------------------------
@@ -1370,30 +1373,175 @@ static OP_FUNC_TYPE avr_op_FMULSU(int rd, int rr)
 
 
 // ---------------------------------------------------------------------------------
+//     ELF loader.
+
+typedef uint16_t Elf32_Half;
+typedef uint32_t Elf32_Word;
+typedef uint32_t Elf32_Addr;
+typedef uint32_t Elf32_Off;
+
+#define EI_NIDENT 16
+typedef struct
+{
+  unsigned char e_ident[EI_NIDENT];	/* Magic number and other info */
+  Elf32_Half    e_type;                 /* Object file type */
+  Elf32_Half    e_machine;              /* Architecture */
+  Elf32_Word    e_version;              /* Object file version */
+  Elf32_Addr    e_entry;                /* Entry point virtual address */
+  Elf32_Off     e_phoff;                /* Program header table file offset */
+  Elf32_Off     e_shoff;                /* Section header table file offset */
+  Elf32_Word    e_flags;                /* Processor-specific flags */
+  Elf32_Half    e_ehsize;               /* ELF header size in bytes */
+  Elf32_Half    e_phentsize;            /* Program header table entry size */
+  Elf32_Half    e_phnum;                /* Program header table entry count */
+  Elf32_Half    e_shentsize;            /* Section header table entry size */
+  Elf32_Half    e_shnum;                /* Section header table entry count */
+  Elf32_Half    e_shstrndx;             /* Section header string table index */
+} Elf32_Ehdr;
+
+typedef struct
+{
+  Elf32_Word    p_type;                 /* Segment type */
+  Elf32_Off     p_offset;               /* Segment file offset */
+  Elf32_Addr    p_vaddr;                /* Segment virtual address */
+  Elf32_Addr    p_paddr;                /* Segment physical address */
+  Elf32_Word    p_filesz;               /* Segment size in file */
+  Elf32_Word    p_memsz;                /* Segment size in memory */
+  Elf32_Word    p_flags;                /* Segment flags */
+  Elf32_Word    p_align;                /* Segment alignment */
+} Elf32_Phdr;
+
+#define EI_CLASS 4
+#define ELFCLASS32 1
+
+#define EI_DATA 5
+#define ELFDATA2LSB 1
+
+#define EI_VERSION 5
+#define EV_CURRENT 1
+
+#define ET_EXEC 2
+#define EM_AVR 0x53
+
+#define PT_LOAD 1
+
+#define DATA_VADDR 0x800000
+
+static Elf32_Half get_elf32_half (Elf32_Half *v)
+{
+	unsigned char *p = (unsigned char *)v;
+	return p[0] | (p[1] << 8);
+}
+
+static Elf32_Word get_elf32_word (Elf32_Word *v)
+{
+	unsigned char *p = (unsigned char *)v;
+	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
+static void load_elf(FILE *f)
+{
+	Elf32_Ehdr ehdr;
+	Elf32_Phdr phdr[16];
+	int nbr_phdr;
+	int i;
+	size_t res;
+	
+	rewind(f);
+	if (fread(&ehdr, sizeof(ehdr), 1, f) != 1)
+		leave(EXIT_STATUS_ABORTED, "can't read ELF header");
+	if (ehdr.e_ident[EI_CLASS] != ELFCLASS32
+	    || ehdr.e_ident[EI_DATA] != ELFDATA2LSB
+	    || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
+		leave(EXIT_STATUS_ABORTED, "bad ELF header");
+	if (get_elf32_half (&ehdr.e_type) != ET_EXEC
+	    || get_elf32_half(&ehdr.e_machine) != EM_AVR
+	    || get_elf32_word(&ehdr.e_version) != EV_CURRENT
+	    || get_elf32_half(&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
+		leave(EXIT_STATUS_ABORTED, "ELF file is not an AVR executable");
+
+	nbr_phdr = get_elf32_half(&ehdr.e_phnum);
+	if ((unsigned)nbr_phdr > sizeof(phdr)/sizeof(*phdr))
+		leave(EXIT_STATUS_ABORTED, "ELF file contains too many PHDR");
+
+	if (fseek (f, get_elf32_word(&ehdr.e_phoff), SEEK_SET) != 0)
+		leave(EXIT_STATUS_ABORTED, "ELF file truncated");
+	res = fread(phdr, sizeof(Elf32_Phdr), nbr_phdr, f);
+	if (res != (size_t)nbr_phdr)
+		leave(EXIT_STATUS_ABORTED, "can't read PHDRs of ELF file");
+	for (i = 0; i < nbr_phdr; i++) {
+		Elf32_Addr addr = get_elf32_word(&phdr[i].p_paddr);
+		Elf32_Addr vaddr = get_elf32_word(&phdr[i].p_vaddr);
+		Elf32_Word filesz = get_elf32_word(&phdr[i].p_filesz);
+		Elf32_Word memsz= get_elf32_word(&phdr[i].p_memsz);
+		
+		if (get_elf32_word (&phdr[i].p_type) != PT_LOAD)
+			continue;
+		if (filesz == 0)
+			continue;
+		/* if (verbose)
+		   printf ("Load 0x%06x - 0x%06x\n",
+		   (unsigned)addr, (unsigned)(addr + memsz)); */
+		if (addr + memsz > MAX_FLASH_SIZE)
+			leave(EXIT_STATUS_ABORTED,
+			      "program too big to fit in flash");
+		if (fseek (f, get_elf32_word(&phdr[i].p_offset), SEEK_SET) != 0)
+			leave(EXIT_STATUS_ABORTED, "ELF file truncated");
+		if (fread(cpu_flash + addr, filesz, 1, f) != 1)
+			leave(EXIT_STATUS_ABORTED, "ELF file truncated");
+		/* Also copy in SRAM.  */
+		if (flag_initialize_sram && vaddr >= DATA_VADDR)
+			memcpy(cpu_data + vaddr - DATA_VADDR,
+			       cpu_flash + addr, filesz);
+		/* No need to clear memory.  */
+		if ((int)(addr + memsz) > program_size)
+			program_size = addr + memsz;
+	}
+}
+
+// ----------------------------------------------------------------------------
 //     parse command line arguments
 
-static int load_to_flash(const char *filename)
+static void load_to_flash(const char *filename)
 {
 	FILE *fp;
+	char buf[EI_NIDENT];
+	size_t len;
 
 	fp = fopen(filename, "rb");
-	if (!fp) {
-		perror(filename);
-		return 1;
+	if (!fp)
+		leave(EXIT_STATUS_ABORTED, "can't open program file");
+
+	len = fread(buf, 1, sizeof (buf), fp);
+	if (len == sizeof(buf)
+	    && buf[0] == 0x7f
+	    && buf[1] == 'E'
+	    && buf[2] == 'L'
+	    && buf[3] == 'F') {
+		load_elf(fp);
 	}
-	program_size = fread(cpu_flash, 1, MAX_FLASH_SIZE, fp);
+	else {
+	     rewind(fp);
+	     program_size = fread(cpu_flash, 1, MAX_FLASH_SIZE, fp);
+	}
 	fclose(fp);
 
 	// keep the program name, so that it can be used later in output messages
-	strncpy(program_name, filename, sizeof(program_name));
-	program_name[sizeof(program_name) - 1] = '\0';
-
-	return 0;
+	program_name = filename;
 }
 
-static int parse_args(int argc, char *argv[])
+
+static void usage (void)
 {
-	char buffer[600];
+     printf("usage: avrtest [-d] [-m maxcount] program\n");
+     printf("Options:\n"
+	    "  -d           Initialize SRAM from .data (for ELF program)\n"
+	    "  -m maxcount  Execute at most maxcount instructions\n");
+     leave(EXIT_STATUS_ABORTED, "command line error");
+}
+
+static void parse_args(int argc, char *argv[])
+{
 	int i;
 
 	// setup default values
@@ -1403,26 +1551,34 @@ static int parse_args(int argc, char *argv[])
 
 	// parse command line arguments
 	for (i = 1; i < argc; i++) {
-		if (*argv[i] != '-') {
-			if (load_to_flash(argv[i]))
-				return 1;
-
-			// handle elf files
-			if (memcmp(cpu_flash, "\177ELF", 4) == 0 && strlen(argv[i]) < 256) {
-				sprintf(buffer, "avr-objcopy -j .text -j .data -O binary %s %s.bin", argv[i], argv[i]);
-				system(buffer);
-				sprintf(buffer, "%s.bin", argv[i]);
-				if (load_to_flash(buffer))
-					return 1;
+		if (argv[i][0] == '-' && argv[i][1] && argv[i][2] == 0) {
+			switch (argv[i][1]) {
+			case 'd':
+				flag_initialize_sram = 1;
+				break;
+			case 'm':
+				i++;
+				if (i >= argc)
+					usage();
+				max_instr_count = strtoul(argv[i], NULL, 0);
+				break;
+			default:
+				usage();
 			}
-			continue;
+		}
+		else {
+			if (argv[i][0] != '-') {
+				if (program_name != NULL)
+					usage();
+				load_to_flash(argv[i]);
+			}
+			else
+				usage();
 		}
 	}
 
 	// setup auxiliary flags
 	PC_is_22_bits = (flash_size > 128 * 1024);
-
-	return 0;
 }
 
 
@@ -1794,8 +1950,7 @@ static void execute(void)
 // main: as simple as it gets
 int main(int argc, char *argv[])
 {
-	if (parse_args(argc, argv))
-		return 1;
+	parse_args(argc, argv);
 
 	init_flag_update_tables();
 

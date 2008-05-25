@@ -1,0 +1,5 @@
+2008-05-21  Tristan Gingold  <gingold@adacore.com>
+
+	* avrtest.c: Add ELF support. Add command-line option (-d) to initialize 
+	SRAM from .data (for ELF program). Add command-line option (-m) to limit the 
+	number of instructions executed.
