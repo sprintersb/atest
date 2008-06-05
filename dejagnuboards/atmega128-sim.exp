@@ -12,7 +12,7 @@ proc sim_load {dest prog args} {
        perror "$prog does not exist."
        return [list "untested" ""]
    }
-   set result [exec avrtest $prog]
+   set result [exec avrtest -m 1000000000 $prog]
 #
 # The variable $result now contains the output of the run-atmega128 script.
 # 
