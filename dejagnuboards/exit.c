@@ -41,6 +41,7 @@ int putchar_exit_c(char c, FILE *stream) __attribute__((no_instrument_function))
 int putchar_exit_c(char c, FILE *stream)
 {
 	*((volatile unsigned char *) STDIO_PORT) = c;
+	stream=stream; /* Avoid unused warning message*/
 	return 0;
 }
 
@@ -65,10 +66,12 @@ void exit(int code) __attribute__ ((naked));
 void exit(int code) 
 {
 	*((volatile unsigned char *) EXIT_PORT) = code;
+	for(;;);
 }
 
 void abort (void) __attribute__ ((naked));
 void abort (void)
 {
 	*((volatile unsigned char *) ABORT_PORT) = 1;
+	for(;;);
 }

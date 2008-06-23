@@ -8,11 +8,11 @@ load_generic_config "sim"
 
 proc sim_load {dest prog args} {
    # check whether the file with the avr-executable exists.
-   if ![file exists $prog] then {
-       perror "$prog does not exist."
-       return [list "untested" ""]
-   }
-   set result [exec avrtest -m 1000000000 $prog]
+   #if ![file exists $prog] then {
+   #    perror "$prog does not exist."
+   #    return [list "untested" ""]
+   #}
+   set result [exec avrtest -m 2000000000 $prog]
 #
 # The variable $result now contains the output of the run-atmega128 script.
 # 
@@ -59,11 +59,14 @@ set_board_info compiler  "[find_gcc]"
 # checking compliance of IEEE floating point.
 # we do not have signal.h and, thus, define this symbol. 
 set_board_info cflags  " -DSIGNAL_SUPPRESS -mmcu=atmega128 "
-set_board_info gcc,stack_size 400
+set_board_info gcc,stack_size 2048
 set_board_info gcc,no_trampolines 1
 set_board_info gcc,no_pch_tests 1
-set_board_info ldflags "/home/pmarques/dejagnuboards/exit.c -Wl,-u,vfprintf -lprintf_flt"
+set_board_info ldflags "/home/pmarques/dejagnuboards/exit.c -Wl,-u,vfprintf -lprintf_flt -Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff" 
 
+# Restrict compatibility tests. And optimise to reduce size.
+set COMPAT_SKIPS [list {VA} {COMPLEX_INT}]
+set COMPAT_OPTIONS [list [list {-Os -mno-interrupts  -mcall-prologues} {-Os -mno-interrupts  -mcall-prologues}]]
 # No linker script needed - the simulator is the main environment for this
 # target.
 set_board_info ldscript ""

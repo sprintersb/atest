@@ -1,12 +1,23 @@
+2008-06-22  Andy Hutchinson   <hutchinsonandy@aim.com>
+
+	* exit.c (exit): Make no return. (abort): Likewise.
+	(putchar): Touch argument to prevent unused warning.
+
+	* atmega128-sim.exp: Remove redundant file missing check. 
+	Increase RAM and stack size.
+	Set Compat options to restrict compatibility tests and optimize to 
+	reduce size. 
+	Extend simulation  time limit.
+
 2008-06-04  Eric B. Weddington  <eric.weddington@atmel.com>
 
-        * avrtest.c: Add include of <stdint.h>. This allows it to be built
-        with MinGW again.
+	* avrtest.c: Add include of <stdint.h>. This allows it to be built
+	with MinGW again.
 
 2008-06-04  Eric B. Weddington  <eric.weddington@atmel.com>
 
-        * dejagnuboards/atmega128-sim.exp: Specify command line instruction 
-        limit by adding -m switch. Suggestion from Andy Hutchinson.
+	* dejagnuboards/atmega128-sim.exp: Specify command line instruction 
+	limit by adding -m switch. Suggestion from Andy Hutchinson.
 
 2008-05-21  Tristan Gingold  <gingold@adacore.com>
 
