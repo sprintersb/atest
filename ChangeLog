@@ -1,3 +1,9 @@
+2008-06-26  Tristan Gingold  <gingold@adacore.com>
+
+	* avrtest.c: Add support for multiple architecture.  Add command-line
+	option -mmcu=ARCH to select the architecture.  Help updated.
+	Add support for avr6 instructions: eijmp, eicall.
+
 2008-06-22  Andy Hutchinson   <hutchinsonandy@aim.com>
 
 	* exit.c (exit): Make no return. (abort): Likewise.

@@ -29,10 +29,10 @@
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------------
-//     configuration values
+//     configuration values (in bytes).
 
 #define MAX_RAM_SIZE	 64 * 1024
-#define MAX_FLASH_SIZE  256 * 1024
+#define MAX_FLASH_SIZE  256 * 1024	// Must be at least 128KB
 
 // ---------------------------------------------------------------------------------
 //     register and port definitions
@@ -62,6 +62,34 @@
 #define FLAG_N	0x04
 #define FLAG_Z	0x02
 #define FLAG_C	0x01
+
+struct arch_desc {
+	// Name of the architecture.
+	const char *name;
+	// True if PC is 3 bytes, false if only 2 bytes.
+	unsigned char pc_3bytes;
+	// True if the architecture has EIND related insns (EICALL/EIJMP).
+	unsigned char has_eind;
+};
+
+// List of supported archs with their features.
+const struct arch_desc arch_descs[] =
+{
+	{ 
+	  .name = "avr51",
+	  .pc_3bytes = 0,
+	  .has_eind = 0
+	},
+	{
+	  .name = "avr6",
+	  .pc_3bytes = 1,
+	  .has_eind = 1
+	},
+	{ NULL, 0, 0}
+};
+
+const struct arch_desc *arch = &arch_descs[0];
+
 
 enum decoder_operand_masks {
 	/** 2 bit register id  ( R24, R26, R28, R30 ) */
@@ -172,14 +200,13 @@ enum {
 	avr_op_index_WDR,
 };
 
-extern opcode_data opcode_func_array[];
+extern const opcode_data opcode_func_array[];
 
 // ---------------------------------------------------------------------------------
 // vars that hold core definitions
 
 // configured flash size
-static int flash_size;
-static int PC_is_22_bits;
+static unsigned int flash_addr_mask;
 
 // maximum number of executed instructions (used as a timeout)
 static dword max_instr_count;
@@ -189,7 +216,7 @@ static int flag_initialize_sram;
 
 // filename of the file being executed
 static const char *program_name;
-static int program_size;
+static unsigned int program_size;
 
 // ---------------------------------------------------------------------------------
 // vars that hold simulator state. These are kept as global vars for simplicity
@@ -223,7 +250,10 @@ static void log_add_data(char *data)
 static void log_add_instr(const char *instr)
 {
 	char buf[32];
-	sprintf(buf, "%04x: %-5s ", cpu_PC * 2, instr);
+	if (arch->pc_3bytes)
+		sprintf(buf, "%06x: %-5s ", cpu_PC * 2, instr);
+	else
+		sprintf(buf, "%04x: %-5s ", cpu_PC * 2, instr);
 	log_add_data(buf);
 }
 
@@ -289,9 +319,10 @@ static void leave(int status, const char *reason)
 		" exit status: %s\n"
 		"      reason: %s\n"
 		"     program: %s\n"
-		"exit address: %04x\n"
+		"exit address: %06x\n"
 		"total cycles: %u\n\n",
-		exit_status_text[status], reason, program_name,
+		exit_status_text[status], reason,
+	       program_name ? program_name : "-not set-",
 		cpu_PC * 2, program_cycles);
 	exit(0);
 }
@@ -331,7 +362,7 @@ static void data_write_byte_raw(int address, int value)
 
 static int flash_read_byte(int address)
 {
-	address %= flash_size;
+	address &= flash_addr_mask;
 	// add code here to handle special events
 	return cpu_flash[address];
 }
@@ -565,7 +596,7 @@ static void push_PC(void)
 	sp--;
 	data_write_byte(sp, (cpu_PC >> 8) & 0xFF);
 	sp--;
-	if (PC_is_22_bits) {
+	if (arch->pc_3bytes) {
 	        data_write_byte(sp, (cpu_PC >> 16) & 0xFF);
 		sp--;
         }
@@ -575,7 +606,7 @@ static void push_PC(void)
 static void pop_PC(void)
 {
 	int sp = data_read_word(SPL);
-	if (PC_is_22_bits) {
+	if (arch->pc_3bytes) {
 		sp++;
 		cpu_PC = data_read_byte(sp) << 16;
 	} else
@@ -730,15 +761,24 @@ static OP_FUNC_TYPE avr_op_ILLEGAL(int rd, int rr)
 /* 1001 0101 0001 1001 | EICALL */
 static OP_FUNC_TYPE avr_op_EICALL(int rd, int rr)
 {
-	avr_op_ILLEGAL(0,0x9519);
-	//TODO
+	if (arch->has_eind) {
+		push_PC();
+		cpu_PC = data_read_word(REGZ) | (data_read_byte(EIND) << 16);
+	}
+	else {
+		avr_op_ILLEGAL(0,0x9519);
+	}
 }
 
 /* 1001 0100 0001 1001 | EIJMP */
 static OP_FUNC_TYPE avr_op_EIJMP(int rd, int rr)
 {
-	avr_op_ILLEGAL(0,0x9419);
-	//TODO
+	if (arch->has_eind) {
+		cpu_PC = data_read_word(REGZ) | (data_read_byte(EIND) << 16);
+	}
+	else {
+		avr_op_ILLEGAL(0,0x9419);
+	}
 }
 
 /* 1001 0101 1101 1000 | ELPM */
@@ -759,7 +799,7 @@ static OP_FUNC_TYPE avr_op_ICALL(int rd, int rr)
 {
 	push_PC();
 	cpu_PC = get_word_reg(REGZ);
-	if (PC_is_22_bits)
+	if (arch->pc_3bytes)
 		add_program_cycles(1);
 }
 
@@ -784,7 +824,7 @@ static OP_FUNC_TYPE avr_op_NOP(int rd, int rr)
 static OP_FUNC_TYPE avr_op_RET(int rd, int rr)
 {
 	pop_PC();
-	if (PC_is_22_bits)
+	if (arch->pc_3bytes)
 		add_program_cycles(1);
 }
 
@@ -1211,7 +1251,7 @@ static OP_FUNC_TYPE avr_op_CALL(int rd, int rr)
 {
 	push_PC();
 	cpu_PC = rr | (rd << 16);
-	if (PC_is_22_bits)
+	if (arch->pc_3bytes)
 		add_program_cycles(1);
 }
 
@@ -1329,7 +1369,7 @@ static OP_FUNC_TYPE avr_op_RCALL(int rd, int rr)
 
 	push_PC();
 	cpu_PC += delta;
-	if (PC_is_22_bits)
+	if (arch->pc_3bytes)
 		add_program_cycles(1);
 }
 
@@ -1495,7 +1535,7 @@ static void load_elf(FILE *f)
 			memcpy(cpu_data + vaddr - DATA_VADDR,
 			       cpu_flash + addr, filesz);
 		/* No need to clear memory.  */
-		if ((int)(addr + memsz) > program_size)
+		if ((unsigned)(addr + memsz) > program_size)
 			program_size = addr + memsz;
 	}
 }
@@ -1526,18 +1566,22 @@ static void load_to_flash(const char *filename)
 	     program_size = fread(cpu_flash, 1, MAX_FLASH_SIZE, fp);
 	}
 	fclose(fp);
-
-	// keep the program name, so that it can be used later in output messages
-	program_name = filename;
 }
 
 
 static void usage (void)
 {
-     printf("usage: avrtest [-d] [-m maxcount] program\n");
+     const struct arch_desc *d;
+
+     printf("usage: avrtest [-d] [-m MAXCOUNT] [-mmcu=ARCH] program\n");
      printf("Options:\n"
 	    "  -d           Initialize SRAM from .data (for ELF program)\n"
-	    "  -m maxcount  Execute at most maxcount instructions\n");
+	    "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
+	    "  -mmcu=ARCH    Select instruction set for ARCH\n"
+	    "    ARCH is one of:");
+     for (d = arch_descs; d->name; d++)
+	  printf ("%c%s", (d == arch_descs) ? ' ' : ',', d->name);
+     printf ("\n");
      leave(EXIT_STATUS_ABORTED, "command line error");
 }
 
@@ -1545,48 +1589,58 @@ static void parse_args(int argc, char *argv[])
 {
 	int i;
 
-	// setup default values
-	flash_size = 128 * 1024;
 	//max_instr_count = 1000000000;
 	max_instr_count = 0;
 
 	// parse command line arguments
 	for (i = 1; i < argc; i++) {
-		if (argv[i][0] == '-' && argv[i][1] && argv[i][2] == 0) {
-			switch (argv[i][1]) {
-			case 'd':
-				flag_initialize_sram = 1;
-				break;
-			case 'm':
-				i++;
-				if (i >= argc)
-					usage();
-				max_instr_count = strtoul(argv[i], NULL, 0);
-				break;
-			default:
+		//  Use naive but very portable method to decode arguments.
+		if (strcmp(argv[i], "-d") == 0) {
+			flag_initialize_sram = 1;
+		}
+		else if (strcmp(argv[i], "-m") == 0) {
+			i++;
+			if (i >= argc)
 				usage();
-			}
+			max_instr_count = strtoul(argv[i], NULL, 0);
+		}
+		else if (strncmp(argv[i], "-mmcu=", 6) == 0) {
+			const struct arch_desc *d;
+			for (d = arch_descs; d->name; d++)
+				if (strcmp(argv[i] + 6, d->name) == 0) {
+					arch = d;
+					break;
+				}
+			if (d->name == NULL)
+				usage();
 		}
 		else {
-			if (argv[i][0] != '-') {
-				if (program_name != NULL)
-					usage();
-				load_to_flash(argv[i]);
-			}
-			else
+			if (program_name != NULL)
 				usage();
+			program_name = argv[i];
 		}
 	}
 
-	// setup auxiliary flags
-	PC_is_22_bits = (flash_size > 128 * 1024);
+	// setup default values
+	flash_addr_mask = (arch->pc_3bytes ? MAX_FLASH_SIZE : (1 << 17)) - 1;
+
+
+	if (program_name == NULL)
+	     usage();
+	load_to_flash(program_name);
+
+	if (program_size & (~flash_addr_mask)) {
+		fprintf(stderr, "program is too large (size: %u, max: %u)\n",
+			program_size, flash_addr_mask + 1);
+		leave(EXIT_STATUS_ABORTED, "program too large");
+	}
 }
 
 
 // ---------------------------------------------------------------------------------
 //     flash pre-decoding functions
 
-opcode_data opcode_func_array[] = {
+const opcode_data opcode_func_array[] = {
 	[avr_op_index_dummy] = {NULL,0,0,NULL},	// dummy entry to guarantee that "zero" is an invalid function
 
 	[avr_op_index_ADC] =       { avr_op_ADC,         1, 1, "ADC"     },
@@ -1898,7 +1952,7 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
 static void decode_flash(void)
 {
 	word opcode1, opcode2;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < program_size; i += 2) {
 		opcode1 = cpu_flash[i] | (cpu_flash[i + 1] << 8);
@@ -1913,8 +1967,8 @@ static void decode_flash(void)
 static void do_step(void)
 {
 	decoded_op dop;
-	opcode_data *data;
-
+	const opcode_data *data;
+	
 	// fetch decoded instruction
 	dop = decoded_flash[cpu_PC];
 	if (!dop.data_index)
