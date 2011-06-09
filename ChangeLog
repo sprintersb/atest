@@ -1,3 +1,18 @@
+2011-06-08  Georg-Johann Lay  <avr@gjlay.de>
+
+	* Makefile: Rewritten.
+	* avrtest.h: New file.
+	* avrtest.c: Include "avrtest.h"
+	(flag_have_stdin, flag_have_stdout): New variables.
+	(pargs_args): Unset them on "-no-stdin" resp. "-no-stdout".
+	(data_read_byte_raw): Use flag_have_stdin.
+	(data_write_byte_raw): Use flag_have_stdout.
+	(usage): Document new command line options -no-stdin and
+	-no-stdout.
+	* dejagnuboards/exit.c: Reworked using "avrtest.h".
+	* dejagnuboards/atmega128-sim.exp: Link against exit-atmega128.o.
+	Use -no-stdin for avrtest.
+
 2008-06-26  Tristan Gingold  <gingold@adacore.com>
 
 	* avrtest.c: Add support for multiple architecture.  Add command-line

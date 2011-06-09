@@ -32,25 +32,23 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define STDIO_PORT	0x52
-#define EXIT_PORT	0x4F
-#define ABORT_PORT	0x49
+#include "avrtest.h"
 
-int putchar_exit_c(char c, FILE *stream) __attribute__((no_instrument_function));
+static int putchar_exit_c(char, FILE*) __attribute__((no_instrument_function));
+static void init_exit_c(void) __attribute__ ((section (".init8"),naked,no_instrument_function,used));
 
-int putchar_exit_c(char c, FILE *stream)
+static int putchar_exit_c (char c, FILE *stream)
 {
-	*((volatile unsigned char *) STDIO_PORT) = c;
-	stream=stream; /* Avoid unused warning message*/
+    (void) stream;
+	STDOUT_PORT = c;
+
 	return 0;
 }
 
-FILE file_exit_c;
-
-void init_exit_c(void) __attribute__ ((section (".init8")))
-     __attribute__((naked)) __attribute__ ((no_instrument_function));
-     void init_exit_c(void)
+static void init_exit_c (void)
 {
+    static FILE file_exit_c;
+    
 	file_exit_c.put = putchar_exit_c;
 	file_exit_c.get = NULL;
 	file_exit_c.flags = _FDEV_SETUP_WRITE;
@@ -60,18 +58,18 @@ void init_exit_c(void) __attribute__ ((section (".init8")))
 }
 
 
-/* This file simply defines never returning functions exit() and abort() */ 
+/* This defines never returning functions exit() and abort() */ 
 
-void exit(int code) __attribute__ ((naked));
-void exit(int code) 
+void __attribute__ ((noreturn))
+exit (int code) 
 {
-	*((volatile unsigned char *) EXIT_PORT) = code;
+	EXIT_PORT = code;
 	for(;;);
 }
 
-void abort (void) __attribute__ ((naked));
-void abort (void)
+void __attribute__ ((noreturn))
+abort (void)
 {
-	*((volatile unsigned char *) ABORT_PORT) = 1;
+	ABORT_PORT = 1;
 	for(;;);
 }

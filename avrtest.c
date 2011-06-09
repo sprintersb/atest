@@ -34,7 +34,7 @@
 #define MAX_RAM_SIZE	 64 * 1024
 #define MAX_FLASH_SIZE  256 * 1024	// Must be at least 128KB
 
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 //     register and port definitions
 
 #define SREG	0x5F
@@ -46,9 +46,8 @@
 #define IOBASE	0x20
 
 // ports used for application <-> simulator interactions
-#define STDIO_PORT	0x52
-#define EXIT_PORT	0x4F
-#define ABORT_PORT	0x49
+#define IN_AVRTEST
+#include "avrtest.h"
 
 #define REGX	26
 #define REGY	28
@@ -214,6 +213,12 @@ static dword max_instr_count;
 // Initialize sram from .data segment.
 static int flag_initialize_sram;
 
+// From the command line, can be disabled by -no-stdin
+static int flag_have_stdin = 1;
+
+// From the command line, can be disabled by -no-stdout
+static int flag_have_stdout = 1;
+
 // filename of the file being executed
 static const char *program_name;
 static unsigned int program_size;
@@ -335,7 +340,7 @@ static void leave(int status, const char *reason)
 static int data_read_byte_raw(int address)
 {
 	// add code here to handle special events
-	if (address == STDIO_PORT)
+	if (address == STDIN_PORT && flag_have_stdin)
 		return getchar();
 
 	return cpu_data[address];
@@ -345,7 +350,9 @@ static void data_write_byte_raw(int address, int value)
 {
 	// add code here to handle special events
 	switch (address) {
-		case STDIO_PORT:
+		case STDOUT_PORT:
+            if (!flag_have_stdout)
+                break;
 			putchar(value);
 			return;
 		case EXIT_PORT:
@@ -1577,7 +1584,11 @@ static void usage (void)
      printf("Options:\n"
 	    "  -d           Initialize SRAM from .data (for ELF program)\n"
 	    "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
-	    "  -mmcu=ARCH    Select instruction set for ARCH\n"
+	    "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
+	    "               will not wait for user input.\n"
+	    "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
+	    "               will not print to stdout.\n"
+	    "  -mmcu=ARCH   Select instruction set for ARCH\n"
 	    "    ARCH is one of:");
      for (d = arch_descs; d->name; d++)
 	  printf ("%c%s", (d == arch_descs) ? ' ' : ',', d->name);
@@ -1597,6 +1608,12 @@ static void parse_args(int argc, char *argv[])
 		//  Use naive but very portable method to decode arguments.
 		if (strcmp(argv[i], "-d") == 0) {
 			flag_initialize_sram = 1;
+		}
+		else if (strcmp(argv[i], "-no-stdin") == 0) {
+			flag_have_stdin = 0;
+		}
+		else if (strcmp(argv[i], "-no-stdout") == 0) {
+			flag_have_stdout = 0;
 		}
 		else if (strcmp(argv[i], "-m") == 0) {
 			i++;
@@ -1995,7 +2012,9 @@ static void execute(void)
 			do_step();
 	} else {
 		for (count = 0; count < max_instr_count; count++)
+        {
 			do_step();
+        }
 		leave(EXIT_STATUS_TIMEOUT, "instruction count limit reached");
 	}
 }
