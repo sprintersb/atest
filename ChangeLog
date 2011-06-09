@@ -1,3 +1,7 @@
+2011-06-09  Georg-Johann Lay  <avr@gjlay.de>
+
+	* README: New file.
+
 2011-06-08  Georg-Johann Lay  <avr@gjlay.de>
 
 	* Makefile: Rewritten.
