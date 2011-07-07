@@ -1,4 +1,4 @@
-2011-06-09  Georg-Johann Lay  <avr@gjlay.de>
+2011-07-06  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/atmega128-sim.exp (keeps_null_pointer_checks):
 	Set to 1.
