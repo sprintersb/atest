@@ -42,7 +42,7 @@ set_board_info is_simulator 1
 #set_board_info gdb,start_symbol "*0x0"
 #set_board_info gdb,short_int 1
 #set_board_info gdb,no_trampolines 1
-set_board_info no_long_long 1
+#set_board_info no_long_long 1
 #set_board_info gdb,noargs 1
 
 # It isn't visible in the target triple, so we set it explicitly.  The

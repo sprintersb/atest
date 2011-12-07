@@ -1,3 +1,8 @@
+2011-12-07  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/atmega128-sim.exp (no_long_long): Don't set to 1
+	so that long long run tests are performed.
+	
 2011-07-06  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/atmega128-sim.exp (keeps_null_pointer_checks):
