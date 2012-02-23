@@ -37,13 +37,18 @@
 // ---------------------------------------------------------------------------
 //     register and port definitions
 
-#define SREG    0x5F
-#define SPH     0x5E
-#define SPL     0x5D
-#define EIND    0x5C
-#define RAMPZ   0x5B
-
+#ifdef ISA_XMEGA
+#define IOBASE  0
+#else
 #define IOBASE  0x20
+#endif
+
+#define SREG    (0x3F + IOBASE)
+#define SPH     (0x3E + IOBASE)
+#define SPL     (0x3D + IOBASE)
+#define EIND    (0x3C + IOBASE)
+#define RAMPZ   (0x3B + IOBASE)
+
 
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
@@ -62,7 +67,8 @@
 #define FLAG_Z  0x02
 #define FLAG_C  0x01
 
-struct arch_desc {
+struct arch_desc
+{
   // Name of the architecture.
   const char *name;
   // True if PC is 3 bytes, false if only 2 bytes.
@@ -74,6 +80,13 @@ struct arch_desc {
 // List of supported archs with their features.
 const struct arch_desc arch_descs[] =
   {
+#ifdef ISA_XMEGA
+    { 
+      .name = "avrxmega6",
+      .pc_3bytes = 1,
+      .has_eind = 1
+    },
+#else
     { 
       .name = "avr51",
       .pc_3bytes = 0,
@@ -84,6 +97,7 @@ const struct arch_desc arch_descs[] =
       .pc_3bytes = 1,
       .has_eind = 1
     },
+#endif
     { NULL, 0, 0}
   };
 
@@ -144,7 +158,8 @@ typedef unsigned short word;
 typedef unsigned int dword;
 typedef unsigned long long ddword;
 
-typedef struct {
+typedef struct
+{
   byte data_index;
   byte oper1;
   word oper2;
@@ -154,7 +169,8 @@ typedef struct {
 
 typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 
-typedef struct {
+typedef struct
+{
   opcode_func func;
   int size;
   int cycles;
@@ -236,6 +252,13 @@ static dword program_cycles;
 static byte cpu_data[MAX_RAM_SIZE];
 static int cpu_PC;
 
+#ifdef ISA_XMEGA
+static byte cpu_reg[0x20];
+#else
+#define cpu_reg cpu_data
+#endif /* XMEGA */
+
+
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
 static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
@@ -249,7 +272,7 @@ static char log_data[256];
 char *cur_log_pos = log_data;
 
 static void
-log_add_data (char *data)
+log_add_data (const char *data)
 {
   int len = strlen (data);
   memcpy (cur_log_pos, data, len);
@@ -272,26 +295,28 @@ log_add_data_mov (const char *format, int addr, int value)
 {
   char buf[32], adname[16];
 
-  if (addr < 32)
+  switch (addr)
     {
-      sprintf (adname, "R%d", addr);
-    }
-  else
-    {
-      switch (addr)
-        {
-        case SREG: strcpy (adname, "SREG"); break;
-        case SPH:  strcpy (adname, "SPH"); break;
-        case SPL:  strcpy (adname, "SPL"); break;
-        default:
-          if (addr < 256)
-            sprintf (adname, "%02x", addr);
-          else
-            sprintf (adname, "%04x", addr);
-        }
+    case SREG: strcpy (adname, "SREG"); break;
+    case SPH:  strcpy (adname, "SPH"); break;
+    case SPL:  strcpy (adname, "SPL"); break;
+    default:
+      if (addr < 256)
+        sprintf (adname, "%02x", addr);
+      else
+        sprintf (adname, "%04x", addr);
     }
 
   sprintf (buf, format, adname, value);
+  log_add_data (buf);
+}
+
+static void
+log_add_reg_mov (const char *format, int regno, int value)
+{
+  char buf[32];
+
+  sprintf (buf, format, regno, value);
   log_add_data (buf);
 }
 
@@ -305,22 +330,14 @@ log_dump_line (void)
 
 #else
 
-// empty placeholders to keep the rest of the code clean while allowing
-// the compiler to optimize these calls away
+// empty placeholders to keep the rest of the code clean
 
-static void
-log_add_instr (const char *instr)
-{}
+#define log_add_instr(...)    (void) 0
+#define log_add_data_mov(...) (void) 0
+#define log_add_reg_mov(...)  (void) 0
+#define log_dump_line(...)    (void) 0
 
-static void
-log_add_data_mov (const char *format, int addr, int value)
-{}
-
-static void
-log_dump_line (void)
-{}
-
-#endif
+#endif /*  LOG_DUMP */
 
 
 static const char *exit_status_text[] =
@@ -421,33 +438,33 @@ data_write_byte (int address, int value)
 // be sure that the adress is < 32
 
 static byte
-get_reg (int address)
+get_reg (int regno)
 {
-  log_add_data_mov ("(%s)->%02x ", address, cpu_data[address]);
-  return cpu_data[address];
+  log_add_reg_mov ("(R%d)->%02x ", regno, cpu_reg[regno]);
+  return cpu_reg[regno];
 }
 
 static void
-put_reg (int address, byte value)
+put_reg (int regno, byte value)
 {
-  log_add_data_mov ("(%s)<-%02x ", address, value);
-  cpu_data[address] = value;
+  log_add_reg_mov ("(R%d)<-%02x ", regno, value);
+  cpu_reg[regno] = value;
 }
 
 static int
-get_word_reg (int address)
+get_word_reg (int regno)
 {
-  int ret = cpu_data[address] | (cpu_data[address + 1] << 8);
-  log_add_data_mov ("(%s)->%04x ", address, ret);
+  int ret = cpu_reg[regno] | (cpu_reg[regno + 1] << 8);
+  log_add_reg_mov ("(R%d)->%04x ", regno, ret);
   return ret;
 }
 
 static void
-put_word_reg (int address, int value)
+put_word_reg (int regno, int value)
 {
-  log_add_data_mov ("(%s)<-%04x ", address, value & 0xFFFF);
-  cpu_data[address] = value;
-  cpu_data[address + 1] = value >> 8;
+  log_add_reg_mov ("(R%d)<-%04x ", regno, value & 0xFFFF);
+  cpu_reg[regno] = value;
+  cpu_reg[regno + 1] = value >> 8;
 }
 
 // read a word from memory / ioport / register
@@ -455,8 +472,8 @@ put_word_reg (int address, int value)
 static int
 data_read_word (int address)
 {
-  int ret = data_read_byte_raw (address)
-    | (data_read_byte_raw (address + 1) << 8);
+  int ret = (data_read_byte_raw (address)
+             | (data_read_byte_raw (address + 1) << 8));
   log_add_data_mov ("(%s)->%04x ", address, ret);
   return ret;
 }
@@ -630,10 +647,10 @@ add_program_cycles (dword cycles)
 static void
 push_byte (int value)
 {
-  int sp = data_read_word(SPL);
+  int sp = data_read_word (SPL);
   // temporary hack to disallow growing the stack over the reserved
   // register area
-  if (sp < 0x60)
+  if (sp < 0x40 + IOBASE)
     leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
   data_write_byte (sp, value);
   data_write_word (SPL, sp - 1);
@@ -654,7 +671,7 @@ push_PC (void)
   int sp = data_read_word (SPL);
   // temporary hack to disallow growing the stack over the reserved
   // register area
-  if (sp < 0x60)
+  if (sp < 0x40 + IOBASE)
     leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
   data_write_byte (sp, cpu_PC & 0xFF);
   sp--;

@@ -14,6 +14,13 @@ avrtest is an instruction set simulator for AVR core families
    avr51: ATmega128*, AT90can128, AT90usb128*
    avr6:  ATmega256*
 
+avrtest-xmega is an instruction set simulator for AVR XMEGA core families
+   avrxmega6: ATXmega128*, ...
+
+The exectuable that supports AVR XMEGA cores is named avrtest-xmega.
+Up to now, it supports the same instructions as the avrtest simulator.
+In the remainder, avrtest is explained.  avrtest-xmega works similar.
+
 avrtest does not simulate internal peripherals like timers, I/O ports,
 interrupts, etc. 
 
@@ -128,6 +135,7 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 * Run the tests from gcc subdirectory of your avr-gcc build directory like:
 
 	make -k check RUNTESTFLAGS="--target_board=atmega128-sim"
+	make -k check RUNTESTFLAGS="--target_board=atxmega128-sim"
 
 * Look in the ./gcc/testsuite subdirectory of avr-gcc build directory
   for logged results or you can add -all switch to

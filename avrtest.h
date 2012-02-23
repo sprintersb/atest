@@ -1,9 +1,19 @@
 #ifndef AVRTEST_H
+#define AVRTEST_H
 
-#define STDIN_PORT_ADDR  0x52
-#define STDOUT_PORT_ADDR 0x52
-#define EXIT_PORT_ADDR   0x4F
-#define ABORT_PORT_ADDR  0x49
+#ifndef IN_AVRTEST
+#ifdef __AVR_SFR_OFFSET__
+#define IOBASE __AVR_SFR_OFFSET__
+#else
+#define IOBASE 0x20
+#endif
+#endif
+
+#define STDIN_PORT_ADDR  (0x32 + IOBASE)
+#define STDOUT_PORT_ADDR (0x32 + IOBASE)
+#define EXIT_PORT_ADDR   (0x2F + IOBASE)
+#define ABORT_PORT_ADDR  (0x29 + IOBASE)
+
 
 #ifdef IN_AVRTEST
 
@@ -25,7 +35,6 @@
 
 #endif /* IN_AVRTEST */
 
-#define AVRTEST_H
 #endif /* AVRTEST_H */
 
 

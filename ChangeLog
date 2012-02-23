@@ -1,5 +1,16 @@
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
+	* README: Add note for avrtest-xmega.
+	
+	* avrtest.c: Add support for XMEGA.
+	* avrtest.h: Ditto.
+	* Makefile: Add rules to make avrtest-xmega, avrtest-xmega_log,
+	and exit-atxmega128a3.o.
+
+	* dejagnuboards/atxmega128-sim.exp: New file.
+
+2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c: More GNU coding rule fixess.
 
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
