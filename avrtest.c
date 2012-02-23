@@ -864,11 +864,11 @@ static OP_FUNC_TYPE avr_op_EICALL (int rd, int rr)
   if (arch->has_eind)
     {
       push_PC();
-      cpu_PC = data_read_word (REGZ) | (data_read_byte (EIND) << 16);
+      cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
     }
   else
     {
-      avr_op_ILLEGAL (0,0x9519);
+      avr_op_ILLEGAL (0, 0x9519);
     }
 }
 
@@ -877,11 +877,12 @@ static OP_FUNC_TYPE avr_op_EIJMP (int rd, int rr)
 {
   if (arch->has_eind)
     {
-      cpu_PC = data_read_word (REGZ) | (data_read_byte (EIND) << 16);
+      cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
     }
-  else {
-    avr_op_ILLEGAL (0,0x9419);
-  }
+  else
+    {
+      avr_op_ILLEGAL (0, 0x9419);
+    }
 }
 
 /* 1001 0101 1101 1000 | ELPM */

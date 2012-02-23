@@ -1,5 +1,9 @@
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (avr_op_EICALL, avr_op_EIJMP): Use get_word_reg to read Z. 
+	
+2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
+
 	* README: Add note for avrtest-xmega.
 	
 	* avrtest.c: Add support for XMEGA.
