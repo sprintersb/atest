@@ -1,5 +1,9 @@
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c: More GNU coding rule fixess.
+
+2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c: Indent according to GNU coding rules.
 
 2011-12-07  Georg-Johann Lay  <avr@gjlay.de>

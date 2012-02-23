@@ -38,8 +38,8 @@
 //     register and port definitions
 
 #define SREG    0x5F
-#define SPH 0x5E
-#define SPL 0x5D
+#define SPH     0x5E
+#define SPL     0x5D
 #define EIND    0x5C
 #define RAMPZ   0x5B
 
@@ -90,47 +90,48 @@ const struct arch_desc arch_descs[] =
 const struct arch_desc *arch = &arch_descs[0];
 
 
-enum decoder_operand_masks {
-  /** 2 bit register id  ( R24, R26, R28, R30 ) */
-  mask_Rd_2     = 0x0030,
-  /** 3 bit register id  ( R16 - R23 ) */
-  mask_Rd_3     = 0x0070,
-  /** 4 bit register id  ( R16 - R31 ) */
-  mask_Rd_4     = 0x00f0,
-  /** 5 bit register id  ( R00 - R31 ) */
-  mask_Rd_5     = 0x01f0,
+enum decoder_operand_masks
+  {
+    /** 2 bit register id  ( R24, R26, R28, R30 ) */
+    mask_Rd_2     = 0x0030,
+    /** 3 bit register id  ( R16 - R23 ) */
+    mask_Rd_3     = 0x0070,
+    /** 4 bit register id  ( R16 - R31 ) */
+    mask_Rd_4     = 0x00f0,
+    /** 5 bit register id  ( R00 - R31 ) */
+    mask_Rd_5     = 0x01f0,
 
-  /** 3 bit register id  ( R16 - R23 ) */
-  mask_Rr_3     = 0x0007,
-  /** 4 bit register id  ( R16 - R31 ) */
-  mask_Rr_4     = 0x000f,
-  /** 5 bit register id  ( R00 - R31 ) */
-  mask_Rr_5     = 0x020f,
+    /** 3 bit register id  ( R16 - R23 ) */
+    mask_Rr_3     = 0x0007,
+    /** 4 bit register id  ( R16 - R31 ) */
+    mask_Rr_4     = 0x000f,
+    /** 5 bit register id  ( R00 - R31 ) */
+    mask_Rr_5     = 0x020f,
 
-  /** for 8 bit constant */
-  mask_K_8      = 0x0F0F,
-  /** for 6 bit constant */
-  mask_K_6      = 0x00CF,
+    /** for 8 bit constant */
+    mask_K_8      = 0x0F0F,
+    /** for 6 bit constant */
+    mask_K_6      = 0x00CF,
 
-  /** for 7 bit relative address */
-  mask_k_7      = 0x03F8,
-  /** for 12 bit relative address */
-  mask_k_12     = 0x0FFF,
-  /** for 22 bit absolute address */
-  mask_k_22     = 0x01F1,
+    /** for 7 bit relative address */
+    mask_k_7      = 0x03F8,
+    /** for 12 bit relative address */
+    mask_k_12     = 0x0FFF,
+    /** for 22 bit absolute address */
+    mask_k_22     = 0x01F1,
 
-  /** register bit select */
-  mask_reg_bit  = 0x0007,
-  /** status register bit select */
-  mask_sreg_bit = 0x0070,
-  /** address displacement (q) */
-  mask_q_displ  = 0x2C07,
+    /** register bit select */
+    mask_reg_bit  = 0x0007,
+    /** status register bit select */
+    mask_sreg_bit = 0x0070,
+    /** address displacement (q) */
+    mask_q_displ  = 0x2C07,
 
-  /** 5 bit register id  ( R00 - R31 ) */
-  mask_A_5      = 0x00F8,
-  /** 6 bit IO port id */
-  mask_A_6      = 0x060F
-};
+    /** 5 bit register id  ( R00 - R31 ) */
+    mask_A_5      = 0x00F8,
+    /** 6 bit IO port id */
+    mask_A_6      = 0x060F
+  };
 // ----------------------------------------------------------------------------
 //     some helpful types and constants
 
@@ -149,7 +150,7 @@ typedef struct {
   word oper2;
 } decoded_op;
 
-#define OP_FUNC_TYPE    void __attribute__((fastcall))
+#define OP_FUNC_TYPE void __attribute__((fastcall))
 
 typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 
@@ -163,41 +164,43 @@ typedef struct {
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
 
-enum {
-  avr_op_index_dummy = 0,
+enum
+  {
+    avr_op_index_dummy = 0,
 
-  avr_op_index_ADC = 1,   avr_op_index_ADD,   avr_op_index_ADIW,  avr_op_index_SBIW,
-  avr_op_index_AND,   avr_op_index_ANDI,  avr_op_index_ASR,
-  avr_op_index_BCLR,  avr_op_index_BLD,   avr_op_index_BRBC,
-  avr_op_index_BRBS,  avr_op_index_BSET,  avr_op_index_BST,
-  avr_op_index_CALL,  avr_op_index_CBI,   avr_op_index_COM,
-  avr_op_index_CP,    avr_op_index_CPC,   avr_op_index_CPI,
-  avr_op_index_CPSE,  avr_op_index_DEC,   avr_op_index_EICALL,
-  avr_op_index_EIJMP, avr_op_index_ELPM,  avr_op_index_ELPM_Z,
-  avr_op_index_ELPM_Z_incr,avr_op_index_EOR,  avr_op_index_ESPM,
-  avr_op_index_FMUL,  avr_op_index_FMULS, avr_op_index_FMULSU,
-  avr_op_index_ICALL, avr_op_index_IJMP,  avr_op_index_ILLEGAL,
-  avr_op_index_IN,    avr_op_index_INC,   avr_op_index_JMP,
-  avr_op_index_LDD_Y, avr_op_index_LDD_Z, avr_op_index_LDI,
-  avr_op_index_LDS,   avr_op_index_LD_X,  avr_op_index_LD_X_decr,
-  avr_op_index_LD_X_incr, avr_op_index_LD_Y_decr, avr_op_index_LD_Y_incr,
-  avr_op_index_LD_Z_decr, avr_op_index_LD_Z_incr, avr_op_index_LPM,
-  avr_op_index_LPM_Z, avr_op_index_LPM_Z_incr,avr_op_index_LSR,
-  avr_op_index_MOV,   avr_op_index_MOVW,  avr_op_index_MUL,
-  avr_op_index_MULS,  avr_op_index_MULSU, avr_op_index_NEG,
-  avr_op_index_NOP,   avr_op_index_OR,    avr_op_index_ORI,
-  avr_op_index_OUT,   avr_op_index_POP,   avr_op_index_PUSH,
-  avr_op_index_RCALL, avr_op_index_RET,   avr_op_index_RETI,
-  avr_op_index_RJMP,  avr_op_index_ROR,   avr_op_index_SBC,
-  avr_op_index_SBCI,  avr_op_index_SBI,   avr_op_index_SBIC,
-  avr_op_index_SBIS,  avr_op_index_SBRC,  avr_op_index_SBRS,
-  avr_op_index_SLEEP, avr_op_index_SPM,   avr_op_index_STD_Y,
-  avr_op_index_STD_Z, avr_op_index_STS,   avr_op_index_ST_X,
-  avr_op_index_ST_X_decr, avr_op_index_ST_X_incr, avr_op_index_ST_Y_decr,
-  avr_op_index_ST_Y_incr, avr_op_index_ST_Z_decr, avr_op_index_ST_Z_incr,
-  avr_op_index_SUB,   avr_op_index_SUBI,  avr_op_index_SWAP,
-  avr_op_index_WDR,
-};
+    avr_op_index_ADC = 1,   avr_op_index_ADD,   avr_op_index_ADIW,
+    avr_op_index_SBIW,
+    avr_op_index_AND,   avr_op_index_ANDI,  avr_op_index_ASR,
+    avr_op_index_BCLR,  avr_op_index_BLD,   avr_op_index_BRBC,
+    avr_op_index_BRBS,  avr_op_index_BSET,  avr_op_index_BST,
+    avr_op_index_CALL,  avr_op_index_CBI,   avr_op_index_COM,
+    avr_op_index_CP,    avr_op_index_CPC,   avr_op_index_CPI,
+    avr_op_index_CPSE,  avr_op_index_DEC,   avr_op_index_EICALL,
+    avr_op_index_EIJMP, avr_op_index_ELPM,  avr_op_index_ELPM_Z,
+    avr_op_index_ELPM_Z_incr,avr_op_index_EOR,  avr_op_index_ESPM,
+    avr_op_index_FMUL,  avr_op_index_FMULS, avr_op_index_FMULSU,
+    avr_op_index_ICALL, avr_op_index_IJMP,  avr_op_index_ILLEGAL,
+    avr_op_index_IN,    avr_op_index_INC,   avr_op_index_JMP,
+    avr_op_index_LDD_Y, avr_op_index_LDD_Z, avr_op_index_LDI,
+    avr_op_index_LDS,   avr_op_index_LD_X,  avr_op_index_LD_X_decr,
+    avr_op_index_LD_X_incr, avr_op_index_LD_Y_decr, avr_op_index_LD_Y_incr,
+    avr_op_index_LD_Z_decr, avr_op_index_LD_Z_incr, avr_op_index_LPM,
+    avr_op_index_LPM_Z, avr_op_index_LPM_Z_incr,avr_op_index_LSR,
+    avr_op_index_MOV,   avr_op_index_MOVW,  avr_op_index_MUL,
+    avr_op_index_MULS,  avr_op_index_MULSU, avr_op_index_NEG,
+    avr_op_index_NOP,   avr_op_index_OR,    avr_op_index_ORI,
+    avr_op_index_OUT,   avr_op_index_POP,   avr_op_index_PUSH,
+    avr_op_index_RCALL, avr_op_index_RET,   avr_op_index_RETI,
+    avr_op_index_RJMP,  avr_op_index_ROR,   avr_op_index_SBC,
+    avr_op_index_SBCI,  avr_op_index_SBI,   avr_op_index_SBIC,
+    avr_op_index_SBIS,  avr_op_index_SBRC,  avr_op_index_SBRS,
+    avr_op_index_SLEEP, avr_op_index_SPM,   avr_op_index_STD_Y,
+    avr_op_index_STD_Z, avr_op_index_STS,   avr_op_index_ST_X,
+    avr_op_index_ST_X_decr, avr_op_index_ST_X_incr, avr_op_index_ST_Y_decr,
+    avr_op_index_ST_Y_incr, avr_op_index_ST_Z_decr, avr_op_index_ST_Z_incr,
+    avr_op_index_SUB,   avr_op_index_SUBI,  avr_op_index_SWAP,
+    avr_op_index_WDR,
+  };
 
 extern const opcode_data opcode_func_array[];
 
@@ -245,91 +248,104 @@ static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
 static char log_data[256];
 char *cur_log_pos = log_data;
 
-static void log_add_data(char *data)
+static void
+log_add_data (char *data)
 {
-  int len = strlen(data);
-  memcpy(cur_log_pos, data, len);
+  int len = strlen (data);
+  memcpy (cur_log_pos, data, len);
   cur_log_pos += len;
 }
 
-static void log_add_instr(const char *instr)
+static void
+log_add_instr (const char *instr)
 {
   char buf[32];
   if (arch->pc_3bytes)
-    sprintf(buf, "%06x: %-5s ", cpu_PC * 2, instr);
+    sprintf (buf, "%06x: %-5s ", cpu_PC * 2, instr);
   else
-    sprintf(buf, "%04x: %-5s ", cpu_PC * 2, instr);
-  log_add_data(buf);
+    sprintf (buf, "%04x: %-5s ", cpu_PC * 2, instr);
+  log_add_data (buf);
 }
 
-static void log_add_data_mov(const char *format, int addr, int value)
+static void
+log_add_data_mov (const char *format, int addr, int value)
 {
   char buf[32], adname[16];
 
-  if (addr < 32) {
-    sprintf(adname, "R%d", addr);
-  } else {
-    switch (addr) {
-    case SREG: strcpy(adname, "SREG"); break;
-    case SPH: strcpy(adname, "SPH"); break;
-    case SPL: strcpy(adname, "SPL"); break;
-    default:
-      if (addr < 256)
-        sprintf(adname, "%02x", addr);
-      else
-        sprintf(adname, "%04x", addr);
+  if (addr < 32)
+    {
+      sprintf (adname, "R%d", addr);
     }
-  }
+  else
+    {
+      switch (addr)
+        {
+        case SREG: strcpy (adname, "SREG"); break;
+        case SPH:  strcpy (adname, "SPH"); break;
+        case SPL:  strcpy (adname, "SPL"); break;
+        default:
+          if (addr < 256)
+            sprintf (adname, "%02x", addr);
+          else
+            sprintf (adname, "%04x", addr);
+        }
+    }
 
-  sprintf(buf, format, adname, value);
-  log_add_data(buf);
+  sprintf (buf, format, adname, value);
+  log_add_data (buf);
 }
 
-static void log_dump_line(void)
+static void
+log_dump_line (void)
 {
   *cur_log_pos = '\0';
-  puts(log_data);
+  puts (log_data);
   cur_log_pos = log_data;
 }
 
 #else
 
-// empty placeholders to keep the rest of the code clean while allowing the compiler to
-// optimize these calls away
+// empty placeholders to keep the rest of the code clean while allowing
+// the compiler to optimize these calls away
 
-static void log_add_instr(const char *instr)
+static void
+log_add_instr (const char *instr)
 {}
 
-static void log_add_data_mov(const char *format, int addr, int value)
+static void
+log_add_data_mov (const char *format, int addr, int value)
 {}
 
-static void log_dump_line(void)
+static void
+log_dump_line (void)
 {}
 
 #endif
 
 
-static const char *exit_status_text[] = {
-  [EXIT_STATUS_EXIT]    = "EXIT",
-  [EXIT_STATUS_ABORTED] = "ABORTED",
-  [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
-};
+static const char *exit_status_text[] =
+  {
+    [EXIT_STATUS_EXIT]    = "EXIT",
+    [EXIT_STATUS_ABORTED] = "ABORTED",
+    [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
+  };
 
-static void leave(int status, const char *reason)
+static void
+leave (int status, const char *reason)
 {
   // make sure we print the last log line before leaving
   log_dump_line();
 
-  printf("\n"
-         " exit status: %s\n"
-         "      reason: %s\n"
-         "     program: %s\n"
-         "exit address: %06x\n"
-         "total cycles: %u\n\n",
-         exit_status_text[status], reason,
-         program_name ? program_name : "-not set-",
-         cpu_PC * 2, program_cycles);
-  exit(0);
+  printf ("\n"
+          " exit status: %s\n"
+          "      reason: %s\n"
+          "     program: %s\n"
+          "exit address: %06x\n"
+          "total cycles: %u\n\n",
+          exit_status_text[status], reason,
+          program_name ? program_name : "-not set-",
+          cpu_PC * 2, program_cycles);
+  exit (0);
 }
 
 // ----------------------------------------------------------------------------
@@ -337,7 +353,8 @@ static void leave(int status, const char *reason)
 
 // lowest level memory accessors
 
-static int data_read_byte_raw(int address)
+static int
+data_read_byte_raw (int address)
 {
   // add code here to handle special events
   if (address == STDIN_PORT && flag_have_stdin)
@@ -346,28 +363,32 @@ static int data_read_byte_raw(int address)
   return cpu_data[address];
 }
 
-static void data_write_byte_raw(int address, int value)
+static void
+data_write_byte_raw (int address, int value)
 {
   // add code here to handle special events
-  switch (address) {
-  case STDOUT_PORT:
-    if (!flag_have_stdout)
+  switch (address)
+    {
+    case STDOUT_PORT:
+      if (!flag_have_stdout)
+        break;
+      putchar (value);
+      return;
+    case EXIT_PORT:
+      leave (value ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT,
+             "exit function called");
       break;
-    putchar(value);
-    return;
-  case EXIT_PORT:
-    leave(value ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT, "exit function called");
-    break;
-  case ABORT_PORT:
-    leave(EXIT_STATUS_ABORTED, "abort function called");
-    break;
-  }
+    case ABORT_PORT:
+      leave (EXIT_STATUS_ABORTED, "abort function called");
+      break;
+    }
 
   // default action, just store the value
   cpu_data[address] = value;
 }
 
-static int flash_read_byte(int address)
+static int
+flash_read_byte (int address)
 {
   address &= flash_addr_mask;
   // add code here to handle special events
@@ -379,85 +400,97 @@ static int flash_read_byte(int address)
 
 // read a byte from memory / ioport / register
 
-static int data_read_byte(int address)
+static int
+data_read_byte (int address)
 {
-  int ret = data_read_byte_raw(address);
-  log_add_data_mov("(%s)->%02x ", address, ret);
+  int ret = data_read_byte_raw (address);
+  log_add_data_mov ("(%s)->%02x ", address, ret);
   return ret;
 }
 
 // write a byte to memory / ioport / register
 
-static void data_write_byte(int address, int value)
+static void
+data_write_byte (int address, int value)
 {
-  log_add_data_mov("(%s)<-%02x ", address, value);
-  data_write_byte_raw(address, value);
+  log_add_data_mov ("(%s)<-%02x ", address, value);
+  data_write_byte_raw (address, value);
 }
 
 // get_reg / put_reg are just placeholders for read/write calls where we can
 // be sure that the adress is < 32
 
-static byte get_reg(int address)
+static byte
+get_reg (int address)
 {
-  log_add_data_mov("(%s)->%02x ", address, cpu_data[address]);
+  log_add_data_mov ("(%s)->%02x ", address, cpu_data[address]);
   return cpu_data[address];
 }
 
-static void put_reg(int address, byte value)
+static void
+put_reg (int address, byte value)
 {
-  log_add_data_mov("(%s)<-%02x ", address, value);
+  log_add_data_mov ("(%s)<-%02x ", address, value);
   cpu_data[address] = value;
 }
 
-static int get_word_reg(int address)
+static int
+get_word_reg (int address)
 {
   int ret = cpu_data[address] | (cpu_data[address + 1] << 8);
-  log_add_data_mov("(%s)->%04x ", address, ret);
+  log_add_data_mov ("(%s)->%04x ", address, ret);
   return ret;
 }
 
-static void put_word_reg(int address, int value)
+static void
+put_word_reg (int address, int value)
 {
-  log_add_data_mov("(%s)<-%04x ", address, value & 0xFFFF);
+  log_add_data_mov ("(%s)<-%04x ", address, value & 0xFFFF);
   cpu_data[address] = value;
   cpu_data[address + 1] = value >> 8;
 }
 
 // read a word from memory / ioport / register
 
-static int data_read_word(int address)
+static int
+data_read_word (int address)
 {
-  int ret = data_read_byte_raw(address) | (data_read_byte_raw(address + 1) << 8);
-  log_add_data_mov("(%s)->%04x ", address, ret);
+  int ret = data_read_byte_raw (address)
+    | (data_read_byte_raw (address + 1) << 8);
+  log_add_data_mov ("(%s)->%04x ", address, ret);
   return ret;
 }
 
 // write a word to memory / ioport / register
 
-static void data_write_word(int address, int value)
+static void
+data_write_word (int address, int value)
 {
   value &= 0xffff;
-  log_add_data_mov("(%s)<-%04x ", address, value);
-  data_write_byte_raw(address, value & 0xFF);
-  data_write_byte_raw(address + 1, value >> 8);
+  log_add_data_mov ("(%s)<-%04x ", address, value);
+  data_write_byte_raw (address, value & 0xFF);
+  data_write_byte_raw (address + 1, value >> 8);
 }
 
 // ----------------------------------------------------------------------------
 //     flag manipulation functions
 
-static void update_flags(int flags, int new_values)
+static void
+update_flags (int flags, int new_values)
 {
-  int sreg = data_read_byte(SREG);
+  int sreg = data_read_byte (SREG);
   sreg = (sreg & ~flags) | new_values;
-  data_write_byte(SREG, sreg);
+  data_write_byte (SREG, sreg);
 }
 
-static int get_carry(void)
+static int
+get_carry (void)
 {
-  return (data_read_byte(SREG) & FLAG_C) != 0;
+  return (data_read_byte (SREG) & FLAG_C) != 0;
 }
 
-// fast flag update tables to avoid conditional branches on frequently used operations
+// fast flag update tables to avoid conditional branches on frequently
+// used operations
 
 #define FUT_ADD8_RES    0x01FF
 #define FUT_ADD8_V2_80  0x0200
@@ -467,11 +500,15 @@ static int get_carry(void)
 
 static byte flag_update_table_add8[8192];
 
-#define FUT_ADD_SUB_INDEX(v1,v2,res)                                    \
-  ((((v1) & 0x08) << 9) | (((v2) & 0x08) << 8) | (((v1) & 0x80) << 3) | (((v2) & 0x80) << 2) | ((res) & 0x1FF))
+#define FUT_ADD_SUB_INDEX(v1,v2,res)            \
+  ((((v1) & 0x08) << 9)                         \
+   | (((v2) & 0x08) << 8)                       \
+   | (((v1) & 0x80) << 3)                       \
+   | (((v2) & 0x80) << 2)                       \
+   | ((res) & 0x1FF))
 
 #define FUT_ADDSUB16_INDEX(v1, res)                             \
-  ( ((((v1) >> 8) & 0x80) << 3) | (((res) >> 8) & 0x1FF))
+  (((((v1) >> 8) & 0x80) << 3) | (((res) >> 8) & 0x1FF))
 
 #define FUT_SUB8_RES    0x01FF
 #define FUT_SUB8_V2_80  0x0200
@@ -489,7 +526,8 @@ static byte flag_update_table_dec[256];
 static byte flag_update_table_logical[256];
 
 
-static byte update_zns_flags(int result, byte sreg)
+static byte
+update_zns_flags (int result, byte sreg)
 {
   if ((result & 0xFF) == 0x00)
     sreg |= FLAG_Z;
@@ -500,247 +538,284 @@ static byte update_zns_flags(int result, byte sreg)
   return sreg;
 }
 
-static void init_flag_update_tables(void)
+static void
+init_flag_update_tables (void)
 {
   int i, result, sreg;
 
   // build flag update table for 8 bit addition
-  for (i = 0; i < 8192; i++) {
-    result = i & FUT_ADD8_RES;
-    sreg = 0;
-    if ((!(i & FUT_ADD8_V1_80) == !(i & FUT_ADD8_V2_80)) && (!(result & 0x80) != !(i & FUT_ADD8_V1_80)))
-      sreg |= FLAG_V;
-    if (result & 0x100)
-      sreg |= FLAG_C;
-    if (((i & 0x1800) == 0x1800) || ((result & 0x08) == 0 && ((i & 0x1800) != 0x0000)))
-      sreg |= FLAG_H;
-    sreg = update_zns_flags(result, sreg);
-    flag_update_table_add8[i] = sreg;
-  }
+  for (i = 0; i < 8192; i++)
+    {
+      result = i & FUT_ADD8_RES;
+      sreg = 0;
+      if ((!(i & FUT_ADD8_V1_80) == !(i & FUT_ADD8_V2_80))
+          && (!(result & 0x80) != !(i & FUT_ADD8_V1_80)))
+        sreg |= FLAG_V;
+      if (result & 0x100)
+        sreg |= FLAG_C;
+      if (((i & 0x1800) == 0x1800)
+          || ((result & 0x08) == 0
+              && ((i & 0x1800) != 0x0000)))
+        sreg |= FLAG_H;
+      sreg = update_zns_flags(result, sreg);
+      flag_update_table_add8[i] = sreg;
+    }
 
   // build flag update table for 8 bit subtraction
-  for (i = 0; i < 8192; i++) {
-    result = i & FUT_SUB8_RES;
-    sreg = 0;
-    if ((!(result & 0x80) == !(i & FUT_SUB8_V2_80)) && (!(i & FUT_SUB8_V1_80) != !(i & FUT_SUB8_V2_80)))
-      sreg |= FLAG_V;
-    if (result & 0x100)
-      sreg |= FLAG_C;
-    if (((i & 0x1800) == 0x1800) || ((result & 0x08) == 0 && ((i & 0x1800) != 0x0000)))
-      sreg |= FLAG_H;
-    sreg = update_zns_flags(result, sreg);
-    flag_update_table_sub8[i] = sreg;
-  }
+  for (i = 0; i < 8192; i++)
+    {
+      result = i & FUT_SUB8_RES;
+      sreg = 0;
+      if ((!(result & 0x80) == !(i & FUT_SUB8_V2_80))
+          && (!(i & FUT_SUB8_V1_80) != !(i & FUT_SUB8_V2_80)))
+        sreg |= FLAG_V;
+      if (result & 0x100)
+        sreg |= FLAG_C;
+      if (((i & 0x1800) == 0x1800)
+          || ((result & 0x08) == 0
+              && ((i & 0x1800) != 0x0000)))
+        sreg |= FLAG_H;
+      sreg = update_zns_flags (result, sreg);
+      flag_update_table_sub8[i] = sreg;
+    }
 
   // build flag update table for 8 bit rotation
-  for (i = 0; i < 512; i++) {
-    result = i >> 1;
-    sreg = 0;
-    if (i & 0x01)
-      sreg |= FLAG_C;
-    if (((result & 0x80) != 0) != ((sreg & FLAG_C) != 0))
-      sreg |= FLAG_V;
-    sreg = update_zns_flags(result, sreg);
-    flag_update_table_ror8[i] = sreg;
-  }
+  for (i = 0; i < 512; i++)
+    {
+      result = i >> 1;
+      sreg = 0;
+      if (i & 0x01)
+        sreg |= FLAG_C;
+      if (((result & 0x80) != 0) != ((sreg & FLAG_C) != 0))
+        sreg |= FLAG_V;
+      sreg = update_zns_flags (result, sreg);
+      flag_update_table_ror8[i] = sreg;
+    }
 
   // build flag update table for increment
-  for (i = 0; i < 256; i++) {
-    sreg = (i == 0x80) ? FLAG_V : 0;
-    sreg = update_zns_flags(i, sreg);
-    flag_update_table_inc[i] = sreg;
-  }
+  for (i = 0; i < 256; i++)
+    {
+      sreg = (i == 0x80) ? FLAG_V : 0;
+      sreg = update_zns_flags (i, sreg);
+      flag_update_table_inc[i] = sreg;
+    }
 
   // build flag update table for decrement
-  for (i = 0; i < 256; i++) {
-    sreg = (i == 0x7F) ? FLAG_V : 0;
-    sreg = update_zns_flags(i, sreg);
-    flag_update_table_dec[i] = sreg;
-  }
+  for (i = 0; i < 256; i++)
+    {
+      sreg = (i == 0x7F) ? FLAG_V : 0;
+      sreg = update_zns_flags (i, sreg);
+      flag_update_table_dec[i] = sreg;
+    }
 
   // build flag update table for logical operations
-  for (i = 0; i < 256; i++) {
-    sreg = update_zns_flags(i, 0);
-    flag_update_table_logical[i] = sreg;
-  }
+  for (i = 0; i < 256; i++)
+    {
+      sreg = update_zns_flags (i, 0);
+      flag_update_table_logical[i] = sreg;
+    }
 }
 
 
 // ----------------------------------------------------------------------------
 //     helper functions
 
-static void add_program_cycles(dword cycles)
+static void
+add_program_cycles (dword cycles)
 {
   program_cycles += cycles;
 }
 
 
-static void push_byte(int value)
+static void
+push_byte (int value)
 {
   int sp = data_read_word(SPL);
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x60)
-    leave(EXIT_STATUS_ABORTED, "stack pointer overflow");
-  data_write_byte(sp, value);
-  data_write_word(SPL, sp - 1);
+    leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
+  data_write_byte (sp, value);
+  data_write_word (SPL, sp - 1);
 }
 
-static int pop_byte(void)
+static int
+pop_byte(void)
 {
-  int sp = data_read_word(SPL);
+  int sp = data_read_word (SPL);
   sp++;
-  data_write_word(SPL, sp);
-  return data_read_byte(sp);
+  data_write_word (SPL, sp);
+  return data_read_byte (sp);
 }
 
-static void push_PC(void)
+static void
+push_PC (void)
 {
-  int sp = data_read_word(SPL);
-  // temporary hack to disallow growing the stack over the reserved register area
+  int sp = data_read_word (SPL);
+  // temporary hack to disallow growing the stack over the reserved
+  // register area
   if (sp < 0x60)
-    leave(EXIT_STATUS_ABORTED, "stack pointer overflow");
-  data_write_byte(sp, cpu_PC & 0xFF);
+    leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
+  data_write_byte (sp, cpu_PC & 0xFF);
   sp--;
-  data_write_byte(sp, (cpu_PC >> 8) & 0xFF);
+  data_write_byte (sp, (cpu_PC >> 8) & 0xFF);
   sp--;
-  if (arch->pc_3bytes) {
-    data_write_byte(sp, (cpu_PC >> 16) & 0xFF);
-    sp--;
-  }
-  data_write_word(SPL, sp);
+  if (arch->pc_3bytes)
+    {
+      data_write_byte (sp, (cpu_PC >> 16) & 0xFF);
+      sp--;
+    }
+  data_write_word (SPL, sp);
 }
 
-static void pop_PC(void)
+static void
+pop_PC (void)
 {
-  int sp = data_read_word(SPL);
-  if (arch->pc_3bytes) {
-    sp++;
-    cpu_PC = data_read_byte(sp) << 16;
-  } else
+  int sp = data_read_word (SPL);
+  if (arch->pc_3bytes)
+    {
+      sp++;
+      cpu_PC = data_read_byte (sp) << 16;
+    }
+  else
     cpu_PC = 0;
   sp++;
-  cpu_PC |= data_read_byte(sp) << 8;
+  cpu_PC |= data_read_byte (sp) << 8;
   sp++;
-  cpu_PC |= data_read_byte(sp);
-  data_write_word(SPL, sp);
+  cpu_PC |= data_read_byte (sp);
+  data_write_word (SPL, sp);
 }
 
 
 // perform the addition and set the appropriate flags
-static void do_addition_8(int rd, int rr, int carry)
+static void
+do_addition_8 (int rd, int rr, int carry)
 {
   int value1, value2, sreg, result;
 
-  value1 = get_reg(rd);
-  value2 = get_reg(rr);
+  value1 = get_reg (rd);
+  value2 = get_reg (rr);
 
   result = value1 + value2 + carry;
 
-  sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX(value1, value2, result)];
-  update_flags(FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+  sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX (value1, value2, result)];
+  update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
-  put_reg(rd, result & 0xFF);
+  put_reg (rd, result & 0xFF);
 }
 
 // perform the subtraction and set the appropriate flags
-static int do_subtraction_8(int value1, int value2, int carry, int use_carry)
+static int
+do_subtraction_8 (int value1, int value2, int carry, int use_carry)
 {
   int sreg, result = value1 - value2 - carry;
 
-  sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX(value1, value2, result)];
-  if (use_carry && ((data_read_byte(SREG) & FLAG_Z) == 0))
+  sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
+  if (use_carry && ((data_read_byte (SREG) & FLAG_Z) == 0))
     sreg &= ~FLAG_Z;
-  update_flags(FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+  update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
   return result & 0xFF;
 }
 
-static void store_logical_result(int rd, int result)
+static void
+store_logical_result (int rd, int result)
 {
-  put_reg(rd, result);
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, flag_update_table_logical[result]);
+  put_reg (rd, result);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z,
+                flag_update_table_logical[result]);
 }
 
 /* 10q0 qq0d dddd 1qqq | LDD */
 
-static void load_indirect(int rd, int ind_register, int adjust, int displacement_bits)
+static void
+load_indirect (int rd, int ind_register, int adjust, int displacement_bits)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
-  int ind_value = get_word_reg(ind_register);
+  int ind_value = get_word_reg (ind_register);
 
   if (adjust < 0)
     ind_value += adjust;
-  put_reg(rd, data_read_byte(ind_value + displacement_bits));
+  put_reg (rd, data_read_byte (ind_value + displacement_bits));
   if (adjust > 0)
     ind_value += adjust;
   if (adjust)
-    put_word_reg(ind_register, ind_value);
+    put_word_reg (ind_register, ind_value);
 }
 
-static void store_indirect(int rd, int ind_register, int adjust, int displacement_bits)
+static void
+store_indirect (int rd, int ind_register, int adjust, int displacement_bits)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
-  int ind_value = get_word_reg(ind_register);
+  int ind_value = get_word_reg (ind_register);
 
   if (adjust < 0)
     ind_value += adjust;
-  data_write_byte(ind_value + displacement_bits, get_reg(rd));
+  data_write_byte (ind_value + displacement_bits, get_reg (rd));
   if (adjust > 0)
     ind_value += adjust;
   if (adjust)
-    put_word_reg(ind_register, ind_value);
+    put_word_reg (ind_register, ind_value);
 }
 
-static void load_program_memory(int rd, int use_RAMPZ, int incr)
+static void
+load_program_memory (int rd, int use_RAMPZ, int incr)
 {
-  int address = get_word_reg(REGZ);
+  int address = get_word_reg (REGZ);
   if (use_RAMPZ)
-    address |= data_read_byte(RAMPZ) << 16;
-  put_reg(rd, flash_read_byte(address));
-  if (incr) {
-    address++;
-    put_word_reg(REGZ, address & 0xFFFF);
-    if (use_RAMPZ)
-      data_write_byte(RAMPZ, address >> 16);
-  }
+    address |= data_read_byte (RAMPZ) << 16;
+  put_reg (rd, flash_read_byte (address));
+  if (incr)
+    {
+      address++;
+      put_word_reg (REGZ, address & 0xFFFF);
+      if (use_RAMPZ)
+        data_write_byte (RAMPZ, address >> 16);
+    }
 }
 
-static void skip_instruction_on_condition(int condition)
+static void
+skip_instruction_on_condition (int condition)
 {
   int size;
-  if (condition) {
-    size = opcode_func_array[decoded_flash[cpu_PC].data_index].size;
-    cpu_PC += size;
-    add_program_cycles(size);
-  }
+  if (condition)
+    {
+      size = opcode_func_array[decoded_flash[cpu_PC].data_index].size;
+      cpu_PC += size;
+      add_program_cycles (size);
+    }
 }
 
-static void branch_on_sreg_condition(int rd, int rr, int flag_value)
+static void
+branch_on_sreg_condition (int rd, int rr, int flag_value)
 {
-  if (((data_read_byte(SREG) & rr) != 0) == flag_value) {
-    int delta = rd;
-    if (delta & 0x40) delta |= 0xFFFFFF80;
-    cpu_PC += delta;
-    add_program_cycles(1);
-  }
+  if (((data_read_byte (SREG) & rr) != 0) == flag_value)
+    {
+      int delta = rd;
+      if (delta & 0x40) delta |= 0xFFFFFF80;
+      cpu_PC += delta;
+      add_program_cycles (1);
+    }
 }
 
-static void rotate_right(int rd, int value, int top_bit)
+static void
+rotate_right (int rd, int value, int top_bit)
 {
   if (top_bit)
     value |= 0x100;
-  put_reg(rd, value >> 1);
+  put_reg (rd, value >> 1);
 
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, flag_update_table_ror8[value]);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C,
+                flag_update_table_ror8[value]);
 }
 
-static void do_multiply(int rd, int rr, int signed1, int signed2, int shift)
+static void
+do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 {
   int v1, v2, result, sreg;
 
-  v1 = signed1 ? ((signed char) get_reg(rd)) : get_reg(rd);
-  v2 = signed2 ? ((signed char) get_reg(rr)) : get_reg(rr);
+  v1 = signed1 ? ((signed char) get_reg (rd)) : get_reg (rd);
+  v2 = signed2 ? ((signed char) get_reg (rr)) : get_reg (rr);
   result = (v1 * v2) & 0xFFFF;
 
   sreg = 0;
@@ -750,16 +825,16 @@ static void do_multiply(int rd, int rr, int signed1, int signed2, int shift)
     result <<= 1;
   if (result == 0)
     sreg |= FLAG_Z;
-  update_flags(FLAG_Z | FLAG_C, sreg);
-  put_word_reg(0, result);
+  update_flags (FLAG_Z | FLAG_C, sreg);
+  put_word_reg (0, result);
 }
 
 // handle illegal instructions
-static OP_FUNC_TYPE avr_op_ILLEGAL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ILLEGAL (int rd, int rr)
 {
   char buf[128];
-  sprintf(buf, "illegal opcode %04x", rr);
-  leave(EXIT_STATUS_ABORTED, buf);
+  sprintf (buf, "illegal opcode %04x", rr);
+  leave (EXIT_STATUS_ABORTED, buf);
 }
 
 // ----------------------------------------------------------------------------
@@ -767,97 +842,101 @@ static OP_FUNC_TYPE avr_op_ILLEGAL(int rd, int rr)
 
 /* opcodes with no operands */
 /* 1001 0101 0001 1001 | EICALL */
-static OP_FUNC_TYPE avr_op_EICALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_EICALL (int rd, int rr)
 {
-  if (arch->has_eind) {
-    push_PC();
-    cpu_PC = data_read_word(REGZ) | (data_read_byte(EIND) << 16);
-  }
-  else {
-    avr_op_ILLEGAL(0,0x9519);
-  }
+  if (arch->has_eind)
+    {
+      push_PC();
+      cpu_PC = data_read_word (REGZ) | (data_read_byte (EIND) << 16);
+    }
+  else
+    {
+      avr_op_ILLEGAL (0,0x9519);
+    }
 }
 
 /* 1001 0100 0001 1001 | EIJMP */
-static OP_FUNC_TYPE avr_op_EIJMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_EIJMP (int rd, int rr)
 {
-  if (arch->has_eind) {
-    cpu_PC = data_read_word(REGZ) | (data_read_byte(EIND) << 16);
-  }
+  if (arch->has_eind)
+    {
+      cpu_PC = data_read_word (REGZ) | (data_read_byte (EIND) << 16);
+    }
   else {
-    avr_op_ILLEGAL(0,0x9419);
+    avr_op_ILLEGAL (0,0x9419);
   }
 }
 
 /* 1001 0101 1101 1000 | ELPM */
-static OP_FUNC_TYPE avr_op_ELPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ELPM (int rd, int rr)
 {
-  load_program_memory(0, 1, 0);
+  load_program_memory (0, 1, 0);
 }
 
 /* 1001 0101 1111 1000 | ESPM */
-static OP_FUNC_TYPE avr_op_ESPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ESPM (int rd, int rr)
 {
-  avr_op_ILLEGAL(0, 0x95F8);
+  avr_op_ILLEGAL (0, 0x95F8);
   //TODO
 }
 
 /* 1001 0101 0000 1001 | ICALL */
-static OP_FUNC_TYPE avr_op_ICALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ICALL (int rd, int rr)
 {
   push_PC();
-  cpu_PC = get_word_reg(REGZ);
+  cpu_PC = get_word_reg (REGZ);
   if (arch->pc_3bytes)
-    add_program_cycles(1);
+    add_program_cycles (1);
 }
 
 /* 1001 0100 0000 1001 | IJMP */
-static OP_FUNC_TYPE avr_op_IJMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_IJMP (int rd, int rr)
 {
-  cpu_PC = get_word_reg(REGZ);
+  cpu_PC = get_word_reg (REGZ);
 }
 
 /* 1001 0101 1100 1000 | LPM */
-static OP_FUNC_TYPE avr_op_LPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LPM (int rd, int rr)
 {
-  load_program_memory(0, 0, 0);
+  load_program_memory (0, 0, 0);
 }
 
 /* 0000 0000 0000 0000 | NOP */
-static OP_FUNC_TYPE avr_op_NOP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_NOP (int rd, int rr)
 {
 }
 
 /* 1001 0101 0000 1000 | RET */
-static OP_FUNC_TYPE avr_op_RET(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RET (int rd, int rr)
 {
   pop_PC();
   if (arch->pc_3bytes)
-    add_program_cycles(1);
+    add_program_cycles (1);
 }
 
 /* 1001 0101 0001 1000 | RETI */
-static OP_FUNC_TYPE avr_op_RETI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RETI (int rd, int rr)
 {
-  avr_op_RET(rd,rr);
-  update_flags(FLAG_I, FLAG_I);
+  avr_op_RET (rd,rr);
+  update_flags (FLAG_I, FLAG_I);
 }
 
 /* 1001 0101 1000 1000 | SLEEP */
-static OP_FUNC_TYPE avr_op_SLEEP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SLEEP (int rd, int rr)
 {
-  // we don't have anything to wake us up, so just pretend we wake up immediately
+  // we don't have anything to wake us up, so just pretend we wake
+  // up immediately
 }
 
 /* 1001 0101 1110 1000 | SPM */
-static OP_FUNC_TYPE avr_op_SPM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SPM (int rd, int rr)
 {
-  avr_op_ILLEGAL(0,0x95E8);
+  avr_op_ILLEGAL (0,0x95E8);
   //TODO
 }
 
 /* 1001 0101 1010 1000 | WDR */
-static OP_FUNC_TYPE avr_op_WDR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_WDR (int rd, int rr)
 {
   // we don't have a watchdog, so do nothing
 }
@@ -865,402 +944,407 @@ static OP_FUNC_TYPE avr_op_WDR(int rd, int rr)
 
 /* opcodes with two 5-bit register (Rd and Rr) operands */
 /* 0001 11rd dddd rrrr | ADC or ROL */
-static OP_FUNC_TYPE avr_op_ADC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ADC (int rd, int rr)
 {
-  do_addition_8(rd,rr,get_carry());
+  do_addition_8 (rd,rr,get_carry());
 }
 
 /* 0000 11rd dddd rrrr | ADD or LSL */
-static OP_FUNC_TYPE avr_op_ADD(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ADD (int rd, int rr)
 {
-  do_addition_8(rd,rr,0);
+  do_addition_8 (rd,rr,0);
 }
 
 /* 0010 00rd dddd rrrr | AND or TST */
-static OP_FUNC_TYPE avr_op_AND(int rd, int rr)
+static OP_FUNC_TYPE avr_op_AND (int rd, int rr)
 {
-  int result = get_reg(rd) & get_reg(rr);
-  store_logical_result(rd,result);
+  int result = get_reg (rd) & get_reg (rr);
+  store_logical_result (rd,result);
 }
 
 /* 0001 01rd dddd rrrr | CP */
-static OP_FUNC_TYPE avr_op_CP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CP (int rd, int rr)
 {
-  do_subtraction_8(get_reg(rd), get_reg(rr), 0, 0);
+  do_subtraction_8 (get_reg (rd), get_reg (rr), 0, 0);
 }
 
 /* 0000 01rd dddd rrrr | CPC */
-static OP_FUNC_TYPE avr_op_CPC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CPC (int rd, int rr)
 {
-  do_subtraction_8(get_reg(rd), get_reg(rr), get_carry(), 1);
+  do_subtraction_8 (get_reg (rd), get_reg (rr), get_carry(), 1);
 }
 
 /* 0001 00rd dddd rrrr | CPSE */
-static OP_FUNC_TYPE avr_op_CPSE(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CPSE (int rd, int rr)
 {
-  skip_instruction_on_condition(get_reg(rd) ==  get_reg(rr));
+  skip_instruction_on_condition (get_reg (rd) == get_reg (rr));
 }
 
 /* 0010 01rd dddd rrrr | EOR or CLR */
-static OP_FUNC_TYPE avr_op_EOR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_EOR (int rd, int rr)
 {
-  int result = get_reg(rd) ^ get_reg(rr);
-  store_logical_result(rd,result);
+  int result = get_reg (rd) ^ get_reg (rr);
+  store_logical_result (rd,result);
 }
 
 /* 0010 11rd dddd rrrr | MOV */
-static OP_FUNC_TYPE avr_op_MOV(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MOV (int rd, int rr)
 {
-  put_reg(rd, get_reg(rr));
+  put_reg (rd, get_reg (rr));
 }
 
 /* 1001 11rd dddd rrrr | MUL */
-static OP_FUNC_TYPE avr_op_MUL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MUL (int rd, int rr)
 {
-  do_multiply(rd,rr,0,0,0);
+  do_multiply (rd,rr,0,0,0);
 }
 
 /* 0010 10rd dddd rrrr | OR */
-static OP_FUNC_TYPE avr_op_OR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_OR (int rd, int rr)
 {
-  int result = get_reg(rd) | get_reg(rr);
-  store_logical_result(rd, result);
+  int result = get_reg (rd) | get_reg (rr);
+  store_logical_result (rd, result);
 }
 
 /* 0000 10rd dddd rrrr | SBC */
-static OP_FUNC_TYPE avr_op_SBC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBC (int rd, int rr)
 {
-  put_reg(rd, do_subtraction_8(get_reg(rd), get_reg(rr), get_carry(), 1));
+  put_reg (rd, do_subtraction_8 (get_reg (rd), get_reg (rr), get_carry(), 1));
 }
 
 /* 0001 10rd dddd rrrr | SUB */
-static OP_FUNC_TYPE avr_op_SUB(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SUB (int rd, int rr)
 {
-  put_reg(rd, do_subtraction_8(get_reg(rd), get_reg(rr), 0, 0));
+  put_reg (rd, do_subtraction_8 (get_reg (rd), get_reg (rr), 0, 0));
 }
 
 
 /* opcode with a single register (Rd) as operand */
 /* 1001 010d dddd 0101 | ASR */
-static OP_FUNC_TYPE avr_op_ASR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ASR (int rd, int rr)
 {
-  int value = get_reg(rd);
-  rotate_right(rd, value, value & 0x80);
+  int value = get_reg (rd);
+  rotate_right (rd, value, value & 0x80);
 }
 
 /* 1001 010d dddd 0000 | COM */
-static OP_FUNC_TYPE avr_op_COM(int rd, int rr)
+static OP_FUNC_TYPE avr_op_COM (int rd, int rr)
 {
-  int result = (~get_reg(rd)) & 0xFF;
-  put_reg(rd, result);
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, flag_update_table_logical[result] | FLAG_C);
+  int result = (~get_reg (rd)) & 0xFF;
+  put_reg (rd, result);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C,
+                flag_update_table_logical[result] | FLAG_C);
 }
 
 /* 1001 010d dddd 1010 | DEC */
-static OP_FUNC_TYPE avr_op_DEC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_DEC (int rd, int rr)
 {
-  int result = (get_reg(rd) - 1) & 0xFF;
-  put_reg(rd, result);
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, flag_update_table_dec[result]);
+  int result = (get_reg (rd) - 1) & 0xFF;
+  put_reg (rd, result);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z,
+                flag_update_table_dec[result]);
 }
 
 /* 1001 000d dddd 0110 | ELPM */
-static OP_FUNC_TYPE avr_op_ELPM_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ELPM_Z (int rd, int rr)
 {
-  load_program_memory(rd, 1, 0);
+  load_program_memory (rd, 1, 0);
 }
 
 /* 1001 000d dddd 0111 | ELPM */
-static OP_FUNC_TYPE avr_op_ELPM_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ELPM_Z_incr (int rd, int rr)
 {
-  load_program_memory(rd, 1, 1);
+  load_program_memory (rd, 1, 1);
 }
 
 /* 1001 010d dddd 0011 | INC */
-static OP_FUNC_TYPE avr_op_INC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_INC (int rd, int rr)
 {
-  int result = (get_reg(rd) + 1) & 0xFF;
-  put_reg(rd, result);
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z, flag_update_table_inc[result]);
+  int result = (get_reg (rd) + 1) & 0xFF;
+  put_reg (rd, result);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z,
+                flag_update_table_inc[result]);
 }
 
 /* 1001 000d dddd 0000 | LDS */
-static OP_FUNC_TYPE avr_op_LDS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDS (int rd, int rr)
 {
   //TODO:RAMPD
-  put_reg(rd, data_read_byte(rr));
+  put_reg (rd, data_read_byte (rr));
 }
 
 /* 1001 000d dddd 1100 | LD */
-static OP_FUNC_TYPE avr_op_LD_X(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_X (int rd, int rr)
 {
-  load_indirect(rd, REGX, 0, 0);
+  load_indirect (rd, REGX, 0, 0);
 }
 
 /* 1001 000d dddd 1110 | LD */
-static OP_FUNC_TYPE avr_op_LD_X_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_X_decr (int rd, int rr)
 {
-  load_indirect(rd, REGX, -1, 0);
+  load_indirect (rd, REGX, -1, 0);
 }
 
 /* 1001 000d dddd 1101 | LD */
-static OP_FUNC_TYPE avr_op_LD_X_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_X_incr (int rd, int rr)
 {
-  load_indirect(rd, REGX, 1, 0);
+  load_indirect (rd, REGX, 1, 0);
 }
 
 /* 1001 000d dddd 1010 | LD */
-static OP_FUNC_TYPE avr_op_LD_Y_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Y_decr (int rd, int rr)
 {
-  load_indirect(rd, REGY, -1, 0);
+  load_indirect (rd, REGY, -1, 0);
 }
 
 /* 1001 000d dddd 1001 | LD */
-static OP_FUNC_TYPE avr_op_LD_Y_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Y_incr (int rd, int rr)
 {
-  load_indirect(rd, REGY, 1, 0);
+  load_indirect (rd, REGY, 1, 0);
 }
 
 /* 1001 000d dddd 0010 | LD */
-static OP_FUNC_TYPE avr_op_LD_Z_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Z_decr (int rd, int rr)
 {
-  load_indirect(rd, REGZ, -1, 0);
+  load_indirect (rd, REGZ, -1, 0);
 }
 
 /* 1001 000d dddd 0010 | LD */
-static OP_FUNC_TYPE avr_op_LD_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LD_Z_incr (int rd, int rr)
 {
-  load_indirect(rd, REGZ, 1, 0);
+  load_indirect (rd, REGZ, 1, 0);
 }
 
 /* 1001 000d dddd 0100 | LPM Z */
-static OP_FUNC_TYPE avr_op_LPM_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LPM_Z (int rd, int rr)
 {
-  load_program_memory(rd, 0, 0);
+  load_program_memory (rd, 0, 0);
 }
 
 /* 1001 000d dddd 0101 | LPM Z+ */
-static OP_FUNC_TYPE avr_op_LPM_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LPM_Z_incr (int rd, int rr)
 {
-  load_program_memory(rd, 0, 1);
+  load_program_memory (rd, 0, 1);
 }
 
 /* 1001 010d dddd 0110 | LSR */
-static OP_FUNC_TYPE avr_op_LSR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LSR (int rd, int rr)
 {
-  rotate_right(rd, get_reg(rd), 0);
+  rotate_right (rd, get_reg (rd), 0);
 }
 
 /* 1001 010d dddd 0001 | NEG */
-static OP_FUNC_TYPE avr_op_NEG(int rd, int rr)
+static OP_FUNC_TYPE avr_op_NEG (int rd, int rr)
 {
-  put_reg(rd, do_subtraction_8(0, get_reg(rd), 0, 0));
+  put_reg (rd, do_subtraction_8 (0, get_reg (rd), 0, 0));
 }
 
 /* 1001 000d dddd 1111 | POP */
-static OP_FUNC_TYPE avr_op_POP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_POP (int rd, int rr)
 {
-  put_reg(rd, pop_byte());
+  put_reg (rd, pop_byte());
 }
 
 /* 1001 001d dddd 1111 | PUSH */
-static OP_FUNC_TYPE avr_op_PUSH(int rd, int rr)
+static OP_FUNC_TYPE avr_op_PUSH (int rd, int rr)
 {
-  push_byte(get_reg(rd));
+  push_byte (get_reg (rd));
 }
 
 /* 1001 010d dddd 0111 | ROR */
-static OP_FUNC_TYPE avr_op_ROR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ROR (int rd, int rr)
 {
-  rotate_right(rd, get_reg(rd), get_carry());
+  rotate_right (rd, get_reg (rd), get_carry());
 }
 
 /* 1001 001d dddd 0000 | STS */
-static OP_FUNC_TYPE avr_op_STS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_STS (int rd, int rr)
 {
   //TODO:RAMPD
-  data_write_byte(rr, get_reg(rd));
+  data_write_byte (rr, get_reg (rd));
 }
 
 /* 1001 001d dddd 1100 | ST */
-static OP_FUNC_TYPE avr_op_ST_X(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_X (int rd, int rr)
 {
-  store_indirect(rd, REGX, 0, 0);
+  store_indirect (rd, REGX, 0, 0);
 }
 
 /* 1001 001d dddd 1110 | ST */
-static OP_FUNC_TYPE avr_op_ST_X_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_X_decr (int rd, int rr)
 {
-  store_indirect(rd, REGX, -1, 0);
+  store_indirect (rd, REGX, -1, 0);
 }
 
 /* 1001 001d dddd 1101 | ST */
-static OP_FUNC_TYPE avr_op_ST_X_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_X_incr (int rd, int rr)
 {
-  store_indirect(rd, REGX, 1, 0);
+  store_indirect (rd, REGX, 1, 0);
 }
 
 /* 1001 001d dddd 1010 | ST */
-static OP_FUNC_TYPE avr_op_ST_Y_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Y_decr (int rd, int rr)
 {
-  store_indirect(rd, REGY, -1, 0);
+  store_indirect (rd, REGY, -1, 0);
 }
 
 /* 1001 001d dddd 1001 | ST */
-static OP_FUNC_TYPE avr_op_ST_Y_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Y_incr (int rd, int rr)
 {
-  store_indirect(rd, REGY, 1, 0);
+  store_indirect (rd, REGY, 1, 0);
 }
 
 /* 1001 001d dddd 0010 | ST */
-static OP_FUNC_TYPE avr_op_ST_Z_decr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Z_decr (int rd, int rr)
 {
-  store_indirect(rd, REGZ, -1, 0);
+  store_indirect (rd, REGZ, -1, 0);
 }
 
 /* 1001 001d dddd 0001 | ST */
-static OP_FUNC_TYPE avr_op_ST_Z_incr(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ST_Z_incr (int rd, int rr)
 {
-  store_indirect(rd, REGZ, 1, 0);
+  store_indirect (rd, REGZ, 1, 0);
 }
 
 /* 1001 010d dddd 0010 | SWAP */
-static OP_FUNC_TYPE avr_op_SWAP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SWAP (int rd, int rr)
 {
-  int value = get_reg(rd);
-  put_reg(rd, ((value << 4) & 0xF0) | ((value >> 4) & 0x0F));
+  int value = get_reg (rd);
+  put_reg (rd, ((value << 4) & 0xF0) | ((value >> 4) & 0x0F));
 }
 
 /* opcodes with a register (Rd) and a constant data (K) as operands */
 /* 0111 KKKK dddd KKKK | CBR or ANDI */
-static OP_FUNC_TYPE avr_op_ANDI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ANDI (int rd, int rr)
 {
-  int result = get_reg(rd) & rr;
-  store_logical_result(rd, result);
+  int result = get_reg (rd) & rr;
+  store_logical_result (rd, result);
 }
 
 /* 0011 KKKK dddd KKKK | CPI */
-static OP_FUNC_TYPE avr_op_CPI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CPI (int rd, int rr)
 {
-  do_subtraction_8(get_reg(rd), rr, 0, 0);
+  do_subtraction_8 (get_reg (rd), rr, 0, 0);
 }
 
 /* 1110 KKKK dddd KKKK | LDI or SER */
-static OP_FUNC_TYPE avr_op_LDI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDI (int rd, int rr)
 {
-  put_reg(rd, rr);
+  put_reg (rd, rr);
 }
 
 /* 0110 KKKK dddd KKKK | SBR or ORI */
-static OP_FUNC_TYPE avr_op_ORI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ORI (int rd, int rr)
 {
-  int result = get_reg(rd) | rr;
-  store_logical_result(rd, result);
+  int result = get_reg (rd) | rr;
+  store_logical_result (rd, result);
 }
 
 /* 0100 KKKK dddd KKKK | SBCI */
 /* 0101 KKKK dddd KKKK | SUBI */
-static OP_FUNC_TYPE avr_op_SBCI_SUBI(int rd, int rr, int carry, int use_carry)
+static OP_FUNC_TYPE avr_op_SBCI_SUBI (int rd, int rr, int carry, int use_carry)
 {
-  put_reg(rd, do_subtraction_8(get_reg(rd), rr, carry, use_carry));
+  put_reg (rd, do_subtraction_8 (get_reg (rd), rr, carry, use_carry));
 }
 
-static OP_FUNC_TYPE avr_op_SBCI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBCI (int rd, int rr)
 {
-  avr_op_SBCI_SUBI(rd, rr, get_carry(), 1);
+  avr_op_SBCI_SUBI (rd, rr, get_carry(), 1);
 }
 
-static OP_FUNC_TYPE avr_op_SUBI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SUBI (int rd, int rr)
 {
-  avr_op_SBCI_SUBI(rd, rr, 0, 0);
+  avr_op_SBCI_SUBI (rd, rr, 0, 0);
 }
 
 
 /* opcodes with a register (Rd) and a register bit number (b) as operands */
 /* 1111 100d dddd 0bbb | BLD */
-static OP_FUNC_TYPE avr_op_BLD(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BLD (int rd, int rr)
 {
-  int value = get_reg(rd);
-  if (data_read_byte(SREG) & FLAG_T)
+  int value = get_reg (rd);
+  if (data_read_byte (SREG) & FLAG_T)
     value |= rr;
   else
     value &= ~rr;
-  put_reg(rd, value);
+  put_reg (rd, value);
 }
 
 /* 1111 101d dddd 0bbb | BST */
-static OP_FUNC_TYPE avr_op_BST(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BST (int rd, int rr)
 {
-  int bit = get_reg(rd) & rr;
-  update_flags(FLAG_T, bit ? FLAG_T : 0);
+  int bit = get_reg (rd) & rr;
+  update_flags (FLAG_T, bit ? FLAG_T : 0);
 }
 
 /* 1111 110d dddd 0bbb | SBRC */
-static OP_FUNC_TYPE avr_op_SBRC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBRC (int rd, int rr)
 {
-  skip_instruction_on_condition(!(get_reg(rd) & rr));
+  skip_instruction_on_condition (!(get_reg (rd) & rr));
 }
 
 /* 1111 111d dddd 0bbb | SBRS */
-static OP_FUNC_TYPE avr_op_SBRS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBRS (int rd, int rr)
 {
-  skip_instruction_on_condition(get_reg(rd) & rr);
+  skip_instruction_on_condition (get_reg (rd) & rr);
 }
 
-/* opcodes with a relative 7-bit address (k) and a register bit number (b) as operands */
+/* opcodes with a relative 7-bit address (k) and a register bit number (b)
+   as operands */
 /* 1111 01kk kkkk kbbb | BRBC */
-static OP_FUNC_TYPE avr_op_BRBC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BRBC (int rd, int rr)
 {
-  branch_on_sreg_condition(rd, rr, 0);
+  branch_on_sreg_condition (rd, rr, 0);
 }
 
 /* 1111 00kk kkkk kbbb | BRBS */
-static OP_FUNC_TYPE avr_op_BRBS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BRBS (int rd, int rr)
 {
-  branch_on_sreg_condition(rd, rr, 1);
+  branch_on_sreg_condition (rd, rr, 1);
 }
 
 
-/* opcodes with a 6-bit address displacement (q) and a register (Rd) as operands */
+/* opcodes with a 6-bit address displacement (q) and a register (Rd)
+   as operands */
 /* 10q0 qq0d dddd 1qqq | LDD */
-static OP_FUNC_TYPE avr_op_LDD_Y(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDD_Y (int rd, int rr)
 {
-  load_indirect(rd, REGY, 0, rr);
+  load_indirect (rd, REGY, 0, rr);
 }
 
 /* 10q0 qq0d dddd 0qqq | LDD */
-static OP_FUNC_TYPE avr_op_LDD_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_LDD_Z (int rd, int rr)
 {
-  load_indirect(rd, REGZ, 0, rr);
+  load_indirect (rd, REGZ, 0, rr);
 }
 
 /* 10q0 qq1d dddd 1qqq | STD */
-static OP_FUNC_TYPE avr_op_STD_Y(int rd, int rr)
+static OP_FUNC_TYPE avr_op_STD_Y (int rd, int rr)
 {
-  store_indirect(rd, REGY, 0, rr);
+  store_indirect (rd, REGY, 0, rr);
 }
 
 /* 10q0 qq1d dddd 0qqq | STD */
-static OP_FUNC_TYPE avr_op_STD_Z(int rd, int rr)
+static OP_FUNC_TYPE avr_op_STD_Z (int rd, int rr)
 {
-  store_indirect(rd, REGZ, 0, rr);
+  store_indirect (rd, REGZ, 0, rr);
 }
 
 
 /* opcodes with a absolute 22-bit address (k) operand */
 /* 1001 010k kkkk 110k | JMP */
-static OP_FUNC_TYPE avr_op_JMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_JMP (int rd, int rr)
 {
   cpu_PC = rr | (rd << 16);
 }
 
 /* 1001 010k kkkk 111k | CALL */
-static OP_FUNC_TYPE avr_op_CALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CALL (int rd, int rr)
 {
   push_PC();
   cpu_PC = rr | (rd << 16);
   if (arch->pc_3bytes)
-    add_program_cycles(1);
+    add_program_cycles (1);
 }
 
 
@@ -1268,109 +1352,109 @@ static OP_FUNC_TYPE avr_op_CALL(int rd, int rr)
 /* BCLR takes place of CL{C,Z,N,V,S,H,T,I} */
 /* BSET takes place of SE{C,Z,N,V,S,H,T,I} */
 /* 1001 0100 1sss 1000 | BCLR */
-static OP_FUNC_TYPE avr_op_BCLR(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BCLR (int rd, int rr)
 {
-  update_flags(rd, 0);
+  update_flags (rd, 0);
 }
 
 /* 1001 0100 0sss 1000 | BSET */
-static OP_FUNC_TYPE avr_op_BSET(int rd, int rr)
+static OP_FUNC_TYPE avr_op_BSET (int rd, int rr)
 {
-  update_flags(rd, rd);
+  update_flags (rd, rd);
 }
 
 
 /* opcodes with a 6-bit constant (K) and a register (Rd) as operands */
 /* 1001 0110 KKdd KKKK | ADIW */
-static OP_FUNC_TYPE avr_op_ADIW(int rd, int rr)
+static OP_FUNC_TYPE avr_op_ADIW (int rd, int rr)
 {
   int svalue, evalue, sreg;
 
-  svalue = get_word_reg(rd);
+  svalue = get_word_reg (rd);
   evalue = svalue + rr;
-  put_word_reg(rd, evalue);
+  put_word_reg (rd, evalue);
 
-  sreg = flag_update_table_add8[FUT_ADDSUB16_INDEX(svalue, evalue)];
+  sreg = flag_update_table_add8[FUT_ADDSUB16_INDEX (svalue, evalue)];
   sreg &= ~FLAG_H;
   if ((evalue & 0xFFFF) != 0x0000)
     sreg &= ~FLAG_Z;
 
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 }
 
 /* 1001 0111 KKdd KKKK | SBIW */
-static OP_FUNC_TYPE avr_op_SBIW(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBIW (int rd, int rr)
 {
   int svalue, evalue, sreg;
 
-  svalue = get_word_reg(rd);
+  svalue = get_word_reg (rd);
   evalue = svalue - rr;
-  put_word_reg(rd, evalue);
+  put_word_reg (rd, evalue);
 
-  sreg = flag_update_table_sub8[FUT_ADDSUB16_INDEX(svalue, evalue)];
+  sreg = flag_update_table_sub8[FUT_ADDSUB16_INDEX (svalue, evalue)];
   sreg &= ~FLAG_H;
   if ((evalue & 0xFFFF) != 0x0000)
     sreg &= ~FLAG_Z;
 
-  update_flags(FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 }
 
 
 /* opcodes with a 5-bit IO Addr (A) and register bit number (b) as operands */
 /* 1001 1000 AAAA Abbb | CBI */
-static OP_FUNC_TYPE avr_op_CBI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_CBI (int rd, int rr)
 {
-  data_write_byte(rd, data_read_byte(rd) & ~(rr));
+  data_write_byte (rd, data_read_byte (rd) & ~(rr));
 }
 
 /* 1001 1010 AAAA Abbb | SBI */
-static OP_FUNC_TYPE avr_op_SBI(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBI (int rd, int rr)
 {
-  data_write_byte(rd, data_read_byte(rd) | rr);
+  data_write_byte (rd, data_read_byte (rd) | rr);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC */
-static OP_FUNC_TYPE avr_op_SBIC(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBIC (int rd, int rr)
 {
-  skip_instruction_on_condition(!(data_read_byte(rd) & rr));
+  skip_instruction_on_condition (!(data_read_byte (rd) & rr));
 }
 
 /* 1001 1011 AAAA Abbb | SBIS */
-static OP_FUNC_TYPE avr_op_SBIS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_SBIS (int rd, int rr)
 {
-  skip_instruction_on_condition(data_read_byte(rd) & rr);
+  skip_instruction_on_condition (data_read_byte (rd) & rr);
 }
 
 
 /* opcodes with a 6-bit IO Addr (A) and register (Rd) as operands */
 /* 1011 0AAd dddd AAAA | IN */
-static OP_FUNC_TYPE avr_op_IN(int rd, int rr)
+static OP_FUNC_TYPE avr_op_IN (int rd, int rr)
 {
-  put_reg(rd, data_read_byte(rr));
+  put_reg (rd, data_read_byte (rr));
 }
 
 /* 1011 1AAd dddd AAAA | OUT */
-static OP_FUNC_TYPE avr_op_OUT(int rd, int rr)
+static OP_FUNC_TYPE avr_op_OUT (int rd, int rr)
 {
-  data_write_byte(rr, get_reg(rd));
+  data_write_byte (rr, get_reg (rd));
 }
 
 
 /* opcodes with a relative 12-bit address (k) operand */
 /* 1100 kkkk kkkk kkkk | RJMP */
-static OP_FUNC_TYPE avr_op_RJMP(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RJMP (int rd, int rr)
 {
   int delta = rr;
   if (delta & 0x800) delta |= 0xFFFFF000;
 
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
-    leave(EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
+    leave (EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
   cpu_PC += delta;
 }
 
 /* 1101 kkkk kkkk kkkk | RCALL */
-static OP_FUNC_TYPE avr_op_RCALL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_RCALL (int rd, int rr)
 {
   int delta = rr;
   if (delta & 0x800) delta |= 0xFFFFF000;
@@ -1378,46 +1462,46 @@ static OP_FUNC_TYPE avr_op_RCALL(int rd, int rr)
   push_PC();
   cpu_PC += delta;
   if (arch->pc_3bytes)
-    add_program_cycles(1);
+    add_program_cycles (1);
 }
 
 
 /* opcodes with two 4-bit register (Rd and Rr) operands */
 /* 0000 0001 dddd rrrr | MOVW */
-static OP_FUNC_TYPE avr_op_MOVW(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MOVW (int rd, int rr)
 {
-  put_word_reg(rd, get_word_reg(rr));
+  put_word_reg (rd, get_word_reg (rr));
 }
 
 /* 0000 0010 dddd rrrr | MULS */
-static OP_FUNC_TYPE avr_op_MULS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MULS (int rd, int rr)
 {
-  do_multiply(rd, rr, 1, 1, 0);
+  do_multiply (rd, rr, 1, 1, 0);
 }
 
 /* opcodes with two 3-bit register (Rd and Rr) operands */
 /* 0000 0011 0ddd 0rrr | MULSU */
-static OP_FUNC_TYPE avr_op_MULSU(int rd, int rr)
+static OP_FUNC_TYPE avr_op_MULSU (int rd, int rr)
 {
-  do_multiply(rd, rr, 1, 0, 0);
+  do_multiply (rd, rr, 1, 0, 0);
 }
 
 /* 0000 0011 0ddd 1rrr | FMUL */
-static OP_FUNC_TYPE avr_op_FMUL(int rd, int rr)
+static OP_FUNC_TYPE avr_op_FMUL (int rd, int rr)
 {
-  do_multiply(rd, rr, 0, 0, 1);
+  do_multiply (rd, rr, 0, 0, 1);
 }
 
 /* 0000 0011 1ddd 0rrr | FMULS */
-static OP_FUNC_TYPE avr_op_FMULS(int rd, int rr)
+static OP_FUNC_TYPE avr_op_FMULS (int rd, int rr)
 {
-  do_multiply(rd, rr, 1, 1, 1);
+  do_multiply (rd, rr, 1, 1, 1);
 }
 
 /* 0000 0011 1ddd 1rrr | FMULSU */
-static OP_FUNC_TYPE avr_op_FMULSU(int rd, int rr)
+static OP_FUNC_TYPE avr_op_FMULSU (int rd, int rr)
 {
-  do_multiply(rd, rr, 1, 0, 1);
+  do_multiply (rd, rr, 1, 0, 1);
 }
 
 
@@ -1476,19 +1560,22 @@ typedef struct
 
 #define DATA_VADDR 0x800000
 
-static Elf32_Half get_elf32_half (Elf32_Half *v)
+static Elf32_Half
+get_elf32_half (Elf32_Half *v)
 {
-  unsigned char *p = (unsigned char *)v;
+  unsigned char *p = (unsigned char*) v;
   return p[0] | (p[1] << 8);
 }
 
-static Elf32_Word get_elf32_word (Elf32_Word *v)
+static Elf32_Word
+get_elf32_word (Elf32_Word *v)
 {
-  unsigned char *p = (unsigned char *)v;
+  unsigned char *p = (unsigned char*) v;
   return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
-static void load_elf(FILE *f)
+static void
+load_elf (FILE *f)
 {
   Elf32_Ehdr ehdr;
   Elf32_Phdr phdr[16];
@@ -1496,108 +1583,114 @@ static void load_elf(FILE *f)
   int i;
   size_t res;
     
-  rewind(f);
-  if (fread(&ehdr, sizeof(ehdr), 1, f) != 1)
-    leave(EXIT_STATUS_ABORTED, "can't read ELF header");
+  rewind (f);
+  if (fread (&ehdr, sizeof (ehdr), 1, f) != 1)
+    leave (EXIT_STATUS_ABORTED, "can't read ELF header");
   if (ehdr.e_ident[EI_CLASS] != ELFCLASS32
       || ehdr.e_ident[EI_DATA] != ELFDATA2LSB
       || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
-    leave(EXIT_STATUS_ABORTED, "bad ELF header");
+    leave (EXIT_STATUS_ABORTED, "bad ELF header");
   if (get_elf32_half (&ehdr.e_type) != ET_EXEC
-      || get_elf32_half(&ehdr.e_machine) != EM_AVR
-      || get_elf32_word(&ehdr.e_version) != EV_CURRENT
-      || get_elf32_half(&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
-    leave(EXIT_STATUS_ABORTED, "ELF file is not an AVR executable");
+      || get_elf32_half (&ehdr.e_machine) != EM_AVR
+      || get_elf32_word (&ehdr.e_version) != EV_CURRENT
+      || get_elf32_half (&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
+    leave (EXIT_STATUS_ABORTED, "ELF file is not an AVR executable");
 
-  nbr_phdr = get_elf32_half(&ehdr.e_phnum);
-  if ((unsigned)nbr_phdr > sizeof(phdr)/sizeof(*phdr))
-    leave(EXIT_STATUS_ABORTED, "ELF file contains too many PHDR");
+  nbr_phdr = get_elf32_half (&ehdr.e_phnum);
+  if ((unsigned)nbr_phdr > sizeof (phdr)/sizeof (*phdr))
+    leave (EXIT_STATUS_ABORTED, "ELF file contains too many PHDR");
 
-  if (fseek (f, get_elf32_word(&ehdr.e_phoff), SEEK_SET) != 0)
-    leave(EXIT_STATUS_ABORTED, "ELF file truncated");
-  res = fread(phdr, sizeof(Elf32_Phdr), nbr_phdr, f);
+  if (fseek (f, get_elf32_word (&ehdr.e_phoff), SEEK_SET) != 0)
+    leave (EXIT_STATUS_ABORTED, "ELF file truncated");
+  res = fread (phdr, sizeof (Elf32_Phdr), nbr_phdr, f);
   if (res != (size_t)nbr_phdr)
-    leave(EXIT_STATUS_ABORTED, "can't read PHDRs of ELF file");
-  for (i = 0; i < nbr_phdr; i++) {
-    Elf32_Addr addr = get_elf32_word(&phdr[i].p_paddr);
-    Elf32_Addr vaddr = get_elf32_word(&phdr[i].p_vaddr);
-    Elf32_Word filesz = get_elf32_word(&phdr[i].p_filesz);
-    Elf32_Word memsz= get_elf32_word(&phdr[i].p_memsz);
+    leave (EXIT_STATUS_ABORTED, "can't read PHDRs of ELF file");
+  for (i = 0; i < nbr_phdr; i++)
+    {
+      Elf32_Addr addr = get_elf32_word (&phdr[i].p_paddr);
+      Elf32_Addr vaddr = get_elf32_word (&phdr[i].p_vaddr);
+      Elf32_Word filesz = get_elf32_word (&phdr[i].p_filesz);
+      Elf32_Word memsz= get_elf32_word (&phdr[i].p_memsz);
         
-    if (get_elf32_word (&phdr[i].p_type) != PT_LOAD)
-      continue;
-    if (filesz == 0)
-      continue;
-    /* if (verbose)
-       printf ("Load 0x%06x - 0x%06x\n",
-       (unsigned)addr, (unsigned)(addr + memsz)); */
-    if (addr + memsz > MAX_FLASH_SIZE)
-      leave(EXIT_STATUS_ABORTED,
-            "program too big to fit in flash");
-    if (fseek (f, get_elf32_word(&phdr[i].p_offset), SEEK_SET) != 0)
-      leave(EXIT_STATUS_ABORTED, "ELF file truncated");
-    if (fread(cpu_flash + addr, filesz, 1, f) != 1)
-      leave(EXIT_STATUS_ABORTED, "ELF file truncated");
-    /* Also copy in SRAM.  */
-    if (flag_initialize_sram && vaddr >= DATA_VADDR)
-      memcpy(cpu_data + vaddr - DATA_VADDR,
-             cpu_flash + addr, filesz);
-    /* No need to clear memory.  */
-    if ((unsigned)(addr + memsz) > program_size)
-      program_size = addr + memsz;
-  }
+      if (get_elf32_word (&phdr[i].p_type) != PT_LOAD)
+        continue;
+      if (filesz == 0)
+        continue;
+      /* if (verbose)
+         printf ("Load 0x%06x - 0x%06x\n",
+         (unsigned)addr, (unsigned)(addr + memsz)); */
+      if (addr + memsz > MAX_FLASH_SIZE)
+        leave (EXIT_STATUS_ABORTED,
+               "program too big to fit in flash");
+      if (fseek (f, get_elf32_word (&phdr[i].p_offset), SEEK_SET) != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF file truncated");
+      if (fread (cpu_flash + addr, filesz, 1, f) != 1)
+        leave (EXIT_STATUS_ABORTED, "ELF file truncated");
+      /* Also copy in SRAM.  */
+      if (flag_initialize_sram && vaddr >= DATA_VADDR)
+        memcpy (cpu_data + vaddr - DATA_VADDR,
+                cpu_flash + addr, filesz);
+      /* No need to clear memory.  */
+      if ((unsigned) (addr + memsz) > program_size)
+        program_size = addr + memsz;
+    }
 }
 
 // ----------------------------------------------------------------------------
 //     parse command line arguments
 
-static void load_to_flash(const char *filename)
+static void
+load_to_flash (const char *filename)
 {
   FILE *fp;
   char buf[EI_NIDENT];
   size_t len;
 
-  fp = fopen(filename, "rb");
+  fp = fopen (filename, "rb");
   if (!fp)
-    leave(EXIT_STATUS_ABORTED, "can't open program file");
+    leave (EXIT_STATUS_ABORTED, "can't open program file");
 
-  len = fread(buf, 1, sizeof (buf), fp);
-  if (len == sizeof(buf)
+  len = fread (buf, 1, sizeof (buf), fp);
+  if (len == sizeof (buf)
       && buf[0] == 0x7f
       && buf[1] == 'E'
       && buf[2] == 'L'
-      && buf[3] == 'F') {
-    load_elf(fp);
-  }
-  else {
-    rewind(fp);
-    program_size = fread(cpu_flash, 1, MAX_FLASH_SIZE, fp);
-  }
-  fclose(fp);
+      && buf[3] == 'F')
+    {
+      load_elf (fp);
+    }
+  else
+    {
+      rewind (fp);
+      program_size = fread (cpu_flash, 1, MAX_FLASH_SIZE, fp);
+    }
+  fclose (fp);
 }
 
 
-static void usage (void)
+static void
+usage (void)
 {
   const struct arch_desc *d;
 
-  printf("usage: avrtest [-d] [-m MAXCOUNT] [-mmcu=ARCH] program\n");
-  printf("Options:\n"
-         "  -d           Initialize SRAM from .data (for ELF program)\n"
-         "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
-         "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
-         "               will not wait for user input.\n"
-         "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
-         "               will not print to stdout.\n"
-         "  -mmcu=ARCH   Select instruction set for ARCH\n"
-         "    ARCH is one of:");
+  printf ("usage: avrtest [-d] [-m MAXCOUNT] [-mmcu=ARCH] program\n");
+  printf ("Options:\n"
+          "  -d           Initialize SRAM from .data (for ELF program)\n"
+          "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
+          "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
+          "               will not wait for user input.\n"
+          "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
+          "               will not print to stdout.\n"
+          "  -mmcu=ARCH   Select instruction set for ARCH\n"
+          "    ARCH is one of:");
   for (d = arch_descs; d->name; d++)
     printf ("%c%s", (d == arch_descs) ? ' ' : ',', d->name);
   printf ("\n");
-  leave(EXIT_STATUS_ABORTED, "command line error");
+  leave (EXIT_STATUS_ABORTED, "command line error");
 }
 
-static void parse_args(int argc, char *argv[])
+static void
+parse_args (int argc, char *argv[])
 {
   int i;
 
@@ -1605,39 +1698,46 @@ static void parse_args(int argc, char *argv[])
   max_instr_count = 0;
 
   // parse command line arguments
-  for (i = 1; i < argc; i++) {
-    //  Use naive but very portable method to decode arguments.
-    if (strcmp(argv[i], "-d") == 0) {
-      flag_initialize_sram = 1;
-    }
-    else if (strcmp(argv[i], "-no-stdin") == 0) {
-      flag_have_stdin = 0;
-    }
-    else if (strcmp(argv[i], "-no-stdout") == 0) {
-      flag_have_stdout = 0;
-    }
-    else if (strcmp(argv[i], "-m") == 0) {
-      i++;
-      if (i >= argc)
-        usage();
-      max_instr_count = strtoul(argv[i], NULL, 0);
-    }
-    else if (strncmp(argv[i], "-mmcu=", 6) == 0) {
-      const struct arch_desc *d;
-      for (d = arch_descs; d->name; d++)
-        if (strcmp(argv[i] + 6, d->name) == 0) {
-          arch = d;
-          break;
+  for (i = 1; i < argc; i++)
+    {
+      //  Use naive but very portable method to decode arguments.
+      if (strcmp (argv[i], "-d") == 0)
+        {
+          flag_initialize_sram = 1;
         }
-      if (d->name == NULL)
-        usage();
+      else if (strcmp (argv[i], "-no-stdin") == 0)
+        {
+          flag_have_stdin = 0;
+        }
+      else if (strcmp (argv[i], "-no-stdout") == 0)
+        {
+          flag_have_stdout = 0;
+        }
+      else if (strcmp (argv[i], "-m") == 0)
+        {
+          i++;
+          if (i >= argc)
+            usage();
+          max_instr_count = strtoul (argv[i], NULL, 0);
+        }
+      else if (strncmp (argv[i], "-mmcu=", 6) == 0)
+        {
+          const struct arch_desc *d;
+          for (d = arch_descs; d->name; d++)
+            if (strcmp (argv[i] + 6, d->name) == 0)
+              {
+                arch = d;
+                break;
+              }
+          if (d->name == NULL)
+            usage();
+        }
+      else {
+        if (program_name != NULL)
+          usage();
+        program_name = argv[i];
+      }
     }
-    else {
-      if (program_name != NULL)
-        usage();
-      program_name = argv[i];
-    }
-  }
 
   // setup default values
   flash_addr_mask = (arch->pc_3bytes ? MAX_FLASH_SIZE : (1 << 17)) - 1;
@@ -1645,13 +1745,14 @@ static void parse_args(int argc, char *argv[])
 
   if (program_name == NULL)
     usage();
-  load_to_flash(program_name);
+  load_to_flash (program_name);
 
-  if (program_size & (~flash_addr_mask)) {
-    fprintf(stderr, "program is too large (size: %u, max: %u)\n",
-            program_size, flash_addr_mask + 1);
-    leave(EXIT_STATUS_ABORTED, "program too large");
-  }
+  if (program_size & (~flash_addr_mask))
+    {
+      fprintf (stderr, "program is too large (size: %u, max: %u)\n",
+               program_size, flash_addr_mask + 1);
+      leave (EXIT_STATUS_ABORTED, "program too large");
+    }
 }
 
 
@@ -1757,7 +1858,8 @@ const opcode_data opcode_func_array[] = {
   [avr_op_index_WDR] =       { avr_op_WDR,         1, 1, "WDR"     },
 };
 
-static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
+static int
+decode_opcode (decoded_op *op, word opcode1, word opcode2)
 {
   int decode;
 
@@ -1767,19 +1869,19 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
 
   /* opcodes with no operands */
   switch (opcode1) {
-  case 0x9519: return avr_op_index_EICALL;       /* 1001 0101 0001 1001 | EICALL */
-  case 0x9419: return avr_op_index_EIJMP;        /* 1001 0100 0001 1001 | EIJMP */
-  case 0x95D8: return avr_op_index_ELPM;         /* 1001 0101 1101 1000 | ELPM */
-  case 0x95F8: return avr_op_index_ESPM;         /* 1001 0101 1111 1000 | ESPM */
-  case 0x9509: return avr_op_index_ICALL;        /* 1001 0101 0000 1001 | ICALL */
-  case 0x9409: return avr_op_index_IJMP;         /* 1001 0100 0000 1001 | IJMP */
-  case 0x95C8: return avr_op_index_LPM;          /* 1001 0101 1100 1000 | LPM */
-  case 0x0000: return avr_op_index_NOP;          /* 0000 0000 0000 0000 | NOP */
-  case 0x9508: return avr_op_index_RET;          /* 1001 0101 0000 1000 | RET */
-  case 0x9518: return avr_op_index_RETI;         /* 1001 0101 0001 1000 | RETI */
-  case 0x9588: return avr_op_index_SLEEP;        /* 1001 0101 1000 1000 | SLEEP */
-  case 0x95E8: return avr_op_index_SPM;          /* 1001 0101 1110 1000 | SPM */
-  case 0x95A8: return avr_op_index_WDR;          /* 1001 0101 1010 1000 | WDR */
+  case 0x9519: return avr_op_index_EICALL; /* 1001 0101 0001 1001 | EICALL */
+  case 0x9419: return avr_op_index_EIJMP;  /* 1001 0100 0001 1001 | EIJMP */
+  case 0x95D8: return avr_op_index_ELPM;   /* 1001 0101 1101 1000 | ELPM */
+  case 0x95F8: return avr_op_index_ESPM;   /* 1001 0101 1111 1000 | ESPM */
+  case 0x9509: return avr_op_index_ICALL;  /* 1001 0101 0000 1001 | ICALL */
+  case 0x9409: return avr_op_index_IJMP;   /* 1001 0100 0000 1001 | IJMP */
+  case 0x95C8: return avr_op_index_LPM;    /* 1001 0101 1100 1000 | LPM */
+  case 0x0000: return avr_op_index_NOP;    /* 0000 0000 0000 0000 | NOP */
+  case 0x9508: return avr_op_index_RET;    /* 1001 0101 0000 1000 | RET */
+  case 0x9518: return avr_op_index_RETI;   /* 1001 0101 0001 1000 | RETI */
+  case 0x9588: return avr_op_index_SLEEP;  /* 1001 0101 1000 1000 | SLEEP */
+  case 0x95E8: return avr_op_index_SPM;    /* 1001 0101 1110 1000 | SPM */
+  case 0x95A8: return avr_op_index_WDR;    /* 1001 0101 1010 1000 | WDR */
   }
 
   // since there are a lot of opcodes that use these parameters, we
@@ -1790,55 +1892,55 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
   /* opcodes with two 5-bit register (Rd and Rr) operands */
   decode = opcode1 & ~(mask_Rd_5 | mask_Rr_5);
   switch (decode) {
-  case 0x1C00: return avr_op_index_ADC;         /* 0001 11rd dddd rrrr | ADC or ROL */
-  case 0x0C00: return avr_op_index_ADD;         /* 0000 11rd dddd rrrr | ADD or LSL */
-  case 0x2000: return avr_op_index_AND;         /* 0010 00rd dddd rrrr | AND or TST */
-  case 0x1400: return avr_op_index_CP;          /* 0001 01rd dddd rrrr | CP */
-  case 0x0400: return avr_op_index_CPC;         /* 0000 01rd dddd rrrr | CPC */
-  case 0x1000: return avr_op_index_CPSE;        /* 0001 00rd dddd rrrr | CPSE */
-  case 0x2400: return avr_op_index_EOR;         /* 0010 01rd dddd rrrr | EOR or CLR */
-  case 0x2C00: return avr_op_index_MOV;         /* 0010 11rd dddd rrrr | MOV */
-  case 0x9C00: return avr_op_index_MUL;         /* 1001 11rd dddd rrrr | MUL */
-  case 0x2800: return avr_op_index_OR;          /* 0010 10rd dddd rrrr | OR */
-  case 0x0800: return avr_op_index_SBC;         /* 0000 10rd dddd rrrr | SBC */
-  case 0x1800: return avr_op_index_SUB;         /* 0001 10rd dddd rrrr | SUB */
+  case 0x1C00: return avr_op_index_ADC;   /* 0001 11rd dddd rrrr | ADC or ROL */
+  case 0x0C00: return avr_op_index_ADD;   /* 0000 11rd dddd rrrr | ADD or LSL */
+  case 0x2000: return avr_op_index_AND;   /* 0010 00rd dddd rrrr | AND or TST */
+  case 0x1400: return avr_op_index_CP;    /* 0001 01rd dddd rrrr | CP */
+  case 0x0400: return avr_op_index_CPC;   /* 0000 01rd dddd rrrr | CPC */
+  case 0x1000: return avr_op_index_CPSE;  /* 0001 00rd dddd rrrr | CPSE */
+  case 0x2400: return avr_op_index_EOR;   /* 0010 01rd dddd rrrr | EOR or CLR */
+  case 0x2C00: return avr_op_index_MOV;   /* 0010 11rd dddd rrrr | MOV */
+  case 0x9C00: return avr_op_index_MUL;   /* 1001 11rd dddd rrrr | MUL */
+  case 0x2800: return avr_op_index_OR;    /* 0010 10rd dddd rrrr | OR */
+  case 0x0800: return avr_op_index_SBC;   /* 0000 10rd dddd rrrr | SBC */
+  case 0x1800: return avr_op_index_SUB;   /* 0001 10rd dddd rrrr | SUB */
   }
 
   /* opcodes with a single register (Rd) as operand */
   decode = opcode1 & ~(mask_Rd_5);
   switch (decode) {
-  case 0x9405: return avr_op_index_ASR;          /* 1001 010d dddd 0101 | ASR */
-  case 0x9400: return avr_op_index_COM;          /* 1001 010d dddd 0000 | COM */
-  case 0x940A: return avr_op_index_DEC;          /* 1001 010d dddd 1010 | DEC */
-  case 0x9006: return avr_op_index_ELPM_Z;       /* 1001 000d dddd 0110 | ELPM */
-  case 0x9007: return avr_op_index_ELPM_Z_incr;  /* 1001 000d dddd 0111 | ELPM */
-  case 0x9403: return avr_op_index_INC;          /* 1001 010d dddd 0011 | INC */
-  case 0x9000:                             /* 1001 000d dddd 0000 | LDS */
+  case 0x9405: return avr_op_index_ASR;        /* 1001 010d dddd 0101 | ASR */
+  case 0x9400: return avr_op_index_COM;        /* 1001 010d dddd 0000 | COM */
+  case 0x940A: return avr_op_index_DEC;        /* 1001 010d dddd 1010 | DEC */
+  case 0x9006: return avr_op_index_ELPM_Z;     /* 1001 000d dddd 0110 | ELPM */
+  case 0x9007: return avr_op_index_ELPM_Z_incr;/* 1001 000d dddd 0111 | ELPM */
+  case 0x9403: return avr_op_index_INC;        /* 1001 010d dddd 0011 | INC */
+  case 0x9000:                                 /* 1001 000d dddd 0000 | LDS */
     op->oper2 = opcode2; return avr_op_index_LDS;
-  case 0x900C: return avr_op_index_LD_X;         /* 1001 000d dddd 1100 | LD */
-  case 0x900E: return avr_op_index_LD_X_decr;    /* 1001 000d dddd 1110 | LD */
-  case 0x900D: return avr_op_index_LD_X_incr;    /* 1001 000d dddd 1101 | LD */
-  case 0x900A: return avr_op_index_LD_Y_decr;    /* 1001 000d dddd 1010 | LD */
-  case 0x9009: return avr_op_index_LD_Y_incr;    /* 1001 000d dddd 1001 | LD */
-  case 0x9002: return avr_op_index_LD_Z_decr;    /* 1001 000d dddd 0010 | LD */
-  case 0x9001: return avr_op_index_LD_Z_incr;    /* 1001 000d dddd 0001 | LD */
-  case 0x9004: return avr_op_index_LPM_Z;        /* 1001 000d dddd 0100 | LPM */
-  case 0x9005: return avr_op_index_LPM_Z_incr;   /* 1001 000d dddd 0101 | LPM */
-  case 0x9406: return avr_op_index_LSR;          /* 1001 010d dddd 0110 | LSR */
-  case 0x9401: return avr_op_index_NEG;          /* 1001 010d dddd 0001 | NEG */
-  case 0x900F: return avr_op_index_POP;          /* 1001 000d dddd 1111 | POP */
-  case 0x920F: return avr_op_index_PUSH;         /* 1001 001d dddd 1111 | PUSH */
-  case 0x9407: return avr_op_index_ROR;          /* 1001 010d dddd 0111 | ROR */
-  case 0x9200:                             /* 1001 001d dddd 0000 | STS */
+  case 0x900C: return avr_op_index_LD_X;       /* 1001 000d dddd 1100 | LD */
+  case 0x900E: return avr_op_index_LD_X_decr;  /* 1001 000d dddd 1110 | LD */
+  case 0x900D: return avr_op_index_LD_X_incr;  /* 1001 000d dddd 1101 | LD */
+  case 0x900A: return avr_op_index_LD_Y_decr;  /* 1001 000d dddd 1010 | LD */
+  case 0x9009: return avr_op_index_LD_Y_incr;  /* 1001 000d dddd 1001 | LD */
+  case 0x9002: return avr_op_index_LD_Z_decr;  /* 1001 000d dddd 0010 | LD */
+  case 0x9001: return avr_op_index_LD_Z_incr;  /* 1001 000d dddd 0001 | LD */
+  case 0x9004: return avr_op_index_LPM_Z;      /* 1001 000d dddd 0100 | LPM */
+  case 0x9005: return avr_op_index_LPM_Z_incr; /* 1001 000d dddd 0101 | LPM */
+  case 0x9406: return avr_op_index_LSR;        /* 1001 010d dddd 0110 | LSR */
+  case 0x9401: return avr_op_index_NEG;        /* 1001 010d dddd 0001 | NEG */
+  case 0x900F: return avr_op_index_POP;        /* 1001 000d dddd 1111 | POP */
+  case 0x920F: return avr_op_index_PUSH;       /* 1001 001d dddd 1111 | PUSH */
+  case 0x9407: return avr_op_index_ROR;        /* 1001 010d dddd 0111 | ROR */
+  case 0x9200:                                 /* 1001 001d dddd 0000 | STS */
     op->oper2 = opcode2; return avr_op_index_STS;
-  case 0x920C: return avr_op_index_ST_X;         /* 1001 001d dddd 1100 | ST */
-  case 0x920E: return avr_op_index_ST_X_decr;    /* 1001 001d dddd 1110 | ST */
-  case 0x920D: return avr_op_index_ST_X_incr;    /* 1001 001d dddd 1101 | ST */
-  case 0x920A: return avr_op_index_ST_Y_decr;    /* 1001 001d dddd 1010 | ST */
-  case 0x9209: return avr_op_index_ST_Y_incr;    /* 1001 001d dddd 1001 | ST */
-  case 0x9202: return avr_op_index_ST_Z_decr;    /* 1001 001d dddd 0010 | ST */
-  case 0x9201: return avr_op_index_ST_Z_incr;    /* 1001 001d dddd 0001 | ST */
-  case 0x9402: return avr_op_index_SWAP;         /* 1001 010d dddd 0010 | SWAP */
+  case 0x920C: return avr_op_index_ST_X;       /* 1001 001d dddd 1100 | ST */
+  case 0x920E: return avr_op_index_ST_X_decr;  /* 1001 001d dddd 1110 | ST */
+  case 0x920D: return avr_op_index_ST_X_incr;  /* 1001 001d dddd 1101 | ST */
+  case 0x920A: return avr_op_index_ST_Y_decr;  /* 1001 001d dddd 1010 | ST */
+  case 0x9209: return avr_op_index_ST_Y_incr;  /* 1001 001d dddd 1001 | ST */
+  case 0x9202: return avr_op_index_ST_Z_decr;  /* 1001 001d dddd 0010 | ST */
+  case 0x9201: return avr_op_index_ST_Z_incr;  /* 1001 001d dddd 0001 | ST */
+  case 0x9402: return avr_op_index_SWAP;       /* 1001 010d dddd 0010 | SWAP */
   }
 
   /* opcodes with a register (Rd) and a constant data (K) as operands */
@@ -1847,12 +1949,12 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
 
   decode = opcode1 & ~(mask_Rd_4 | mask_K_8);
   switch (decode) {
-  case 0x7000: return avr_op_index_ANDI;       /* 0111 KKKK dddd KKKK | CBR or ANDI */
-  case 0x3000: return avr_op_index_CPI;        /* 0011 KKKK dddd KKKK | CPI */
-  case 0xE000: return avr_op_index_LDI;        /* 1110 KKKK dddd KKKK | LDI or SER */
-  case 0x6000: return avr_op_index_ORI;        /* 0110 KKKK dddd KKKK | SBR or ORI */
-  case 0x4000: return avr_op_index_SBCI;       /* 0100 KKKK dddd KKKK | SBCI */
-  case 0x5000: return avr_op_index_SUBI;       /* 0101 KKKK dddd KKKK | SUBI */
+  case 0x7000: return avr_op_index_ANDI; /* 0111 KKKK dddd KKKK | CBR or ANDI */
+  case 0x3000: return avr_op_index_CPI;  /* 0011 KKKK dddd KKKK | CPI */
+  case 0xE000: return avr_op_index_LDI;  /* 1110 KKKK dddd KKKK | LDI or SER */
+  case 0x6000: return avr_op_index_ORI;  /* 0110 KKKK dddd KKKK | SBR or ORI */
+  case 0x4000: return avr_op_index_SBCI; /* 0100 KKKK dddd KKKK | SBCI */
+  case 0x5000: return avr_op_index_SUBI; /* 0101 KKKK dddd KKKK | SUBI */
   }
 
   /* opcodes with a register (Rd) and a register bit number (b) as operands */
@@ -1860,23 +1962,27 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
   op->oper2 = 1 << (opcode1 & 0x0007);
   decode = opcode1 & ~(mask_Rd_5 | mask_reg_bit);
   switch (decode) {
-  case 0xF800: return avr_op_index_BLD;         /* 1111 100d dddd 0bbb | BLD */
-  case 0xFA00: return avr_op_index_BST;         /* 1111 101d dddd 0bbb | BST */
-  case 0xFC00: return avr_op_index_SBRC;        /* 1111 110d dddd 0bbb | SBRC */
-  case 0xFE00: return avr_op_index_SBRS;        /* 1111 111d dddd 0bbb | SBRS */
+  case 0xF800: return avr_op_index_BLD;   /* 1111 100d dddd 0bbb | BLD */
+  case 0xFA00: return avr_op_index_BST;   /* 1111 101d dddd 0bbb | BST */
+  case 0xFC00: return avr_op_index_SBRC;  /* 1111 110d dddd 0bbb | SBRC */
+  case 0xFE00: return avr_op_index_SBRS;  /* 1111 111d dddd 0bbb | SBRS */
   }
 
-  /* opcodes with a relative 7-bit address (k) and a register bit number (b) as operands */
+  /* opcodes with a relative 7-bit address (k) and a register bit number (b)
+     as operands */
   op->oper1 = ((opcode1 >> 3) & 0x7F);
   decode = opcode1 & ~(mask_k_7 | mask_reg_bit);
   switch (decode) {
-  case 0xF400: return avr_op_index_BRBC;         /* 1111 01kk kkkk kbbb | BRBC */
-  case 0xF000: return avr_op_index_BRBS;         /* 1111 00kk kkkk kbbb | BRBS */
+  case 0xF400: return avr_op_index_BRBC;   /* 1111 01kk kkkk kbbb | BRBC */
+  case 0xF000: return avr_op_index_BRBS;   /* 1111 00kk kkkk kbbb | BRBS */
   }
 
-  /* opcodes with a 6-bit address displacement (q) and a register (Rd) as operands */
+  /* opcodes with a 6-bit address displacement (q) and a register (Rd)
+     as operands */
   op->oper1 = ((opcode1 >> 4) & 0x1F);
-  op->oper2 = (opcode1 & 0x7) | ((opcode1 >> 7) & 0x18) | ((opcode1 >> 8) & 0x20);
+  op->oper2 = (opcode1 & 0x7)
+    | ((opcode1 >> 7) & 0x18)
+    | ((opcode1 >> 8) & 0x20);
   decode = opcode1 & ~(mask_Rd_5 | mask_q_displ);
   switch (decode) {
   case 0x8008: return avr_op_index_LDD_Y;       /* 10q0 qq0d dddd 1qqq | LDD */
@@ -1937,8 +2043,8 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
   op->oper2 = opcode1 & 0xFFF;
   decode = opcode1 & ~(mask_k_12);
   switch (decode) {
-  case 0xD000: return avr_op_index_RCALL;       /* 1101 kkkk kkkk kkkk | RCALL */
-  case 0xC000: return avr_op_index_RJMP;        /* 1100 kkkk kkkk kkkk | RJMP */
+  case 0xD000: return avr_op_index_RCALL;   /* 1101 kkkk kkkk kkkk | RCALL */
+  case 0xC000: return avr_op_index_RJMP;    /* 1100 kkkk kkkk kkkk | RJMP */
   }
 
   /* opcodes with two 4-bit register (Rd and Rr) operands */
@@ -1959,32 +2065,36 @@ static int decode_opcode(decoded_op *op, word opcode1, word opcode2)
   op->oper2 = (opcode1 & 0x07) | 0x10;
   decode = opcode1 & ~(mask_Rd_3 | mask_Rr_3);
   switch (decode) {
-  case 0x0300: return avr_op_index_MULSU;       /* 0000 0011 0ddd 0rrr | MULSU */
-  case 0x0308: return avr_op_index_FMUL;        /* 0000 0011 0ddd 1rrr | FMUL */
-  case 0x0380: return avr_op_index_FMULS;       /* 0000 0011 1ddd 0rrr | FMULS */
-  case 0x0388: return avr_op_index_FMULSU;      /* 0000 0011 1ddd 1rrr | FMULSU */
+  case 0x0300: return avr_op_index_MULSU;   /* 0000 0011 0ddd 0rrr | MULSU */
+  case 0x0308: return avr_op_index_FMUL;    /* 0000 0011 0ddd 1rrr | FMUL */
+  case 0x0380: return avr_op_index_FMULS;   /* 0000 0011 1ddd 0rrr | FMULS */
+  case 0x0388: return avr_op_index_FMULSU;  /* 0000 0011 1ddd 1rrr | FMULSU */
   }
 
   op->oper2 = opcode1;
   return avr_op_index_ILLEGAL;
 }
 
-static void decode_flash(void)
+static void
+decode_flash (void)
 {
   word opcode1, opcode2;
   unsigned int i;
 
-  for (i = 0; i < program_size; i += 2) {
-    opcode1 = cpu_flash[i] | (cpu_flash[i + 1] << 8);
-    opcode2 = cpu_flash[i + 2] | (cpu_flash[i + 3] << 8);
-    decoded_flash[i / 2].data_index = decode_opcode(&decoded_flash[i / 2], opcode1, opcode2);
-  }
+  for (i = 0; i < program_size; i += 2)
+    {
+      opcode1 = cpu_flash[i] | (cpu_flash[i + 1] << 8);
+      opcode2 = cpu_flash[i + 2] | (cpu_flash[i + 3] << 8);
+      decoded_flash[i / 2].data_index
+        = decode_opcode (&decoded_flash[i / 2], opcode1, opcode2);
+    }
 }
 
 // ----------------------------------------------------------------------------
 //     main execution loop
 
-static void do_step(void)
+static void
+do_step (void)
 {
   decoded_op dop;
   const opcode_data *data;
@@ -1992,42 +2102,47 @@ static void do_step(void)
   // fetch decoded instruction
   dop = decoded_flash[cpu_PC];
   if (!dop.data_index)
-    leave(EXIT_STATUS_ABORTED, "program counter out of program space");
+    leave (EXIT_STATUS_ABORTED, "program counter out of program space");
 
   // execute instruction
   data = &opcode_func_array[dop.data_index];
-  log_add_instr(data->hreadable);
+  log_add_instr (data->hreadable);
   cpu_PC += data->size;
-  add_program_cycles(data->cycles);
-  data->func(dop.oper1, dop.oper2);
+  add_program_cycles (data->cycles);
+  data->func (dop.oper1, dop.oper2);
   log_dump_line();
 }
 
-static void execute(void)
+static void
+execute (void)
 {
   dword count;
 
   program_cycles = 0;
   cpu_PC = 0;
 
-  if (!max_instr_count) {
-    for (;;)
-      do_step();
-  } else {
-    for (count = 0; count < max_instr_count; count++)
-      {
+  if (!max_instr_count)
+    {
+      for (;;)
         do_step();
-      }
-    leave(EXIT_STATUS_TIMEOUT, "instruction count limit reached");
-  }
+    }
+  else
+    {
+      for (count = 0; count < max_instr_count; count++)
+        {
+          do_step();
+        }
+      leave (EXIT_STATUS_TIMEOUT, "instruction count limit reached");
+    }
 }
 
 
 
 // main: as simple as it gets
-int main(int argc, char *argv[])
+int
+main (int argc, char *argv[])
 {
-  parse_args(argc, argv);
+  parse_args (argc, argv);
 
   init_flag_update_tables();
 
