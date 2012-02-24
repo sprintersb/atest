@@ -1,3 +1,7 @@
+2012-02-24  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/atxmega128-sim.exp (ldflags): add --defsym=__stack=0x1fff
+
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (avr_op_EICALL, avr_op_EIJMP): Use get_word_reg to read Z. 

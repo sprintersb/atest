@@ -69,7 +69,7 @@ set_board_info gcc,keeps_null_pointer_checks 1
 
 # Linking against exit-atmega128.o is very much preferred over
 # compiling against exit.c.
-set_board_info ldflags "/home/georg/gnu/source/avrtest/exit-atxmega128a3.o -Wl,-u,vfprintf -lprintf_flt -Wl,--defsym=__heap_end=0x80ffff" 
+set_board_info ldflags "/home/georg/gnu/source/avrtest/exit-atxmega128a3.o -Wl,-u,vfprintf -lprintf_flt -Wl,--defsym=__heap_end=0x80ffff,--defsym=__stack=0x1fff" 
 
 # Restrict compatibility tests. And optimise to reduce size.
 set COMPAT_SKIPS [list {VA} {COMPLEX_INT}]
