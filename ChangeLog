@@ -1,11 +1,25 @@
 2012-02-24  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest (arch): Turn from pointer into object to reduce levels
+	of indirection.
+	(log_add_instr): Ditto.
+	(push_PC, pop_PC): Ditto.
+	(avr_op_ICALL, avr_op_RET, avr_op_CALL, avr_op_RCALL): Ditto.
+	(parse_args): Ditto.
+	(pop_PC, avr_op_EICALL, avr_op_EIJMP): Sanity check PC.
+	(PC_VALID_MASK): New macro.
+	(skip_instruction_on_condition): Use it to constrain PC.
+	(branch_on_sreg_condition): Ditto.
+	(avr_op_RJMP, avr_op_RCALL): Ditto.
+
+2012-02-24  Georg-Johann Lay  <avr@gjlay.de>
+
 	* dejagnuboards/atxmega128-sim.exp (ldflags): add --defsym=__stack=0x1fff
 
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (avr_op_EICALL, avr_op_EIJMP): Use get_word_reg to read Z. 
-	
+
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
 	* README: Add note for avrtest-xmega.

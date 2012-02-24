@@ -31,8 +31,14 @@
 // ---------------------------------------------------------------------------
 //     configuration values (in bytes).
 
-#define MAX_RAM_SIZE     64 * 1024
-#define MAX_FLASH_SIZE  256 * 1024  // Must be at least 128KB
+#define MAX_RAM_SIZE     (64 * 1024)
+#define MAX_FLASH_SIZE  (256 * 1024)  // Must be at least 128KB
+
+// PC is used as array index into decoded_flash[].
+// If PC has bits outside the following mask, something went really wrong,
+// e.g. in pop_PC.
+
+#define PC_VALID_MASK (MAX_FLASH_SIZE/2 - 1)
 
 // ---------------------------------------------------------------------------
 //     register and port definitions
@@ -101,7 +107,8 @@ const struct arch_desc arch_descs[] =
     { NULL, 0, 0}
   };
 
-const struct arch_desc *arch = &arch_descs[0];
+//const struct arch_desc *arch = &arch_descs[0];
+struct arch_desc arch;
 
 
 enum decoder_operand_masks
@@ -248,9 +255,7 @@ static unsigned int program_size;
 // cycle counter
 static dword program_cycles;
 
-// cpu_data is used to store registers, ioport values and actual SRAM
-static byte cpu_data[MAX_RAM_SIZE];
-static int cpu_PC;
+static unsigned cpu_PC;
 
 #ifdef ISA_XMEGA
 static byte cpu_reg[0x20];
@@ -258,6 +263,9 @@ static byte cpu_reg[0x20];
 #define cpu_reg cpu_data
 #endif /* XMEGA */
 
+// cpu_data is used to store registers (non-xmega), ioport values
+// and actual SRAM
+static byte cpu_data[MAX_RAM_SIZE];
 
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
@@ -266,7 +274,16 @@ static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
 // ----------------------------------------------------------------------------
 //     log functions
 
-#ifdef LOG_DUMP
+#ifndef LOG_DUMP
+
+// empty placeholders to keep the rest of the code clean
+
+#define log_add_instr(...)    (void) 0
+#define log_add_data_mov(...) (void) 0
+#define log_add_reg_mov(...)  (void) 0
+#define log_dump_line(...)    (void) 0
+
+#else /* LOG_DUMP */
 
 static char log_data[256];
 char *cur_log_pos = log_data;
@@ -283,7 +300,7 @@ static void
 log_add_instr (const char *instr)
 {
   char buf[32];
-  if (arch->pc_3bytes)
+  if (arch.pc_3bytes)
     sprintf (buf, "%06x: %-5s ", cpu_PC * 2, instr);
   else
     sprintf (buf, "%04x: %-5s ", cpu_PC * 2, instr);
@@ -328,15 +345,6 @@ log_dump_line (void)
   cur_log_pos = log_data;
 }
 
-#else
-
-// empty placeholders to keep the rest of the code clean
-
-#define log_add_instr(...)    (void) 0
-#define log_add_data_mov(...) (void) 0
-#define log_add_reg_mov(...)  (void) 0
-#define log_dump_line(...)    (void) 0
-
 #endif /*  LOG_DUMP */
 
 
@@ -347,7 +355,7 @@ static const char *exit_status_text[] =
     [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
   };
 
-static void
+static void __attribute__((noreturn,noinline))
 leave (int status, const char *reason)
 {
   // make sure we print the last log line before leaving
@@ -389,10 +397,10 @@ data_write_byte_raw (int address, int value)
     case STDOUT_PORT:
       if (!flag_have_stdout)
         break;
-      putchar (value);
+      putchar (0xff & value);
       return;
     case EXIT_PORT:
-      leave (value ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT,
+      leave ((0xff & value) ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT,
              "exit function called");
       break;
     case ABORT_PORT:
@@ -673,13 +681,13 @@ push_PC (void)
   // register area
   if (sp < 0x40 + IOBASE)
     leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
-  data_write_byte (sp, cpu_PC & 0xFF);
+  data_write_byte (sp, cpu_PC);
   sp--;
-  data_write_byte (sp, (cpu_PC >> 8) & 0xFF);
+  data_write_byte (sp, cpu_PC >> 8);
   sp--;
-  if (arch->pc_3bytes)
+  if (arch.pc_3bytes)
     {
-      data_write_byte (sp, (cpu_PC >> 16) & 0xFF);
+      data_write_byte (sp, cpu_PC >> 16);
       sp--;
     }
   data_write_word (SPL, sp);
@@ -688,19 +696,21 @@ push_PC (void)
 static void
 pop_PC (void)
 {
+  unsigned pc = 0;
   int sp = data_read_word (SPL);
-  if (arch->pc_3bytes)
+  if (arch.pc_3bytes)
     {
       sp++;
-      cpu_PC = data_read_byte (sp) << 16;
+      pc = data_read_byte (sp) << 16;
+      if (pc >= MAX_FLASH_SIZE / 2)
+        leave (EXIT_STATUS_ABORTED, "program counter out of bounds");
     }
-  else
-    cpu_PC = 0;
   sp++;
-  cpu_PC |= data_read_byte (sp) << 8;
+  pc |= data_read_byte (sp) << 8;
   sp++;
-  cpu_PC |= data_read_byte (sp);
+  pc |= data_read_byte (sp);
   data_write_word (SPL, sp);
+  cpu_PC = pc;
 }
 
 
@@ -798,7 +808,7 @@ skip_instruction_on_condition (int condition)
   if (condition)
     {
       size = opcode_func_array[decoded_flash[cpu_PC].data_index].size;
-      cpu_PC += size;
+      cpu_PC = (cpu_PC + size) & PC_VALID_MASK;
       add_program_cycles (size);
     }
 }
@@ -809,8 +819,8 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
   if (((data_read_byte (SREG) & rr) != 0) == flag_value)
     {
       int delta = rd;
-      if (delta & 0x40) delta |= 0xFFFFFF80;
-      cpu_PC += delta;
+      if (delta & 0x40) delta |= ~0x7F;
+      cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
       add_program_cycles (1);
     }
 }
@@ -861,10 +871,12 @@ static OP_FUNC_TYPE avr_op_ILLEGAL (int rd, int rr)
 /* 1001 0101 0001 1001 | EICALL */
 static OP_FUNC_TYPE avr_op_EICALL (int rd, int rr)
 {
-  if (arch->has_eind)
+  if (arch.has_eind)
     {
       push_PC();
       cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
+      if (cpu_PC >= MAX_FLASH_SIZE / 2)
+        leave (EXIT_STATUS_ABORTED, "program counter out of bounds");
     }
   else
     {
@@ -875,9 +887,11 @@ static OP_FUNC_TYPE avr_op_EICALL (int rd, int rr)
 /* 1001 0100 0001 1001 | EIJMP */
 static OP_FUNC_TYPE avr_op_EIJMP (int rd, int rr)
 {
-  if (arch->has_eind)
+  if (arch.has_eind)
     {
       cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
+      if (cpu_PC >= MAX_FLASH_SIZE / 2)
+        leave (EXIT_STATUS_ABORTED, "program counter out of bounds");
     }
   else
     {
@@ -903,8 +917,7 @@ static OP_FUNC_TYPE avr_op_ICALL (int rd, int rr)
 {
   push_PC();
   cpu_PC = get_word_reg (REGZ);
-  if (arch->pc_3bytes)
-    add_program_cycles (1);
+  add_program_cycles (arch.pc_3bytes);
 }
 
 /* 1001 0100 0000 1001 | IJMP */
@@ -928,14 +941,13 @@ static OP_FUNC_TYPE avr_op_NOP (int rd, int rr)
 static OP_FUNC_TYPE avr_op_RET (int rd, int rr)
 {
   pop_PC();
-  if (arch->pc_3bytes)
-    add_program_cycles (1);
+  add_program_cycles (arch.pc_3bytes);
 }
 
 /* 1001 0101 0001 1000 | RETI */
 static OP_FUNC_TYPE avr_op_RETI (int rd, int rr)
 {
-  avr_op_RET (rd,rr);
+  avr_op_RET (rd, rr);
   update_flags (FLAG_I, FLAG_I);
 }
 
@@ -964,20 +976,20 @@ static OP_FUNC_TYPE avr_op_WDR (int rd, int rr)
 /* 0001 11rd dddd rrrr | ADC or ROL */
 static OP_FUNC_TYPE avr_op_ADC (int rd, int rr)
 {
-  do_addition_8 (rd,rr,get_carry());
+  do_addition_8 (rd, rr, get_carry());
 }
 
 /* 0000 11rd dddd rrrr | ADD or LSL */
 static OP_FUNC_TYPE avr_op_ADD (int rd, int rr)
 {
-  do_addition_8 (rd,rr,0);
+  do_addition_8 (rd, rr, 0);
 }
 
 /* 0010 00rd dddd rrrr | AND or TST */
 static OP_FUNC_TYPE avr_op_AND (int rd, int rr)
 {
   int result = get_reg (rd) & get_reg (rr);
-  store_logical_result (rd,result);
+  store_logical_result (rd, result);
 }
 
 /* 0001 01rd dddd rrrr | CP */
@@ -1002,7 +1014,7 @@ static OP_FUNC_TYPE avr_op_CPSE (int rd, int rr)
 static OP_FUNC_TYPE avr_op_EOR (int rd, int rr)
 {
   int result = get_reg (rd) ^ get_reg (rr);
-  store_logical_result (rd,result);
+  store_logical_result (rd, result);
 }
 
 /* 0010 11rd dddd rrrr | MOV */
@@ -1014,7 +1026,7 @@ static OP_FUNC_TYPE avr_op_MOV (int rd, int rr)
 /* 1001 11rd dddd rrrr | MUL */
 static OP_FUNC_TYPE avr_op_MUL (int rd, int rr)
 {
-  do_multiply (rd,rr,0,0,0);
+  do_multiply (rd, rr, 0, 0, 0);
 }
 
 /* 0010 10rd dddd rrrr | OR */
@@ -1048,7 +1060,7 @@ static OP_FUNC_TYPE avr_op_ASR (int rd, int rr)
 /* 1001 010d dddd 0000 | COM */
 static OP_FUNC_TYPE avr_op_COM (int rd, int rr)
 {
-  int result = (~get_reg (rd)) & 0xFF;
+  int result = 0xFF & ~get_reg (rd);
   put_reg (rd, result);
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C,
                 flag_update_table_logical[result] | FLAG_C);
@@ -1361,8 +1373,7 @@ static OP_FUNC_TYPE avr_op_CALL (int rd, int rr)
 {
   push_PC();
   cpu_PC = rr | (rd << 16);
-  if (arch->pc_3bytes)
-    add_program_cycles (1);
+  add_program_cycles (arch.pc_3bytes);
 }
 
 
@@ -1463,24 +1474,23 @@ static OP_FUNC_TYPE avr_op_OUT (int rd, int rr)
 static OP_FUNC_TYPE avr_op_RJMP (int rd, int rr)
 {
   int delta = rr;
-  if (delta & 0x800) delta |= 0xFFFFF000;
+  if (delta & 0x800) delta |= ~0xFFF;
 
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
     leave (EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
-  cpu_PC += delta;
+  cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
 }
 
 /* 1101 kkkk kkkk kkkk | RCALL */
 static OP_FUNC_TYPE avr_op_RCALL (int rd, int rr)
 {
   int delta = rr;
-  if (delta & 0x800) delta |= 0xFFFFF000;
+  if (delta & 0x800) delta |= ~0xFFF;
 
   push_PC();
-  cpu_PC += delta;
-  if (arch->pc_3bytes)
-    add_program_cycles (1);
+  cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
+  add_program_cycles (arch.pc_3bytes);
 }
 
 
@@ -1744,22 +1754,22 @@ parse_args (int argc, char *argv[])
           for (d = arch_descs; d->name; d++)
             if (strcmp (argv[i] + 6, d->name) == 0)
               {
-                arch = d;
+                arch = *d;
                 break;
               }
           if (d->name == NULL)
             usage();
         }
-      else {
-        if (program_name != NULL)
-          usage();
-        program_name = argv[i];
+      else
+        {
+          if (program_name != NULL)
+            usage();
+          program_name = argv[i];
       }
     }
 
   // setup default values
-  flash_addr_mask = (arch->pc_3bytes ? MAX_FLASH_SIZE : (1 << 17)) - 1;
-
+  flash_addr_mask = (arch.pc_3bytes ? MAX_FLASH_SIZE : (1 << 17)) - 1;
 
   if (program_name == NULL)
     usage();
@@ -2160,6 +2170,7 @@ execute (void)
 int
 main (int argc, char *argv[])
 {
+  arch = arch_descs[0];
   parse_args (argc, argv);
 
   init_flag_update_tables();
