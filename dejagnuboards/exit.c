@@ -34,27 +34,26 @@
 
 #include "avrtest.h"
 
-static int putchar_exit_c(char, FILE*) __attribute__((no_instrument_function));
-static void init_exit_c(void) __attribute__ ((section (".init8"),naked,no_instrument_function,used));
-
-static int putchar_exit_c (char c, FILE *stream)
+static int
+putchar_exit_c (char c, FILE *stream)
 {
-    (void) stream;
-	STDOUT_PORT = c;
+  (void) stream;
+  STDOUT_PORT = c;
 
-	return 0;
+  return 0;
 }
 
-static void init_exit_c (void)
+static void __attribute__ ((constructor))
+init_exit_c (void)
 {
-    static FILE file_exit_c;
-    
-	file_exit_c.put = putchar_exit_c;
-	file_exit_c.get = NULL;
-	file_exit_c.flags = _FDEV_SETUP_WRITE;
-	file_exit_c.udata = 0;
+  static FILE file_exit_c;
+  
+  file_exit_c.put = putchar_exit_c;
+  file_exit_c.get = NULL;
+  file_exit_c.flags = _FDEV_SETUP_WRITE;
+  file_exit_c.udata = 0;
 
-	stderr = stdout = &file_exit_c;
+  stderr = stdout = &file_exit_c;
 }
 
 
@@ -63,13 +62,13 @@ static void init_exit_c (void)
 void __attribute__ ((noreturn))
 exit (int code) 
 {
-	EXIT_PORT = code;
-	for(;;);
+  EXIT_PORT = code;
+  for (;;);
 }
 
 void __attribute__ ((noreturn))
 abort (void)
 {
-	ABORT_PORT = 1;
-	for(;;);
+  ABORT_PORT = 1;
+  for (;;);
 }
