@@ -858,7 +858,7 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 
   sreg = (result & 0x8000) >> (15 - FLAG_C_BIT);
   result <<= shift;
-  sreg |= FLAG_Z & -(result == 0);
+  sreg |= FLAG_Z & - (result == 0);
   update_flags (FLAG_Z | FLAG_C, sreg);
   put_word_reg (0, result);
 }
@@ -1403,6 +1403,7 @@ static OP_FUNC_TYPE avr_op_BSET (int rd, int rr)
 static OP_FUNC_TYPE avr_op_ADIW (int rd, int rr)
 {
   int svalue, evalue, sreg;
+  unsigned flag;
 
   svalue = get_word_reg (rd);
   evalue = svalue + rr;
@@ -1410,8 +1411,8 @@ static OP_FUNC_TYPE avr_op_ADIW (int rd, int rr)
 
   sreg = flag_update_table_add8[FUT_ADDSUB16_INDEX (svalue, evalue)];
   sreg &= ~FLAG_H;
-  if ((evalue & 0xFFFF) != 0x0000)
-    sreg &= ~FLAG_Z;
+  flag = (evalue & 0xFFFF) != 0;
+  sreg &= ~(flag << FLAG_Z_BIT);
 
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 }
@@ -1420,6 +1421,7 @@ static OP_FUNC_TYPE avr_op_ADIW (int rd, int rr)
 static OP_FUNC_TYPE avr_op_SBIW (int rd, int rr)
 {
   int svalue, evalue, sreg;
+  unsigned flag;
 
   svalue = get_word_reg (rd);
   evalue = svalue - rr;
@@ -1427,8 +1429,8 @@ static OP_FUNC_TYPE avr_op_SBIW (int rd, int rr)
 
   sreg = flag_update_table_sub8[FUT_ADDSUB16_INDEX (svalue, evalue)];
   sreg &= ~FLAG_H;
-  if ((evalue & 0xFFFF) != 0x0000)
-    sreg &= ~FLAG_Z;
+  flag = (evalue & 0xFFFF) != 0;
+  sreg &= ~(flag << FLAG_Z_BIT);
 
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 }

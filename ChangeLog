@@ -5,6 +5,7 @@
 	(do_subtraction_8): Ditto.
 	(do_multiply): Ditto.
 	(branch_on_sreg_condition): Ditto.
+	(avr_op_SBIW, avr_op_ADIW): Ditto.
 
 2012-02-29  Georg-Johann Lay  <avr@gjlay.de>
 
