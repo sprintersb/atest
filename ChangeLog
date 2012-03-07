@@ -1,3 +1,11 @@
+2012-03-07  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avrtest.c (rotate_right): Non-jump formulation for arithmetic.
+	(avr_op_RJMP, avr_op_RCALL, avr_op_BLD): Ditto.
+	(do_subtraction_8): Ditto.
+	(do_multiply): Ditto.
+	(branch_on_sreg_condition): Ditto.
+
 2012-02-29  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/exit.c: Use GNU style.
@@ -19,7 +27,8 @@
 
 2012-02-24  Georg-Johann Lay  <avr@gjlay.de>
 
-	* dejagnuboards/atxmega128-sim.exp (ldflags): add --defsym=__stack=0x1fff
+	* dejagnuboards/atxmega128-sim.exp (ldflags): add
+	--defsym=__stack=0x1fff
 
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 

@@ -64,14 +64,23 @@
 #define REGY    28
 #define REGZ    30
 
-#define FLAG_I  0x80
-#define FLAG_T  0x40
-#define FLAG_H  0x20
-#define FLAG_S  0x10
-#define FLAG_V  0x08
-#define FLAG_N  0x04
-#define FLAG_Z  0x02
-#define FLAG_C  0x01
+#define FLAG_I_BIT  7
+#define FLAG_T_BIT  6
+#define FLAG_H_BIT  5
+#define FLAG_S_BIT  4
+#define FLAG_V_BIT  3
+#define FLAG_N_BIT  2
+#define FLAG_Z_BIT  1
+#define FLAG_C_BIT  0
+
+#define FLAG_I  (1 << FLAG_I_BIT)
+#define FLAG_T  (1 << FLAG_T_BIT)
+#define FLAG_H  (1 << FLAG_H_BIT)
+#define FLAG_S  (1 << FLAG_S_BIT)
+#define FLAG_V  (1 << FLAG_V_BIT)
+#define FLAG_N  (1 << FLAG_N_BIT)
+#define FLAG_Z  (1 << FLAG_Z_BIT)
+#define FLAG_C  (1 << FLAG_C_BIT)
 
 struct arch_desc
 {
@@ -736,10 +745,11 @@ static int
 do_subtraction_8 (int value1, int value2, int carry, int use_carry)
 {
   int sreg, result = value1 - value2 - carry;
+  unsigned flag;
 
   sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
-  if (use_carry && ((data_read_byte (SREG) & FLAG_Z) == 0))
-    sreg &= ~FLAG_Z;
+  flag = use_carry && ((data_read_byte (SREG) & FLAG_Z) == 0);
+  sreg &= ~(flag << FLAG_Z_BIT);
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
   return result & 0xFF;
@@ -819,7 +829,9 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
   if (((data_read_byte (SREG) & rr) != 0) == flag_value)
     {
       int delta = rd;
-      if (delta & 0x40) delta |= ~0x7F;
+      // if (delta & 0x40) delta |= ~0x7F;
+      unsigned neg = (delta & 0x40) << 1;
+      delta |= -neg;
       cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
       add_program_cycles (1);
     }
@@ -828,8 +840,7 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
 static void
 rotate_right (int rd, int value, int top_bit)
 {
-  if (top_bit)
-    value |= 0x100;
+  value |= (!!top_bit) << 8;
   put_reg (rd, value >> 1);
 
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C,
@@ -845,13 +856,9 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
   v2 = signed2 ? ((signed char) get_reg (rr)) : get_reg (rr);
   result = (v1 * v2) & 0xFFFF;
 
-  sreg = 0;
-  if (result & 0x8000)
-    sreg |= FLAG_C;
-  if (shift)
-    result <<= 1;
-  if (result == 0)
-    sreg |= FLAG_Z;
+  sreg = (result & 0x8000) >> (15 - FLAG_C_BIT);
+  result <<= shift;
+  sreg |= FLAG_Z & -(result == 0);
   update_flags (FLAG_Z | FLAG_C, sreg);
   put_word_reg (0, result);
 }
@@ -1292,11 +1299,9 @@ static OP_FUNC_TYPE avr_op_SUBI (int rd, int rr)
 /* 1111 100d dddd 0bbb | BLD */
 static OP_FUNC_TYPE avr_op_BLD (int rd, int rr)
 {
-  int value = get_reg (rd);
-  if (data_read_byte (SREG) & FLAG_T)
-    value |= rr;
-  else
-    value &= ~rr;
+  int value = get_reg (rd) | rr;
+  unsigned flag = (data_read_byte (SREG) >> FLAG_T_BIT) & 1;
+  value &= ~rr | -flag;
   put_reg (rd, value);
 }
 
@@ -1474,7 +1479,9 @@ static OP_FUNC_TYPE avr_op_OUT (int rd, int rr)
 static OP_FUNC_TYPE avr_op_RJMP (int rd, int rr)
 {
   int delta = rr;
-  if (delta & 0x800) delta |= ~0xFFF;
+  //if (delta & 0x800) delta |= ~0xFFF;
+  unsigned neg = (delta & 0x800) << 1;
+  delta |= -neg;
 
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
@@ -1486,7 +1493,9 @@ static OP_FUNC_TYPE avr_op_RJMP (int rd, int rr)
 static OP_FUNC_TYPE avr_op_RCALL (int rd, int rr)
 {
   int delta = rr;
-  if (delta & 0x800) delta |= ~0xFFF;
+  // if (delta & 0x800) delta |= ~0xFFF;
+  unsigned neg = (delta & 0x800) << 1;
+  delta |= -neg;
 
   push_PC();
   cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
