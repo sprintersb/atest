@@ -1,3 +1,11 @@
+2012-03-12  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avr51-flash1.x: New file.
+	* dejagnuboards/atmega128-sim.exp (ldflags): Pass path where
+	avrtest is located in -L so that custom ld script like above 
+	needed by some test cases can be found.
+	* dejagnuboards/atxmega128-sim.exp (ldflags): Ditto.
+
 2012-03-07  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (rotate_right): Non-jump formulation for arithmetic.
