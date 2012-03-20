@@ -1,3 +1,8 @@
+2012-03-20  Georg-Johann Lay  <avr@gjlay.de>
+
+	* Makefile (all): Add exit-atmega103.o.
+	* dejagnuboards/atmega103-sim.exp: New file.
+
 2012-03-12  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avr51-flash1.x: New file.
