@@ -1,5 +1,9 @@
 2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c: Be more resolute with inlining.
+
+2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
+
 	* Makefile: Add rules to build Win32 executables.
 
 2012-06-04  Georg-Johann Lay  <avr@gjlay.de>

@@ -70,6 +70,8 @@ typedef uint32_t dword;
 #define REGY    28
 #define REGZ    30
 
+#define INLINE inline __attribute__((always_inline))
+
 struct arch_desc
 {
   // Name of the architecture.
@@ -373,7 +375,7 @@ leave (int status, const char *reason)
 
 // lowest level memory accessors
 
-static int
+static INLINE int
 data_read_byte_raw (int address)
 {
   // add code here to handle special events
@@ -383,7 +385,7 @@ data_read_byte_raw (int address)
   return cpu_data[address];
 }
 
-static void
+static INLINE void
 data_write_byte_raw (int address, int value)
 {
   // add code here to handle special events
@@ -407,7 +409,7 @@ data_write_byte_raw (int address, int value)
   cpu_data[address] = value;
 }
 
-static int
+static INLINE int
 flash_read_byte (int address)
 {
   address &= flash_addr_mask;
@@ -420,7 +422,7 @@ flash_read_byte (int address)
 
 // read a byte from memory / ioport / register
 
-static int
+static INLINE int
 data_read_byte (int address)
 {
   int ret = data_read_byte_raw (address);
@@ -430,7 +432,7 @@ data_read_byte (int address)
 
 // write a byte to memory / ioport / register
 
-static void
+static INLINE void
 data_write_byte (int address, int value)
 {
   log_add_data_mov ("(%s)<-%02x ", address, value);
@@ -440,21 +442,21 @@ data_write_byte (int address, int value)
 // get_reg / put_reg are just placeholders for read/write calls where we can
 // be sure that the adress is < 32
 
-static byte
+static INLINE byte
 get_reg (int regno)
 {
   log_add_reg_mov ("(R%d)->%02x ", regno, cpu_reg[regno]);
   return cpu_reg[regno];
 }
 
-static void
+static INLINE void
 put_reg (int regno, byte value)
 {
   log_add_reg_mov ("(R%d)<-%02x ", regno, value);
   cpu_reg[regno] = value;
 }
 
-static int
+static INLINE int
 get_word_reg (int regno)
 {
   int ret = cpu_reg[regno] | (cpu_reg[regno + 1] << 8);
@@ -462,7 +464,7 @@ get_word_reg (int regno)
   return ret;
 }
 
-static void
+static INLINE void
 put_word_reg (int regno, int value)
 {
   log_add_reg_mov ("(R%d)<-%04x ", regno, value & 0xFFFF);
@@ -472,7 +474,7 @@ put_word_reg (int regno, int value)
 
 // read a word from memory / ioport / register
 
-static int
+static INLINE int
 data_read_word (int address)
 {
   int ret = (data_read_byte_raw (address)
@@ -483,7 +485,7 @@ data_read_word (int address)
 
 // write a word to memory / ioport / register
 
-static void
+static INLINE void
 data_write_word (int address, int value)
 {
   value &= 0xffff;
@@ -495,7 +497,7 @@ data_write_word (int address, int value)
 // ----------------------------------------------------------------------------
 //     flag manipulation functions
 
-static void
+static INLINE void
 update_flags (int flags, int new_values)
 {
   int sreg = data_read_byte (SREG);
@@ -503,7 +505,7 @@ update_flags (int flags, int new_values)
   data_write_byte (SREG, sreg);
 }
 
-static int
+static INLINE int
 get_carry (void)
 {
   return (data_read_byte (SREG) & FLAG_C) != 0;
@@ -525,14 +527,14 @@ get_carry (void)
 // ----------------------------------------------------------------------------
 //     helper functions
 
-static void
+static INLINE void
 add_program_cycles (dword cycles)
 {
   program_cycles += cycles;
 }
 
 
-static void
+static INLINE void
 push_byte (int value)
 {
   int sp = data_read_word (SPL);
@@ -553,7 +555,7 @@ pop_byte(void)
   return data_read_byte (sp);
 }
 
-static void
+static INLINE void
 push_PC (void)
 {
   int sp = data_read_word (SPL);
@@ -573,7 +575,7 @@ push_PC (void)
   data_write_word (SPL, sp);
 }
 
-static void
+static INLINE void
 pop_PC (void)
 {
   unsigned pc = 0;
@@ -595,7 +597,7 @@ pop_PC (void)
 
 
 // perform the addition and set the appropriate flags
-static void
+static INLINE void
 do_addition_8 (int rd, int rr, int carry)
 {
   int value1, value2, sreg, result;
@@ -612,7 +614,7 @@ do_addition_8 (int rd, int rr, int carry)
 }
 
 // perform the subtraction and set the appropriate flags
-static int
+static INLINE int
 do_subtraction_8 (int value1, int value2, int carry, int use_carry)
 {
   int sreg, result = value1 - value2 - carry;
@@ -626,7 +628,7 @@ do_subtraction_8 (int value1, int value2, int carry, int use_carry)
   return result & 0xFF;
 }
 
-static void
+static INLINE void
 store_logical_result (int rd, int result)
 {
   put_reg (rd, result);
@@ -636,7 +638,7 @@ store_logical_result (int rd, int result)
 
 /* 10q0 qq0d dddd 1qqq | LDD */
 
-static void
+static INLINE void
 load_indirect (int rd, int ind_register, int adjust, int displacement_bits)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
@@ -651,7 +653,7 @@ load_indirect (int rd, int ind_register, int adjust, int displacement_bits)
     put_word_reg (ind_register, ind_value);
 }
 
-static void
+static INLINE void 
 store_indirect (int rd, int ind_register, int adjust, int displacement_bits)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
@@ -666,7 +668,7 @@ store_indirect (int rd, int ind_register, int adjust, int displacement_bits)
     put_word_reg (ind_register, ind_value);
 }
 
-static void
+static INLINE void
 load_program_memory (int rd, int use_RAMPZ, int incr)
 {
   int address = get_word_reg (REGZ);
@@ -682,7 +684,7 @@ load_program_memory (int rd, int use_RAMPZ, int incr)
     }
 }
 
-static void
+static INLINE void
 skip_instruction_on_condition (int condition)
 {
   int size;
@@ -694,7 +696,7 @@ skip_instruction_on_condition (int condition)
     }
 }
 
-static void
+static INLINE void
 branch_on_sreg_condition (int rd, int rr, int flag_value)
 {
   if (((data_read_byte (SREG) & rr) != 0) == flag_value)
@@ -708,7 +710,7 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
     }
 }
 
-static void
+static INLINE void
 rotate_right (int rd, int value, int top_bit)
 {
   value |= (!!top_bit) << 8;
@@ -718,7 +720,7 @@ rotate_right (int rd, int value, int top_bit)
                 flag_update_table_ror8[value]);
 }
 
-static void
+static INLINE void
 do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 {
   int v1, v2, result, sreg;
@@ -1198,7 +1200,8 @@ static OP_FUNC_TYPE avr_op_ORI (int rd, int rr)
 
 /* 0100 KKKK dddd KKKK | SBCI */
 /* 0101 KKKK dddd KKKK | SUBI */
-static OP_FUNC_TYPE avr_op_SBCI_SUBI (int rd, int rr, int carry, int use_carry)
+static INLINE OP_FUNC_TYPE avr_op_SBCI_SUBI (int rd, int rr, int carry,
+                                             int use_carry)
 {
   put_reg (rd, do_subtraction_8 (get_reg (rd), rr, carry, use_carry));
 }
@@ -2093,7 +2096,7 @@ decode_flash (void)
 // ----------------------------------------------------------------------------
 //     main execution loop
 
-static void
+static INLINE void
 do_step (void)
 {
   decoded_op dop;
