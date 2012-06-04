@@ -1,3 +1,13 @@
+2012-05-24  Georg-Johann Lay  <avr@gjlay.de>
+ 
+	* avrtest.c (avr_op_index_XCH, avr_op_index_LAS, avr_op_index_LAC,
+	avr_op_index_LAT): New enum values.
+	(xmega_atomic): New function.
+	(avr_op_XCH): New function.
+	(avr_op_LAS, avr_op_LAC, avr_op_LAT): New functions.
+	(opcode_func_array): Add XMEGA opcodes: XCH, LAS, LAC, LAT.
+	(decode_opcode): Handle 0x9204, 0x9205, 0x9206, 0x9207.
+
 2012-03-20  Georg-Johann Lay  <avr@gjlay.de>
 
 	* Makefile (all): Add exit-atmega103.o.

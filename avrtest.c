@@ -116,7 +116,6 @@ const struct arch_desc arch_descs[] =
     { NULL, 0, 0}
   };
 
-//const struct arch_desc *arch = &arch_descs[0];
 struct arch_desc arch;
 
 
@@ -232,6 +231,10 @@ enum
     avr_op_index_ST_Y_incr, avr_op_index_ST_Z_decr, avr_op_index_ST_Z_incr,
     avr_op_index_SUB,   avr_op_index_SUBI,  avr_op_index_SWAP,
     avr_op_index_WDR,
+#ifdef ISA_XMEGA
+    avr_op_index_XCH,
+    avr_op_index_LAS, avr_op_index_LAC, avr_op_index_LAT,
+#endif // ISA_XMEGA
   };
 
 extern const opcode_data opcode_func_array[];
@@ -1182,6 +1185,54 @@ static OP_FUNC_TYPE avr_op_POP (int rd, int rr)
   put_reg (rd, pop_byte());
 }
 
+#ifdef ISA_XMEGA
+
+static void
+xmega_atomic (int regno, int op)
+{
+  int mask = get_reg (regno);
+  int address = get_word_reg (REGZ);
+  int val = data_read_byte (address);
+
+  put_reg (regno, val);
+
+  switch (op)
+    {
+    case avr_op_index_XCH: val = mask; break;
+    case avr_op_index_LAS: val |=  mask; break;
+    case avr_op_index_LAC: val &= ~mask; break;
+    case avr_op_index_LAT: val ^=  mask; break;
+    }
+
+  data_write_byte (address, val);
+}
+
+/* 1001 001d dddd 0100 | XCH */
+static OP_FUNC_TYPE avr_op_XCH (int rd, int rr)
+{
+  xmega_atomic (rd, avr_op_index_XCH);
+}
+
+/* 1001 001d dddd 0101 | LAS */
+static OP_FUNC_TYPE avr_op_LAS (int rd, int rr)
+{
+  xmega_atomic (rd, avr_op_index_LAS);
+}
+
+/* 1001 001d dddd 0110 | LAC */
+static OP_FUNC_TYPE avr_op_LAC (int rd, int rr)
+{
+  xmega_atomic (rd, avr_op_index_LAC);
+}
+
+/* 1001 001d dddd 0111 | LAT */
+static OP_FUNC_TYPE avr_op_LAT (int rd, int rr)
+{
+  xmega_atomic (rd, avr_op_index_LAT);
+}
+
+#endif // ISA_XMEGA
+
 /* 1001 001d dddd 1111 | PUSH */
 static OP_FUNC_TYPE avr_op_PUSH (int rd, int rr)
 {
@@ -1866,6 +1917,12 @@ const opcode_data opcode_func_array[] = {
   [avr_op_index_ORI] =       { avr_op_ORI,         1, 1, "ORI"     },
   [avr_op_index_OUT] =       { avr_op_OUT,         1, 1, "OUT"     },
   [avr_op_index_POP] =       { avr_op_POP,         1, 2, "POP"     },
+#ifdef ISA_XMEGA
+  [avr_op_index_XCH] =       { avr_op_XCH,         1, 1, "XCH"     },
+  [avr_op_index_LAS] =       { avr_op_LAS,         1, 1, "LAS"     },
+  [avr_op_index_LAC] =       { avr_op_LAC,         1, 1, "LAC"     },
+  [avr_op_index_LAT] =       { avr_op_LAT,         1, 1, "LAT"     },
+#endif // ISA_XMEGA
   [avr_op_index_PUSH] =      { avr_op_PUSH,        1, 2, "PUSH"    },
   [avr_op_index_RCALL] =     { avr_op_RCALL,       1, 3, "RCALL"   }, // *
   [avr_op_index_RET] =       { avr_op_RET,         1, 4, "RET"     }, // *
@@ -1968,6 +2025,12 @@ decode_opcode (decoded_op *op, word opcode1, word opcode2)
   case 0x9406: return avr_op_index_LSR;        /* 1001 010d dddd 0110 | LSR */
   case 0x9401: return avr_op_index_NEG;        /* 1001 010d dddd 0001 | NEG */
   case 0x900F: return avr_op_index_POP;        /* 1001 000d dddd 1111 | POP */
+#ifdef ISA_XMEGA
+  case 0x9204: return avr_op_index_XCH;        /* 1001 001d dddd 0100 | XCH */
+  case 0x9205: return avr_op_index_LAS;        /* 1001 001d dddd 0101 | LAS */
+  case 0x9206: return avr_op_index_LAC;        /* 1001 001d dddd 0110 | LAC */
+  case 0x9207: return avr_op_index_LAT;        /* 1001 001d dddd 0111 | LAT */
+#endif // ISA_XMEGA
   case 0x920F: return avr_op_index_PUSH;       /* 1001 001d dddd 1111 | PUSH */
   case 0x9407: return avr_op_index_ROR;        /* 1001 010d dddd 0111 | ROR */
   case 0x9200:                                 /* 1001 001d dddd 0000 | STS */
