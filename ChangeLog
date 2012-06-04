@@ -1,5 +1,9 @@
 2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
 
+	* README: Update new repositiry URL and avrtest-xmega description.
+	
+2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
+
 	* flag-tables.c: New generated file.
 	* avrtest.c: Include it. Include sreg.h.
 	(main): Don't call init_flag_update_tables.
