@@ -19,4 +19,4 @@
 #define FLAG_Z  (1 << FLAG_Z_BIT)
 #define FLAG_C  (1 << FLAG_C_BIT)
 
-#endif // SREG_H
+#endif /* SREG_H */
