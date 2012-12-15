@@ -18,7 +18,7 @@ avrtest-xmega is an instruction set simulator for AVR XMEGA core families
    avrxmega6: ATXmega128*, ...
 
 The exectuable that supports AVR XMEGA cores is named avrtest-xmega.
-In addition to the avrtest simulator ot supports the XMEGA instructions
+In addition to the avrtest simulator, it supports the XMEGA instructions
 XCH, LAS, LAC and LAT.
 
 In the remainder, avrtest is explained.  avrtest-xmega works similar.
@@ -33,6 +33,7 @@ The simulator has builtin capability of writing to stdout when a value
 is written to a destinct memory location.  For example, an easy hello world
 program for AVR could look like this:
 
+
 #include <stdio.h>
 
 int main (void)
@@ -40,6 +41,7 @@ int main (void)
     printf ("Hallo World!\n");
     return 0;
 }
+
 
 Compile this program as usual but link against exit-atmega128.o. 
 How to build that object is explained in the next chapter. Store the
@@ -55,6 +57,7 @@ host computer.  To start the program, type
 
 This will print something like
 
+
 Hallo World!
 
  exit status: EXIT
@@ -63,11 +66,13 @@ Hallo World!
 exit address: 00011c
 total cycles: 806
 
+
 You can also write to the magic locations directly:
+
 
 #include "avrtest.h"
 
-int main()
+int main (void)
 {
     char c;
     
@@ -78,6 +83,7 @@ int main()
     
     return 0;
 }
+
 
 avrtest.h defines the port locations. Compile the C source with
 
@@ -98,8 +104,9 @@ Q1
 exit address: 0000b8
 total cycles: 30
 
-There are two more magic ports besides STDIN_PORT and STDOUT_PORT: Try writing
-to ABORT_PORT resp. EXIT_PORT.
+
+There are two more magic ports besides STDIN_PORT and STDOUT_PORT:
+Try writing to ABORT_PORT resp. EXIT_PORT.
 
 
 =================================================
@@ -116,8 +123,21 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
   You find a link to the package at "Download GNU tarball" on
   http://winavr.svn.sourceforge.net/viewvc/winavr/trunk/avrtest/?view=tar
 
-* Run "make" inside /someplace/avrtest which will build executable from
-  avrtest.c and avr object file exit-atmega128.o from dejagnuboards/exit.c.
+* Run
+
+	make
+  
+  inside /someplace/avrtest which will build executables from avrtest.c
+  and avr object file exit-atmega128.o from dejagnuboards/exit.c.
+
+* To build the XMEGA simulator and exit-atxmega128a3.o, run
+
+	make all-xmega
+
+* To build exit*.o modules, avr-gcc will be used.  If you want a different
+  avr-gcc not found in PATH, use (alternatively with all-xmega):
+  
+	make clean-exit all AVRGCC=/some-compiler-path/avr-gcc
 
 * Copy /someplace/avrtest/.dejagnurc to your $HOME and change the path
   inside to point to directory where "board file" is located.

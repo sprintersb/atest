@@ -1,3 +1,12 @@
+2012-12-15  Georg-Johann Lay  <avr@gjlay.de>
+
+	Don't build XMEGA stuff per default.
+	
+	* Makefile: Use .exe executable suffix if build OS is windows.
+	(all): Only depend on: avrtest, exit.
+	(all-xmega, exit-xmega, clean-exit, exit): New rules.
+	README: Explain how to use other avr-gcc and build XMEGA stuff.
+
 2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c: Be more resolute with inlining.
