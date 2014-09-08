@@ -67,7 +67,7 @@ table_add (int x)
   
   theNum++;
 
-  printf ("%d%s", x, theNum == theSize ? "" : ", ");
+  printf ("0x%02x%s", x, theNum == theSize ? "" : ", ");
 }
 
 

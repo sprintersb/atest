@@ -1,7 +1,12 @@
+2014-0908  Georg-Johann Lay  <avr@gjlay.de>
+
+	* gen-flag-tables.c (table_add): Print values as hex.
+	* flag-tables.c: Regenerate.
+
 2012-12-15  Georg-Johann Lay  <avr@gjlay.de>
 
 	Don't build XMEGA stuff per default.
-	
+
 	* Makefile: Use .exe executable suffix if build OS is windows.
 	(all): Only depend on: avrtest, exit.
 	(all-xmega, exit-xmega, clean-exit, exit): New rules.
@@ -18,7 +23,7 @@
 2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
 
 	* README: Update new repositiry URL and avrtest-xmega description.
-	
+
 2012-06-04  Georg-Johann Lay  <avr@gjlay.de>
 
 	* flag-tables.c: New generated file.
@@ -52,7 +57,7 @@
 	(clean): rm gen-flag-tables, *.i. *.s
 
 2012-05-24  Georg-Johann Lay  <avr@gjlay.de>
- 
+
 	* avrtest.c (avr_op_index_XCH, avr_op_index_LAS, avr_op_index_LAC,
 	avr_op_index_LAT): New enum values.
 	(xmega_atomic): New function.
@@ -70,7 +75,7 @@
 
 	* avr51-flash1.x: New file.
 	* dejagnuboards/atmega128-sim.exp (ldflags): Pass path where
-	avrtest is located in -L so that custom ld script like above 
+	avrtest is located in -L so that custom ld script like above
 	needed by some test cases can be found.
 	* dejagnuboards/atxmega128-sim.exp (ldflags): Ditto.
 
@@ -114,7 +119,7 @@
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
 	* README: Add note for avrtest-xmega.
-	
+
 	* avrtest.c: Add support for XMEGA.
 	* avrtest.h: Ditto.
 	* Makefile: Add rules to make avrtest-xmega, avrtest-xmega_log,
@@ -134,7 +139,7 @@
 
 	* dejagnuboards/atmega128-sim.exp (no_long_long): Don't set to 1
 	so that long long run tests are performed.
-	
+
 2011-07-06  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/atmega128-sim.exp (keeps_null_pointer_checks):
@@ -170,10 +175,10 @@
 	* exit.c (exit): Make no return. (abort): Likewise.
 	(putchar): Touch argument to prevent unused warning.
 
-	* atmega128-sim.exp: Remove redundant file missing check. 
+	* atmega128-sim.exp: Remove redundant file missing check.
 	Increase RAM and stack size.
-	Set Compat options to restrict compatibility tests and optimize to 
-	reduce size. 
+	Set Compat options to restrict compatibility tests and optimize to
+	reduce size.
 	Extend simulation  time limit.
 
 2008-06-04  Eric B. Weddington  <eric.weddington@atmel.com>
@@ -183,11 +188,11 @@
 
 2008-06-04  Eric B. Weddington  <eric.weddington@atmel.com>
 
-	* dejagnuboards/atmega128-sim.exp: Specify command line instruction 
+	* dejagnuboards/atmega128-sim.exp: Specify command line instruction
 	limit by adding -m switch. Suggestion from Andy Hutchinson.
 
 2008-05-21  Tristan Gingold  <gingold@adacore.com>
 
-	* avrtest.c: Add ELF support. Add command-line option (-d) to initialize 
-	SRAM from .data (for ELF program). Add command-line option (-m) to limit the 
-	number of instructions executed.
+	* avrtest.c: Add ELF support. Add command-line option (-d) to
+	initialize SRAM from .data (for ELF program). Add command-line
+	option (-m) to limit the number of instructions executed.
