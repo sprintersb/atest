@@ -1639,9 +1639,11 @@ usage (void)
 {
   const struct arch_desc *d;
 
-  printf ("usage: avrtest [-d] [-m MAXCOUNT] [-mmcu=ARCH] program\n");
+  printf ("usage: avrtest [-d] [-e entry-point] [-m MAXCOUNT] [-mmcu=ARCH]"
+          " program\n");
   printf ("Options:\n"
           "  -d           Initialize SRAM from .data (for ELF program)\n"
+          "  -e ADDRESS   Byte address of program entry point (defaults to 0)\n"
           "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
           "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
           "               will not wait for user input.\n"
@@ -1650,7 +1652,7 @@ usage (void)
           "  -mmcu=ARCH   Select instruction set for ARCH\n"
           "    ARCH is one of:");
   for (d = arch_descs; d->name; d++)
-    printf ("%c%s", (d == arch_descs) ? ' ' : ',', d->name);
+    printf (" %s", d->name);
   printf ("\n");
   leave (EXIT_STATUS_ABORTED, "command line error");
 }
@@ -1670,6 +1672,20 @@ parse_args (int argc, char *argv[])
       if (strcmp (argv[i], "-d") == 0)
         {
           flag_initialize_sram = 1;
+        }
+      else if (strcmp (argv[i], "-e") == 0)
+        {
+          i++;
+          if (i >= argc)
+            usage();
+          cpu_PC = strtoul (argv[i], NULL, 0);
+          if (cpu_PC % 2 != 0)
+            {
+              fprintf (stderr, "program entry point must be an even byte"
+                       " address\n");
+              leave (EXIT_STATUS_ABORTED, "command line error");
+            }
+          cpu_PC /= 2;
         }
       else if (strcmp (argv[i], "-no-stdin") == 0)
         {
@@ -2122,7 +2138,6 @@ execute (void)
   dword count;
 
   program_cycles = 0;
-  cpu_PC = 0;
 
   if (!max_instr_count)
     {

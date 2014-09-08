@@ -1,4 +1,17 @@
-2014-0908  Georg-Johann Lay  <avr@gjlay.de>
+2014-09-08  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support -e ADDRESS to set program entry point.
+
+	* avrtest.c (parse_args) [cpu_PC]: Set according to...
+	[-e ADDRESS]: ...this new command line option.
+	(usage): Document it.
+	(execute) [cpu_PC]: Don't set to 0.
+
+2014-09-08  Georg-Johann Lay  <avr@gjlay.de>
+
+	* Makefile (exit-xmega): Depend on exit-atxmega128a1.o.
+
+2014-09-08  Georg-Johann Lay  <avr@gjlay.de>
 
 	* gen-flag-tables.c (table_add): Print values as hex.
 	* flag-tables.c: Regenerate.
