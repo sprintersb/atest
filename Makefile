@@ -42,7 +42,7 @@ exe: avrtest.exe avrtest-xmega.exe
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*_log.exe -DLOG_DUMP
 
 %-xmega.exe: %.c $(DEPS)
-	$(WINCC) $(WARN) $(CFLAGS) $< -o $*.exe -DISA_XMEGA
+	$(WINCC) $(WARN) $(CFLAGS) $< -o $*-xmega.exe -DISA_XMEGA
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*-xmega_log.exe -DISA_XMEGA -DLOG_DUMP
 endif
 
