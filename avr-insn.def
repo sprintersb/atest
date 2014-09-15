@@ -29,8 +29,8 @@
   where
 
     ID
-        is a valid C identifier.  It is used to compose `avr_op_<ID>'
-        and `avr_op_index_<ID>'.
+        is a valid C identifier.  It is used to compose `func_<ID>'
+        and `ID_<ID>'.
 
     N_WORDS
         is the number of words in flash needed to encode the instruction.
