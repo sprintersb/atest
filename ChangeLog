@@ -1,5 +1,15 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (sys/time.h): New include.
+	(flag_have_runtime, t_start): New variables.
+	(time_sub): New function.
+	(leave) [flag_have_runtime]: Print runtime.
+	(parse_args) [-runtime]: New option.
+	(usage): Document it.
+	(main): Set t_start.
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* COPYING: New file.
 	* avrtest.c: Update GPL copyright years.
 	* avr-insn.def: Update GPL copyright years.

@@ -26,6 +26,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#include <sys/time.h>
+
 typedef uint8_t byte;
 typedef uint16_t word;
 typedef uint32_t dword;
@@ -212,6 +214,9 @@ static int flag_have_stdout = 1;
 // From the command line, can be disabled by -no-ticks
 static int flag_have_ticks = 1;
 
+// From the command line, can be disabled by -no-ticks
+static int flag_have_runtime;
+
 // Lock updating TICKS_PORT for the next TICKER_LOCKED
 // instructions to avoid read glitches.
 static int ticker_locked;
@@ -319,6 +324,27 @@ log_dump_line (void)
 #endif /*  LOG_DUMP */
 
 
+static struct timeval t_start;
+
+static void
+time_sub (struct timeval *t, struct timeval *t1, struct timeval *t0)
+{
+  uint32_t s0 = (uint32_t) t0->tv_sec, u0 = (uint32_t) t0->tv_usec;
+  uint32_t s1 = (uint32_t) t1->tv_sec, u1 = (uint32_t) t1->tv_usec;
+  uint32_t s = s1 - s0;
+  uint32_t u = u1 - u0;
+  
+  if (u1 < u0)
+    {
+      s--;
+      u += 1000000u;
+    }
+
+  t->tv_sec = s;
+  t->tv_usec = u;
+}
+
+
 static const char *exit_status_text[] =
   {
     [EXIT_STATUS_EXIT]    = "EXIT",
@@ -329,15 +355,32 @@ static const char *exit_status_text[] =
 static void __attribute__((noreturn,noinline))
 leave (int status, const char *reason)
 {
+  static char s_runtime[100];
+
   // make sure we print the last log line before leaving
   log_dump_line();
 
+  if (flag_have_runtime)
+    {
+      struct timeval t_end, t_run;
+      gettimeofday (&t_end, NULL);
+      time_sub (&t_run, &t_end, &t_start);
+      sprintf (s_runtime, " avrtest run: %lu:%lu.%lu  =  %lu.%03lu sec\n",
+               (unsigned long) t_run.tv_sec / 60,
+               (unsigned long) t_run.tv_sec % 60,
+               (unsigned long) t_run.tv_usec,
+               (unsigned long) t_run.tv_sec,
+               (unsigned long) t_run.tv_usec / 1000);
+    }
+
   printf ("\n"
+          "%s"
           " exit status: %s\n"
           "      reason: %s\n"
           "     program: %s\n"
           "exit address: %06x\n"
           "total cycles: %u\n\n",
+          s_runtime,
           exit_status_text[status], reason,
           program_name ? program_name : "-not set-",
           cpu_PC * 2, program_cycles);
@@ -1602,6 +1645,7 @@ usage (void)
           "  -d           Initialize SRAM from .data (for ELF program)\n"
           "  -e ADDRESS   Byte address of program entry point (defaults to 0)\n"
           "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
+          "  -runtime     Print avrtest execution time\n"
           "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
           "               will not wait for user input.\n"
           "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
@@ -1655,6 +1699,10 @@ parse_args (int argc, char *argv[])
       else if (strcmp (argv[i], "-no-ticks") == 0)
         {
           flag_have_ticks = 0;
+        }
+      else if (strcmp (argv[i], "-runtime") == 0)
+        {
+          flag_have_runtime = 1;
         }
       else if (strcmp (argv[i], "-m") == 0)
         {
@@ -2023,11 +2071,12 @@ execute (void)
     }
 }
 
-
 // main: as simple as it gets
 int
 main (int argc, char *argv[])
 {
+  gettimeofday (&t_start, NULL);
+
   arch = arch_descs[0];
   parse_args (argc, argv);
 
