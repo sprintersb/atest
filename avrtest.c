@@ -72,7 +72,7 @@ typedef uint32_t dword;
 
 #define INLINE inline __attribute__((always_inline))
 
-struct arch_desc
+typedef struct
 {
   // Name of the architecture.
   const char *name;
@@ -80,10 +80,10 @@ struct arch_desc
   unsigned char pc_3bytes;
   // True if the architecture has EIND related insns (EICALL/EIJMP).
   unsigned char has_eind;
-};
+} arch_t;
 
 // List of supported archs with their features.
-const struct arch_desc arch_descs[] =
+const arch_t arch_descs[] =
   {
 #ifdef ISA_XMEGA
     { 
@@ -106,7 +106,7 @@ const struct arch_desc arch_descs[] =
     { NULL, 0, 0}
   };
 
-struct arch_desc arch;
+arch_t arch;
 
 
 enum decoder_operand_masks
@@ -569,14 +569,11 @@ pop_PC (void)
 static INLINE void
 do_addition_8 (int rd, int rr, int carry)
 {
-  int value1, value2, sreg, result;
+  int value1 = get_reg (rd);
+  int value2 = get_reg (rr);
+  int result = value1 + value2 + carry;
 
-  value1 = get_reg (rd);
-  value2 = get_reg (rr);
-
-  result = value1 + value2 + carry;
-
-  sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX (value1, value2, result)];
+  int sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX (value1, value2, result)];
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
   put_reg (rd, result & 0xFF);
@@ -586,11 +583,9 @@ do_addition_8 (int rd, int rr, int carry)
 static INLINE int
 do_subtraction_8 (int value1, int value2, int carry, int use_carry)
 {
-  int sreg, result = value1 - value2 - carry;
-  unsigned flag;
-
-  sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
-  flag = use_carry && ((data_read_byte (SREG) & FLAG_Z) == 0);
+  int result = value1 - value2 - carry;
+  int sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
+  unsigned flag = use_carry && ((data_read_byte (SREG) & FLAG_Z) == 0);
   sreg &= ~(flag << FLAG_Z_BIT);
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
@@ -656,10 +651,9 @@ load_program_memory (int rd, int use_RAMPZ, int incr)
 static INLINE void
 skip_instruction_on_condition (int condition)
 {
-  int size;
   if (condition)
     {
-      size = opcode_func_array[decoded_flash[cpu_PC].data_index].size;
+      int size = opcode_func_array[decoded_flash[cpu_PC].data_index].size;
       cpu_PC = (cpu_PC + size) & PC_VALID_MASK;
       add_program_cycles (size);
     }
@@ -692,13 +686,11 @@ rotate_right (int rd, int value, int top_bit)
 static INLINE void
 do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 {
-  int v1, v2, result, sreg;
+  int v1 = signed1 ? ((signed char) get_reg (rd)) : get_reg (rd);
+  int v2 = signed2 ? ((signed char) get_reg (rr)) : get_reg (rr);
+  int result = (v1 * v2) & 0xFFFF;
 
-  v1 = signed1 ? ((signed char) get_reg (rd)) : get_reg (rd);
-  v2 = signed2 ? ((signed char) get_reg (rr)) : get_reg (rr);
-  result = (v1 * v2) & 0xFFFF;
-
-  sreg = (result & 0x8000) >> (15 - FLAG_C_BIT);
+  int sreg = (result & 0x8000) >> (15 - FLAG_C_BIT);
   result <<= shift;
   sreg |= FLAG_Z & - (result == 0);
   update_flags (FLAG_Z | FLAG_C, sreg);
@@ -1293,16 +1285,13 @@ static OP_FUNC_TYPE avr_op_BSET (int rd, int rr)
 /* 1001 0110 KKdd KKKK | ADIW */
 static OP_FUNC_TYPE avr_op_ADIW (int rd, int rr)
 {
-  int svalue, evalue, sreg;
-  unsigned flag;
-
-  svalue = get_word_reg (rd);
-  evalue = svalue + rr;
+  int svalue = get_word_reg (rd);
+  int evalue = svalue + rr;
   put_word_reg (rd, evalue);
 
-  sreg = flag_update_table_add8[FUT_ADDSUB16_INDEX (svalue, evalue)];
+  int sreg = flag_update_table_add8[FUT_ADDSUB16_INDEX (svalue, evalue)];
   sreg &= ~FLAG_H;
-  flag = (evalue & 0xFFFF) != 0;
+  unsigned flag = (evalue & 0xFFFF) != 0;
   sreg &= ~(flag << FLAG_Z_BIT);
 
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
@@ -1311,16 +1300,13 @@ static OP_FUNC_TYPE avr_op_ADIW (int rd, int rr)
 /* 1001 0111 KKdd KKKK | SBIW */
 static OP_FUNC_TYPE avr_op_SBIW (int rd, int rr)
 {
-  int svalue, evalue, sreg;
-  unsigned flag;
-
-  svalue = get_word_reg (rd);
-  evalue = svalue - rr;
+  int svalue = get_word_reg (rd);
+  int evalue = svalue - rr;
   put_word_reg (rd, evalue);
 
-  sreg = flag_update_table_sub8[FUT_ADDSUB16_INDEX (svalue, evalue)];
+  int sreg = flag_update_table_sub8[FUT_ADDSUB16_INDEX (svalue, evalue)];
   sreg &= ~FLAG_H;
-  flag = (evalue & 0xFFFF) != 0;
+  unsigned flag = (evalue & 0xFFFF) != 0;
   sreg &= ~(flag << FLAG_Z_BIT);
 
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
@@ -1514,9 +1500,6 @@ load_elf (FILE *f)
 {
   Elf32_Ehdr ehdr;
   Elf32_Phdr phdr[16];
-  int nbr_phdr;
-  int i;
-  size_t res;
     
   rewind (f);
   if (fread (&ehdr, sizeof (ehdr), 1, f) != 1)
@@ -1531,16 +1514,16 @@ load_elf (FILE *f)
       || get_elf32_half (&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
     leave (EXIT_STATUS_ABORTED, "ELF file is not an AVR executable");
 
-  nbr_phdr = get_elf32_half (&ehdr.e_phnum);
-  if ((unsigned)nbr_phdr > sizeof (phdr)/sizeof (*phdr))
+  int nbr_phdr = get_elf32_half (&ehdr.e_phnum);
+  if ((unsigned) nbr_phdr > sizeof (phdr) / sizeof (*phdr))
     leave (EXIT_STATUS_ABORTED, "ELF file contains too many PHDR");
 
   if (fseek (f, get_elf32_word (&ehdr.e_phoff), SEEK_SET) != 0)
     leave (EXIT_STATUS_ABORTED, "ELF file truncated");
-  res = fread (phdr, sizeof (Elf32_Phdr), nbr_phdr, f);
+  size_t res = fread (phdr, sizeof (Elf32_Phdr), nbr_phdr, f);
   if (res != (size_t)nbr_phdr)
     leave (EXIT_STATUS_ABORTED, "can't read PHDRs of ELF file");
-  for (i = 0; i < nbr_phdr; i++)
+  for (int i = 0; i < nbr_phdr; i++)
     {
       Elf32_Addr addr = get_elf32_word (&phdr[i].p_paddr);
       Elf32_Addr vaddr = get_elf32_word (&phdr[i].p_vaddr);
@@ -1577,15 +1560,13 @@ load_elf (FILE *f)
 static void
 load_to_flash (const char *filename)
 {
-  FILE *fp;
   char buf[EI_NIDENT];
-  size_t len;
 
-  fp = fopen (filename, "rb");
+  FILE *fp = fopen (filename, "rb");
   if (!fp)
     leave (EXIT_STATUS_ABORTED, "can't open program file");
 
-  len = fread (buf, 1, sizeof (buf), fp);
+  size_t len = fread (buf, 1, sizeof (buf), fp);
   if (len == sizeof (buf)
       && buf[0] == 0x7f
       && buf[1] == 'E'
@@ -1606,8 +1587,6 @@ load_to_flash (const char *filename)
 static void
 usage (void)
 {
-  const struct arch_desc *d;
-
   printf ("usage: avrtest [-d] [-e entry-point] [-m MAXCOUNT] [-mmcu=ARCH]"
           " program\n");
   printf ("Options:\n"
@@ -1620,7 +1599,7 @@ usage (void)
           "               will not print to stdout.\n"
           "  -mmcu=ARCH   Select instruction set for ARCH\n"
           "    ARCH is one of:");
-  for (d = arch_descs; d->name; d++)
+  for (const arch_t *d = arch_descs; d->name; d++)
     printf (" %s", d->name);
   printf ("\n");
   leave (EXIT_STATUS_ABORTED, "command line error");
@@ -1629,13 +1608,11 @@ usage (void)
 static void
 parse_args (int argc, char *argv[])
 {
-  int i;
-
   //max_instr_count = 1000000000;
   max_instr_count = 0;
 
   // parse command line arguments
-  for (i = 1; i < argc; i++)
+  for (int i = 1; i < argc; i++)
     {
       //  Use naive but very portable method to decode arguments.
       if (strcmp (argv[i], "-d") == 0)
@@ -1673,15 +1650,14 @@ parse_args (int argc, char *argv[])
         }
       else if (strncmp (argv[i], "-mmcu=", 6) == 0)
         {
-          const struct arch_desc *d;
-          for (d = arch_descs; d->name; d++)
-            if (strcmp (argv[i] + 6, d->name) == 0)
+          for (const arch_t *d = arch_descs; ; d++)
+            if (d->name == NULL)
+              usage();
+            else if (strcmp (argv[i] + 6, d->name) == 0)
               {
                 arch = *d;
                 break;
               }
-          if (d->name == NULL)
-            usage();
         }
       else
         {
@@ -1796,7 +1772,6 @@ static const byte avr_op_74_index[1 + 0x7ff] = {
 static int
 decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 {
-  unsigned decode;
   byte index;
 
   // opcodes with no operands
@@ -1820,7 +1795,7 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 
   // opcodes with a single register operand         1001 0xxd dddd xxxx
 
-  decode = opcode1 & ~(mask_Rd_5);
+  unsigned decode = opcode1 & ~(mask_Rd_5);
   if ((decode ^ 0x9000) <= 0x7ff
       && ((index = avr_op_74_index[decode ^ 0x9000])))
     {
@@ -1969,14 +1944,11 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 static void
 decode_flash (void)
 {
-  word opcode1, opcode2;
-  unsigned int i = 0;
-
-  opcode1 = cpu_flash[i] | (cpu_flash[i + 1] << 8);
+  word opcode1 = cpu_flash[0] | (cpu_flash[1] << 8);
   
-  for (i = 0; i < program_size; i += 2)
+  for (unsigned i = 0; i < program_size; i += 2)
     {
-      opcode2 = cpu_flash[i + 2] | (cpu_flash[i + 3] << 8);
+      word opcode2 = cpu_flash[i + 2] | (cpu_flash[i + 3] << 8);
       decoded_flash[i / 2].data_index
         = decode_opcode (&decoded_flash[i / 2], opcode1, opcode2);
       opcode1 = opcode2;
@@ -1989,16 +1961,13 @@ decode_flash (void)
 static INLINE void
 do_step (void)
 {
-  decoded_op dop;
-  const opcode_data *data;
-    
   // fetch decoded instruction
-  dop = decoded_flash[cpu_PC];
+  decoded_op dop = decoded_flash[cpu_PC];
   if (!dop.data_index)
     leave (EXIT_STATUS_ABORTED, "program counter out of program space");
 
   // execute instruction
-  data = &opcode_func_array[dop.data_index];
+  const opcode_data *data = &opcode_func_array[dop.data_index];
   log_add_instr (data->hreadable);
   cpu_PC += data->size;
   add_program_cycles (data->cycles);
@@ -2009,8 +1978,6 @@ do_step (void)
 static void
 execute (void)
 {
-  dword count;
-
   program_cycles = 0;
 
   if (!max_instr_count)
@@ -2020,7 +1987,7 @@ execute (void)
     }
   else
     {
-      for (count = 0; count < max_instr_count; count++)
+      for (dword count = 0; count < max_instr_count; count++)
         {
           do_step();
         }

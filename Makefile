@@ -1,5 +1,5 @@
-CFLAGS=-O3 -fomit-frame-pointer
-WARN=-W -Wall -Wno-unused-parameter
+CFLAGS=-O3 -fomit-frame-pointer -std=c99
+WARN=-W -Wall -Wno-unused-parameter -pedantic
 CC=gcc
 WINCC=i386-mingw32-gcc
 AVRGCC=avr-gcc

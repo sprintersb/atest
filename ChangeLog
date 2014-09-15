@@ -1,5 +1,12 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	* Makefile (CFLAGS): Add -std=c99.
+	(WARN): Add -pedantic.
+	* avrtest.c: Use more C99.
+	* gen-flag-tables.c: Same.
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* .svnignore: New file.
 
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
