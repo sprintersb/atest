@@ -1,29 +1,36 @@
-CFLAGS=-O3 -fomit-frame-pointer -std=c99
+CFLAGS=-Os -fomit-frame-pointer -std=c99
 WARN=-W -Wall -Wno-unused-parameter -pedantic
 CC=gcc
+STRIP=strip
 WINCC=i386-mingw32-gcc
+WINSTRIP=i386-mingw32-strip
 AVRGCC=avr-gcc
 
 ifneq (,$(findstring Window,$(OS)))
 exe=.exe
 endif
 
-all       : avrtest$(exe) exit
-exit      : exit-atmega128.o exit-atmega103.o exit-atmega2560.o
+all       : avrtest$(exe) exit \
+	    avrtest-xmega$(exe)
+exit      : exit-atmega128.o exit-atmega103.o exit-atmega2560.o \
+	    exit-atxmega128a3.o exit-atxmega128a1.o
 
-# xmega is not supported in 4.6, build xmega stuff by make all-xmega
-all-xmega : avrtest-xmega$(exe) exit-xmega all
-exit-xmega: exit-atxmega128a3.o exit-atxmega128a1.o  exit
+all-xmega  : ; @true # backward compatibility
+exit-xmega : ; @true # backward compatibility
 
 DEPS = avrtest.h flag-tables.c sreg.h avr-insn.def Makefile
 
 avrtest$(exe) : %$(exe) : avrtest.c $(DEPS)
 	$(CC) $(WARN) $(CFLAGS) $< -o $*$(exe)
 	$(CC) $(WARN) $(CFLAGS) $< -o $*_log$(exe) -DLOG_DUMP
+	$(STRIP) $*$(exe)
+	$(STRIP) $*_log$(exe)
 
 avrtest-xmega$(exe) : %$(exe) : avrtest.c $(DEPS)
 	$(CC) $(WARN) $(CFLAGS) $< -o $*$(exe) -DISA_XMEGA
 	$(CC) $(WARN) $(CFLAGS) $< -o $*_log$(exe) -DISA_XMEGA -DLOG_DUMP
+	$(STRIP) $*$(exe)
+	$(STRIP) $*_log$(exe)
 
 # Build some auto-generated files
 
@@ -40,10 +47,14 @@ exe: avrtest.exe avrtest-xmega.exe
 %.exe: %.c $(DEPS)
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*.exe -save-temps -dp
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*_log.exe -DLOG_DUMP
+	$(WINSTRIP) $*.exe
+	$(WINSTRIP) $*_log.exe
 
 %-xmega.exe: %.c $(DEPS)
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*-xmega.exe -DISA_XMEGA
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*-xmega_log.exe -DISA_XMEGA -DLOG_DUMP
+	$(WINSTRIP) $*-xmega.exe
+	$(WINSTRIP) $*-xmega_log.exe
 endif
 
 # Cross-compile AVR exit*.o objects

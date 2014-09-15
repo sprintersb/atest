@@ -1,5 +1,12 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	* Makefile: Build xmega executables and exit*.o per default.
+	Strip all executables.
+	(CFLAGS): Use -Os instead of -O3.
+	(exit-xmega, all-xmega): Clean up.
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (sys/time.h): New include.
 	(flag_have_runtime, t_start): New variables.
 	(time_sub): New function.
