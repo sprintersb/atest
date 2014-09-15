@@ -1,5 +1,5 @@
 /*
-  This file is part if avrtest -- A simple simulator for the
+  This file is part of avrtest -- A simple simulator for the
   Atmel AVR family of microcontrollers designed to test the compiler.
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
