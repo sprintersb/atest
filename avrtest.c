@@ -1642,7 +1642,7 @@ static void
 usage (void)
 {
   printf ("usage: avrtest [-d] [-e entry-point] [-m MAXCOUNT] [-mmcu=ARCH]"
-          " program\n");
+          " [-runtime] [-ticks] program\n");
   printf ("Options:\n"
           "  -d           Initialize SRAM from .data (for ELF program)\n"
           "  -e ADDRESS   Byte address of program entry point (defaults to 0)\n"
