@@ -172,10 +172,10 @@ typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 typedef struct
 {
   opcode_func func;
-  int size;
-  int cycles;
   const char *hreadable;
-} opcode_data;
+  short size;
+  short cycles;
+} opcode_t;
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
@@ -191,7 +191,7 @@ enum
 #undef AVR_INSN
   };
 
-extern const opcode_data opcode_func_array[];
+extern const opcode_t opcode_func_array[];
 
 // ---------------------------------------------------------------------------
 // vars that hold core definitions
@@ -1749,12 +1749,12 @@ parse_args (int argc, char *argv[])
 // ----------------------------------------------------------------------------
 // flash pre-decoding functions
 
-const opcode_data opcode_func_array[] = {
+const opcode_t opcode_func_array[] = {
   // dummy entry to guarantee that "zero" is an invalid function
-  [avr_op_index_dummy] = { NULL, 0, 0, NULL },
+  [avr_op_index_dummy] = { NULL, NULL, 0, 0 },
 
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                            \
-  [avr_op_index_ ## ID] = { avr_op_ ## ID, N_WORDS, N_TICKS, NAME },
+  [avr_op_index_ ## ID] = { avr_op_ ## ID, NAME, N_WORDS, N_TICKS },
 #include "avr-insn.def"
 #undef AVR_INSN
 };
@@ -2030,7 +2030,7 @@ do_step (void)
     leave (EXIT_STATUS_ABORTED, "program counter out of program space");
 
   // execute instruction
-  const opcode_data *data = &opcode_func_array[dop.data_index];
+  const opcode_t *data = &opcode_func_array[dop.data_index];
   log_add_instr (data->hreadable);
   cpu_PC += data->size;
   add_program_cycles (data->cycles);
