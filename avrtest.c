@@ -211,6 +211,13 @@ static int flag_have_stdin = 1;
 // From the command line, can be disabled by -no-stdout
 static int flag_have_stdout = 1;
 
+// From the command line, can be disabled by -no-ticks
+static int flag_have_ticks = 1;
+
+// Lock updating TICKS_PORT for the next TICKER_LOCKED
+// instructions to avoid read glitches.
+static int ticker_locked;
+
 // filename of the file being executed
 static const char *program_name;
 static unsigned int program_size;
@@ -350,6 +357,10 @@ data_read_byte_raw (int address)
   // add code here to handle special events
   if (address == STDIN_PORT && flag_have_stdin)
     return getchar();
+
+  if (address <= TICKS_PORT + 2 && address >= TICKS_PORT
+      && flag_have_ticks)
+    ticker_locked++;
 
   return cpu_data[address];
 }
@@ -1597,6 +1608,8 @@ usage (void)
           "               will not wait for user input.\n"
           "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
           "               will not print to stdout.\n"
+          "  -no-ticks    Disable updating the TICKS_PORT that can be used\n"
+          "               to measure performance.\n"
           "  -mmcu=ARCH   Select instruction set for ARCH\n"
           "    ARCH is one of:");
   for (const arch_t *d = arch_descs; d->name; d++)
@@ -1640,6 +1653,10 @@ parse_args (int argc, char *argv[])
       else if (strcmp (argv[i], "-no-stdout") == 0)
         {
           flag_have_stdout = 0;
+        }
+      else if (strcmp (argv[i], "-no-ticks") == 0)
+        {
+          flag_have_ticks = 0;
         }
       else if (strcmp (argv[i], "-m") == 0)
         {
@@ -1972,6 +1989,19 @@ do_step (void)
   cpu_PC += data->size;
   add_program_cycles (data->cycles);
   data->func (dop.oper1, dop.oper2);
+  if (flag_have_ticks)
+    {
+      if (ticker_locked)
+        ticker_locked--;
+      else
+        {
+          dword cycles = program_cycles;
+          cpu_data[TICKS_PORT+0] = cycles;
+          cpu_data[TICKS_PORT+1] = cycles >> 8;
+          cpu_data[TICKS_PORT+2] = cycles >> 16;
+          cpu_data[TICKS_PORT+3] = cycles >> 24;
+        }
+    }
   log_dump_line();
 }
 

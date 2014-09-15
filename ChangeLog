@@ -1,5 +1,18 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	Implement a ticks counter for timing measurements.
+
+	* avrtest.h (TICKS_PORT_ADDR, TICKS_PORT): New defines.
+	* avrtest.c (flag_have_ticks, ticker_locked): New variables.
+	(parse_args) [-no-ticks]: New option to unset flag_have_ticks.
+	(usage): Document it.
+	(do_step) [flag_have_ticks]: Update cpu_data[TICKS_PORT] to
+	program_cycles.
+	(data_read_byte_raw): Increment ticker_locked if reading from
+	TICKS_PORT[0..2].
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* Makefile (CFLAGS): Add -std=c99.
 	(WARN): Add -pedantic.
 	* avrtest.c: Use more C99.

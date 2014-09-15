@@ -13,6 +13,7 @@
 #define STDOUT_PORT_ADDR (0x32 + IOBASE)
 #define EXIT_PORT_ADDR   (0x2F + IOBASE)
 #define ABORT_PORT_ADDR  (0x29 + IOBASE)
+#define TICKS_PORT_ADDR  (0x24 + IOBASE)
 
 
 #ifdef IN_AVRTEST
@@ -23,6 +24,7 @@
 #define STDOUT_PORT STDOUT_PORT_ADDR 
 #define EXIT_PORT   EXIT_PORT_ADDR 
 #define ABORT_PORT  ABORT_PORT_ADDR 
+#define TICKS_PORT  TICKS_PORT_ADDR 
 
 #else
 
@@ -32,6 +34,7 @@
 #define STDOUT_PORT (*((volatile unsigned char*) STDOUT_PORT_ADDR))
 #define EXIT_PORT   (*((volatile unsigned char*) EXIT_PORT_ADDR))
 #define ABORT_PORT  (*((volatile unsigned char*) ABORT_PORT_ADDR))
+#define TICKS_PORT  (*((volatile unsigned long*) TICKS_PORT_ADDR))
 
 #endif /* IN_AVRTEST */
 
