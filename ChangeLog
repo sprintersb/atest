@@ -1,3 +1,7 @@
+2014-09-12  Georg-Johann Lay  <avr@gjlay.de>
+
+	* Makefile (%-xmega.exe): Fix command to build avrtest-xmega.exe.
+
 2014-09-08  Georg-Johann Lay  <avr@gjlay.de>
 
 	Support -e ADDRESS to set program entry point.
