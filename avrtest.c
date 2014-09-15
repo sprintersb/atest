@@ -213,10 +213,10 @@ static int flag_have_stdin = 1;
 // From the command line, can be disabled by -no-stdout
 static int flag_have_stdout = 1;
 
-// From the command line, can be disabled by -no-ticks
-static int flag_have_ticks = 1;
+// From the command line, can be enabled by -ticks
+static int flag_have_ticks;
 
-// From the command line, can be disabled by -no-ticks
+// From the command line, can be enabled by -runtime
 static int flag_have_runtime;
 
 // Lock updating TICKS_PORT for the next TICKER_LOCKED
@@ -1648,12 +1648,12 @@ usage (void)
           "  -e ADDRESS   Byte address of program entry point (defaults to 0)\n"
           "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
           "  -runtime     Print avrtest execution time\n"
+          "  -ticks       Enable the 32-bit cycle counter TICKS_PORT\n"
+          "               that can be used to measure performance.\n"
           "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
           "               will not wait for user input.\n"
           "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
           "               will not print to stdout.\n"
-          "  -no-ticks    Disable updating the TICKS_PORT that can be used\n"
-          "               to measure performance.\n"
           "  -mmcu=ARCH   Select instruction set for ARCH\n"
           "    ARCH is one of:");
   for (const arch_t *d = arch_descs; d->name; d++)
@@ -1698,9 +1698,9 @@ parse_args (int argc, char *argv[])
         {
           flag_have_stdout = 0;
         }
-      else if (strcmp (argv[i], "-no-ticks") == 0)
+      else if (strcmp (argv[i], "-ticks") == 0)
         {
-          flag_have_ticks = 0;
+          flag_have_ticks = 1;
         }
       else if (strcmp (argv[i], "-runtime") == 0)
         {
