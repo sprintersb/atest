@@ -1,5 +1,9 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (avr_op_index_*): Rename to ID_*.
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (CX): New define depending on xmega.
 	* avr-insns.def (CBI, EICALL, ICALL, LDS, PUSH, RCALL, SBI)
 	(SBIC, SBIS): Use CX to adjust instruction timing for xmega.
