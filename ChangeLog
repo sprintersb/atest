@@ -1,5 +1,11 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (CX): New define depending on xmega.
+	* avr-insns.def (CBI, EICALL, ICALL, LDS, PUSH, RCALL, SBI)
+	(SBIC, SBIS): Use CX to adjust instruction timing for xmega.
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (opcode_data): Rename to opcode_t.  Move .size and
 	.cycles to the end of the structure.
 	(opcode_func_array): Adjust initialization.

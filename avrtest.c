@@ -49,8 +49,10 @@ typedef uint32_t dword;
 
 #ifdef ISA_XMEGA
 #define IOBASE  0
+#define CX 1
 #else
 #define IOBASE  0x20
+#define CX 0
 #endif
 
 #define SREG    (0x3F + IOBASE)
