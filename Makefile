@@ -15,7 +15,7 @@ exit      : exit-atmega128.o exit-atmega103.o exit-atmega2560.o
 all-xmega : avrtest-xmega$(exe) exit-xmega all
 exit-xmega: exit-atxmega128a3.o exit-atxmega128a1.o  exit
 
-DEPS = avrtest.h flag-tables.c sreg.h Makefile
+DEPS = avrtest.h flag-tables.c sreg.h avr-insn.def Makefile
 
 avrtest$(exe) : %$(exe) : avrtest.c $(DEPS)
 	$(CC) $(WARN) $(CFLAGS) $< -o $*$(exe)

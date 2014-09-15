@@ -182,44 +182,13 @@ typedef struct
 
 enum
   {
+    // dummy entry to guarantee that "zero" is an invalid function
     avr_op_index_dummy = 0,
 
-    avr_op_index_ADC = 1,   avr_op_index_ADD,   avr_op_index_ADIW,
-    avr_op_index_SBIW,
-    avr_op_index_AND,   avr_op_index_ANDI,  avr_op_index_ASR,
-    avr_op_index_BCLR,  avr_op_index_BLD,   avr_op_index_BRBC,
-    avr_op_index_BRBS,  avr_op_index_BSET,  avr_op_index_BST,
-    avr_op_index_CALL,  avr_op_index_CBI,   avr_op_index_COM,
-    avr_op_index_CP,    avr_op_index_CPC,   avr_op_index_CPI,
-    avr_op_index_CPSE,  avr_op_index_DEC,   avr_op_index_EICALL,
-    avr_op_index_EIJMP, avr_op_index_ELPM,  avr_op_index_ELPM_Z,
-    avr_op_index_ELPM_Z_incr,avr_op_index_EOR,  avr_op_index_ESPM,
-    avr_op_index_FMUL,  avr_op_index_FMULS, avr_op_index_FMULSU,
-    avr_op_index_ICALL, avr_op_index_IJMP,  avr_op_index_ILLEGAL,
-    avr_op_index_IN,    avr_op_index_INC,   avr_op_index_JMP,
-    avr_op_index_LDD_Y, avr_op_index_LDD_Z, avr_op_index_LDI,
-    avr_op_index_LDS,   avr_op_index_LD_X,  avr_op_index_LD_X_decr,
-    avr_op_index_LD_X_incr, avr_op_index_LD_Y_decr, avr_op_index_LD_Y_incr,
-    avr_op_index_LD_Z_decr, avr_op_index_LD_Z_incr, avr_op_index_LPM,
-    avr_op_index_LPM_Z, avr_op_index_LPM_Z_incr,avr_op_index_LSR,
-    avr_op_index_MOV,   avr_op_index_MOVW,  avr_op_index_MUL,
-    avr_op_index_MULS,  avr_op_index_MULSU, avr_op_index_NEG,
-    avr_op_index_NOP,   avr_op_index_OR,    avr_op_index_ORI,
-    avr_op_index_OUT,   avr_op_index_POP,   avr_op_index_PUSH,
-    avr_op_index_RCALL, avr_op_index_RET,   avr_op_index_RETI,
-    avr_op_index_RJMP,  avr_op_index_ROR,   avr_op_index_SBC,
-    avr_op_index_SBCI,  avr_op_index_SBI,   avr_op_index_SBIC,
-    avr_op_index_SBIS,  avr_op_index_SBRC,  avr_op_index_SBRS,
-    avr_op_index_SLEEP, avr_op_index_SPM,   avr_op_index_STD_Y,
-    avr_op_index_STD_Z, avr_op_index_STS,   avr_op_index_ST_X,
-    avr_op_index_ST_X_decr, avr_op_index_ST_X_incr, avr_op_index_ST_Y_decr,
-    avr_op_index_ST_Y_incr, avr_op_index_ST_Z_decr, avr_op_index_ST_Z_incr,
-    avr_op_index_SUB,   avr_op_index_SUBI,  avr_op_index_SWAP,
-    avr_op_index_WDR,
-#ifdef ISA_XMEGA
-    avr_op_index_XCH,
-    avr_op_index_LAS, avr_op_index_LAC, avr_op_index_LAT,
-#endif // ISA_XMEGA
+#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)    \
+    avr_op_index_ ## ID,
+#include "avr-insn.def"
+#undef AVR_INSN
   };
 
 extern const opcode_data opcode_func_array[];
@@ -1740,110 +1709,15 @@ parse_args (int argc, char *argv[])
 
 // ----------------------------------------------------------------------------
 // flash pre-decoding functions
-// * = may need extra cycles
 
 const opcode_data opcode_func_array[] = {
   // dummy entry to guarantee that "zero" is an invalid function
-  [avr_op_index_dummy] = {NULL, 0, 0, NULL},
+  [avr_op_index_dummy] = { NULL, 0, 0, NULL },
 
-  [avr_op_index_ADC] =       { avr_op_ADC,         1, 1, "ADC"     },
-  [avr_op_index_ADD] =       { avr_op_ADD,         1, 1, "ADD"     },
-  [avr_op_index_ADIW] =      { avr_op_ADIW,        1, 2, "ADIW"    },
-  [avr_op_index_SBIW] =      { avr_op_SBIW,        1, 2, "SBIW"    },
-  [avr_op_index_AND] =       { avr_op_AND,         1, 1, "AND"     },
-  [avr_op_index_ANDI] =      { avr_op_ANDI,        1, 1, "ANDI"    },
-  [avr_op_index_ASR] =       { avr_op_ASR,         1, 1, "ASR"     },
-  [avr_op_index_BCLR] =      { avr_op_BCLR,        1, 1, "BCLR"    },
-  [avr_op_index_BLD] =       { avr_op_BLD,         1, 1, "BLD"     },
-  [avr_op_index_BRBC] =      { avr_op_BRBC,        1, 1, "BRBC"    }, // *
-  [avr_op_index_BRBS] =      { avr_op_BRBS,        1, 1, "BRBS"    }, // *
-  [avr_op_index_BSET] =      { avr_op_BSET,        1, 1, "BSET"    },
-  [avr_op_index_BST] =       { avr_op_BST,         1, 1, "BST"     },
-  [avr_op_index_CALL] =      { avr_op_CALL,        2, 4, "CALL"    }, // *
-  [avr_op_index_CBI] =       { avr_op_CBI,         1, 2, "CBI"     },
-  [avr_op_index_COM] =       { avr_op_COM,         1, 1, "COM"     },
-  [avr_op_index_CP] =        { avr_op_CP,          1, 1, "CP"      },
-  [avr_op_index_CPC] =       { avr_op_CPC,         1, 1, "CPC"     },
-  [avr_op_index_CPI] =       { avr_op_CPI,         1, 1, "CPI"     },
-  [avr_op_index_CPSE] =      { avr_op_CPSE,        1, 1, "CPSE"    }, // *
-  [avr_op_index_DEC] =       { avr_op_DEC,         1, 1, "DEC"     },
-  [avr_op_index_EICALL] =    { avr_op_EICALL,      1, 4, "EICALL"  },
-  [avr_op_index_EIJMP] =     { avr_op_EIJMP,       1, 2, "EIJMP"   },
-  [avr_op_index_ELPM] =      { avr_op_ELPM,        1, 3, "ELPM"    },
-  [avr_op_index_ELPM_Z] =    { avr_op_ELPM_Z,      1, 3, "ELPM Z"  },
-  [avr_op_index_ELPM_Z_incr]={ avr_op_ELPM_Z_incr, 1, 3, "ELPM Z+" },
-  [avr_op_index_EOR] =       { avr_op_EOR,         1, 1, "EOR"     },
-  [avr_op_index_ESPM] =      { avr_op_ESPM,        1, 1, "ESPM"    },
-  [avr_op_index_FMUL] =      { avr_op_FMUL,        1, 2, "FMUL"    },
-  [avr_op_index_FMULS] =     { avr_op_FMULS,       1, 2, "FMULS"   },
-  [avr_op_index_FMULSU] =    { avr_op_FMULSU,      1, 2, "FMULSU"  },
-  [avr_op_index_ICALL] =     { avr_op_ICALL,       1, 3, "ICALL"   }, // *
-  [avr_op_index_IJMP] =      { avr_op_IJMP,        1, 2, "IJMP"    },
-  [avr_op_index_ILLEGAL] =   { avr_op_ILLEGAL,     1, 1, "ILLEGAL" },
-  [avr_op_index_IN] =        { avr_op_IN,          1, 1, "IN"      },
-  [avr_op_index_INC] =       { avr_op_INC,         1, 1, "INC"     },
-  [avr_op_index_JMP] =       { avr_op_JMP,         2, 3, "JMP"     },
-  [avr_op_index_LDD_Y] =     { avr_op_LDD_Y,       1, 2, "LDD r,Y+q" },
-  [avr_op_index_LDD_Z] =     { avr_op_LDD_Z,       1, 2, "LDD r,Z+q" },
-  [avr_op_index_LDI] =       { avr_op_LDI,         1, 1, "LDI"     },
-  [avr_op_index_LDS] =       { avr_op_LDS,         2, 2, "LDS"     },
-  [avr_op_index_LD_X] =      { avr_op_LD_X,        1, 2, "LD r,X"  },
-  [avr_op_index_LD_X_decr] = { avr_op_LD_X_decr,   1, 2, "LD r,-X" },
-  [avr_op_index_LD_X_incr] = { avr_op_LD_X_incr,   1, 2, "LD r,X+" },
-  [avr_op_index_LD_Y_decr] = { avr_op_LD_Y_decr,   1, 2, "LD r,-Y" },
-  [avr_op_index_LD_Y_incr] = { avr_op_LD_Y_incr,   1, 2, "LD r,Y+" },
-  [avr_op_index_LD_Z_decr] = { avr_op_LD_Z_decr,   1, 2, "LD r,-Z" },
-  [avr_op_index_LD_Z_incr] = { avr_op_LD_Z_incr,   1, 2, "LD r,Z+" },
-  [avr_op_index_LPM] =       { avr_op_LPM,         1, 3, "LPM"     },
-  [avr_op_index_LPM_Z] =     { avr_op_LPM_Z,       1, 3, "LPM Z"   },
-  [avr_op_index_LPM_Z_incr]= { avr_op_LPM_Z_incr,  1, 3, "LPM Z+"  },
-  [avr_op_index_LSR] =       { avr_op_LSR,         1, 1, "LSR"     },
-  [avr_op_index_MOV] =       { avr_op_MOV,         1, 1, "MOV"     },
-  [avr_op_index_MOVW] =      { avr_op_MOVW,        1, 1, "MOVW"    },
-  [avr_op_index_MUL] =       { avr_op_MUL,         1, 2, "MUL"     },
-  [avr_op_index_MULS] =      { avr_op_MULS,        1, 2, "MULS"    },
-  [avr_op_index_MULSU] =     { avr_op_MULSU,       1, 2, "MULSU"   },
-  [avr_op_index_NEG] =       { avr_op_NEG,         1, 1, "NEG"     },
-  [avr_op_index_NOP] =       { avr_op_NOP,         1, 1, "NOP"     },
-  [avr_op_index_OR] =        { avr_op_OR,          1, 1, "OR"      },
-  [avr_op_index_ORI] =       { avr_op_ORI,         1, 1, "ORI"     },
-  [avr_op_index_OUT] =       { avr_op_OUT,         1, 1, "OUT"     },
-  [avr_op_index_POP] =       { avr_op_POP,         1, 2, "POP"     },
-#ifdef ISA_XMEGA
-  [avr_op_index_XCH] =       { avr_op_XCH,         1, 1, "XCH"     },
-  [avr_op_index_LAS] =       { avr_op_LAS,         1, 1, "LAS"     },
-  [avr_op_index_LAC] =       { avr_op_LAC,         1, 1, "LAC"     },
-  [avr_op_index_LAT] =       { avr_op_LAT,         1, 1, "LAT"     },
-#endif // ISA_XMEGA
-  [avr_op_index_PUSH] =      { avr_op_PUSH,        1, 2, "PUSH"    },
-  [avr_op_index_RCALL] =     { avr_op_RCALL,       1, 3, "RCALL"   }, // *
-  [avr_op_index_RET] =       { avr_op_RET,         1, 4, "RET"     }, // *
-  [avr_op_index_RETI] =      { avr_op_RETI,        1, 4, "RETI"    }, // *
-  [avr_op_index_RJMP] =      { avr_op_RJMP,        1, 2, "RJMP"    },
-  [avr_op_index_ROR] =       { avr_op_ROR,         1, 1, "ROR"     },
-  [avr_op_index_SBC] =       { avr_op_SBC,         1, 1, "SBC"     },
-  [avr_op_index_SBCI] =      { avr_op_SBCI,        1, 1, "SBCI"    },
-  [avr_op_index_SBI] =       { avr_op_SBI,         1, 2, "SBI"     },
-  [avr_op_index_SBIC] =      { avr_op_SBIC,        1, 1, "SBIC"    }, // *
-  [avr_op_index_SBIS] =      { avr_op_SBIS,        1, 1, "SBIS"    }, // *
-  [avr_op_index_SBRC] =      { avr_op_SBRC,        1, 1, "SBRC"    }, // *
-  [avr_op_index_SBRS] =      { avr_op_SBRS,        1, 1, "SBRS"    }, // *
-  [avr_op_index_SLEEP] =     { avr_op_SLEEP,       1, 1, "SLEEP"   },
-  [avr_op_index_SPM] =       { avr_op_SPM,         1, 1, "SPM"     },
-  [avr_op_index_STD_Y] =     { avr_op_STD_Y,       1, 2, "STD Y+q,r" },
-  [avr_op_index_STD_Z] =     { avr_op_STD_Z,       1, 2, "STD Z+q,r" },
-  [avr_op_index_STS] =       { avr_op_STS,         2, 2, "STS"     },
-  [avr_op_index_ST_X] =      { avr_op_ST_X,        1, 2, "ST X,r"  },
-  [avr_op_index_ST_X_decr] = { avr_op_ST_X_decr,   1, 2, "ST -X,r" },
-  [avr_op_index_ST_X_incr] = { avr_op_ST_X_incr,   1, 2, "ST X+,r" },
-  [avr_op_index_ST_Y_decr] = { avr_op_ST_Y_decr,   1, 2, "ST -Y,r" },
-  [avr_op_index_ST_Y_incr] = { avr_op_ST_Y_incr,   1, 2, "ST Y+,r" },
-  [avr_op_index_ST_Z_decr] = { avr_op_ST_Z_decr,   1, 2, "ST -Z,r" },
-  [avr_op_index_ST_Z_incr] = { avr_op_ST_Z_incr,   1, 2, "ST Z+,r" },
-  [avr_op_index_SUB] =       { avr_op_SUB,         1, 1, "SUB"     },
-  [avr_op_index_SUBI] =      { avr_op_SUBI,        1, 1, "SUBI"    },
-  [avr_op_index_SWAP] =      { avr_op_SWAP,        1, 1, "SWAP"    },
-  [avr_op_index_WDR] =       { avr_op_WDR,         1, 1, "WDR"     },
+#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                            \
+  [avr_op_index_ ## ID] = { avr_op_ ## ID, N_WORDS, N_TICKS, NAME },
+#include "avr-insn.def"
+#undef AVR_INSN
 };
 
 // Opcodes with no arguments except NOP       1001 010~ ~~~~ ~~~~ 

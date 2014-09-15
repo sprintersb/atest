@@ -1,0 +1,146 @@
+/*
+ ****************************************************************************
+ *
+ * avrtest - A simple simulator for the Atmel AVR family of microcontrollers
+ *           designed to test the compiler
+ * Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
+ * Copyright (C) 2007 Paulo Marques
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ ****************************************************************************
+ */
+
+/*
+  Before including this file, define a macro
+
+    AVR_INSN(ID, N_WORDS, N_TICKS, NAME)
+
+  where
+
+    ID
+        is a valid C identifier.  It is used to compose `avr_op_<ID>'
+        and `avr_op_index_<ID>'.
+
+    N_WORDS
+        is the number of words in flash needed to encode the instruction.
+
+    N_TICKS
+        is the number of instruction cycles needed by the instruction.
+        Instruction marked with `*' might need extra cycles.
+
+    NAME
+        is a human-readable representation of the instruction (nmemonic)
+        displayed when logging is active.
+*/
+
+AVR_INSN (ADC,         1, 1, "ADC"    )
+AVR_INSN (ADD,         1, 1, "ADD"    )
+AVR_INSN (ADIW,        1, 2, "ADIW"   )
+AVR_INSN (SBIW,        1, 2, "SBIW"   )
+AVR_INSN (AND,         1, 1, "AND"    )
+AVR_INSN (ANDI,        1, 1, "ANDI"   )
+AVR_INSN (ASR,         1, 1, "ASR"    )
+AVR_INSN (BCLR,        1, 1, "BCLR"   )
+AVR_INSN (BLD,         1, 1, "BLD"    )
+AVR_INSN (BRBC,        1, 1, "BRBC"   ) // *
+AVR_INSN (BRBS,        1, 1, "BRBS"   ) // *
+AVR_INSN (BSET,        1, 1, "BSET"   )
+AVR_INSN (BST,         1, 1, "BST"    )
+AVR_INSN (CALL,        2, 4, "CALL"   ) // *
+AVR_INSN (CBI,         1, 2, "CBI"    )
+AVR_INSN (COM,         1, 1, "COM"    )
+AVR_INSN (CP,          1, 1, "CP"     )
+AVR_INSN (CPC,         1, 1, "CPC"    )
+AVR_INSN (CPI,         1, 1, "CPI"    )
+AVR_INSN (CPSE,        1, 1, "CPSE"   ) // *
+AVR_INSN (DEC,         1, 1, "DEC"    )
+AVR_INSN (EICALL,      1, 4, "EICALL" )
+AVR_INSN (EIJMP,       1, 2, "EIJMP"  )
+AVR_INSN (ELPM,        1, 3, "ELPM"   )
+AVR_INSN (ELPM_Z,      1, 3, "ELPM Z" )
+AVR_INSN (ELPM_Z_incr, 1, 3, "ELPM Z+")
+AVR_INSN (EOR,         1, 1, "EOR"    )
+AVR_INSN (ESPM,        1, 1, "ESPM"   )
+AVR_INSN (FMUL,        1, 2, "FMUL"   )
+AVR_INSN (FMULS,       1, 2, "FMULS"  )
+AVR_INSN (FMULSU,      1, 2, "FMULSU" )
+AVR_INSN (ICALL,       1, 3, "ICALL"  ) // *
+AVR_INSN (IJMP,        1, 2, "IJMP"   )
+AVR_INSN (ILLEGAL,     1, 1, "ILLEGAL")
+AVR_INSN (IN,          1, 1, "IN"     )
+AVR_INSN (INC,         1, 1, "INC"    )
+AVR_INSN (JMP,         2, 3, "JMP"    )
+AVR_INSN (LDD_Y,       1, 2, "LDD r,Y+q")
+AVR_INSN (LDD_Z,       1, 2, "LDD r,Z+q")
+AVR_INSN (LDI,         1, 1, "LDI"    )
+AVR_INSN (LDS,         2, 2, "LDS"    )
+AVR_INSN (LD_X,        1, 2, "LD r,X" )
+AVR_INSN (LD_X_decr,   1, 2, "LD r,-X")
+AVR_INSN (LD_X_incr,   1, 2, "LD r,X+")
+AVR_INSN (LD_Y_decr,   1, 2, "LD r,-Y")
+AVR_INSN (LD_Y_incr,   1, 2, "LD r,Y+")
+AVR_INSN (LD_Z_decr,   1, 2, "LD r,-Z")
+AVR_INSN (LD_Z_incr,   1, 2, "LD r,Z+")
+AVR_INSN (LPM,         1, 3, "LPM"    )
+AVR_INSN (LPM_Z,       1, 3, "LPM Z"  )
+AVR_INSN (LPM_Z_incr,  1, 3, "LPM Z+" )
+AVR_INSN (LSR,         1, 1, "LSR"    )
+AVR_INSN (MOV,         1, 1, "MOV"    )
+AVR_INSN (MOVW,        1, 1, "MOVW"   )
+AVR_INSN (MUL,         1, 2, "MUL"    )
+AVR_INSN (MULS,        1, 2, "MULS"   )
+AVR_INSN (MULSU,       1, 2, "MULSU"  )
+AVR_INSN (NEG,         1, 1, "NEG"    )
+AVR_INSN (NOP,         1, 1, "NOP"    )
+AVR_INSN (OR,          1, 1, "OR"     )
+AVR_INSN (ORI,         1, 1, "ORI"    )
+AVR_INSN (OUT,         1, 1, "OUT"    )
+AVR_INSN (POP,         1, 2, "POP"    )
+#ifdef ISA_XMEGA
+AVR_INSN (XCH,         1, 1, "XCH"    )
+AVR_INSN (LAS,         1, 1, "LAS"    )
+AVR_INSN (LAC,         1, 1, "LAC"    )
+AVR_INSN (LAT,         1, 1, "LAT"    )
+#endif // ISA_XMEGA
+AVR_INSN (PUSH,        1, 2, "PUSH"   )
+AVR_INSN (RCALL,       1, 3, "RCALL"  ) // *
+AVR_INSN (RET,         1, 4, "RET"    ) // *
+AVR_INSN (RETI,        1, 4, "RETI"   ) // *
+AVR_INSN (RJMP,        1, 2, "RJMP"   )
+AVR_INSN (ROR,         1, 1, "ROR"    )
+AVR_INSN (SBC,         1, 1, "SBC"    )
+AVR_INSN (SBCI,        1, 1, "SBCI"   )
+AVR_INSN (SBI,         1, 2, "SBI"    )
+AVR_INSN (SBIC,        1, 1, "SBIC"   ) // *
+AVR_INSN (SBIS,        1, 1, "SBIS"   ) // *
+AVR_INSN (SBRC,        1, 1, "SBRC"   ) // *
+AVR_INSN (SBRS,        1, 1, "SBRS"   ) // *
+AVR_INSN (SLEEP,       1, 1, "SLEEP"  )
+AVR_INSN (SPM,         1, 1, "SPM"    )
+AVR_INSN (STD_Y,       1, 2, "STD Y+q,r")
+AVR_INSN (STD_Z,       1, 2, "STD Z+q,r")
+AVR_INSN (STS,         2, 2, "STS"    )
+AVR_INSN (ST_X,        1, 2, "ST X,r" )
+AVR_INSN (ST_X_decr,   1, 2, "ST -X,r")
+AVR_INSN (ST_X_incr,   1, 2, "ST X+,r")
+AVR_INSN (ST_Y_decr,   1, 2, "ST -Y,r")
+AVR_INSN (ST_Y_incr,   1, 2, "ST Y+,r")
+AVR_INSN (ST_Z_decr,   1, 2, "ST -Z,r")
+AVR_INSN (ST_Z_incr,   1, 2, "ST Z+,r")
+AVR_INSN (SUB,         1, 1, "SUB"    )
+AVR_INSN (SUBI,        1, 1, "SUBI"   )
+AVR_INSN (SWAP,        1, 1, "SWAP"   )
+AVR_INSN (WDR,         1, 1, "WDR"    )

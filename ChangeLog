@@ -1,3 +1,10 @@
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avrtest.c (opcode_func_array, enum avr_op_index_): Factor out
+	instruction table to, and include...
+	* avr-insn.def: ...this new file.
+	* Makefile (DEPS): Depend on avr-insn.def.
+
 2014-09-12  Georg-Johann Lay  <avr@gjlay.de>
 
 	* Makefile (%-xmega.exe): Fix command to build avrtest-xmega.exe.
