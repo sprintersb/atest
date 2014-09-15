@@ -233,6 +233,9 @@ static unsigned int program_size;
 // cycle counter
 static dword program_cycles;
 
+// number of executed instructions
+static dword instr_count;
+
 static unsigned cpu_PC;
 
 #ifdef ISA_XMEGA
@@ -367,12 +370,13 @@ leave (int status, const char *reason)
       struct timeval t_end, t_run;
       gettimeofday (&t_end, NULL);
       time_sub (&t_run, &t_end, &t_start);
-      sprintf (s_runtime, " avrtest run: %lu:%lu.%lu  =  %lu.%03lu sec\n",
-               (unsigned long) t_run.tv_sec / 60,
-               (unsigned long) t_run.tv_sec % 60,
-               (unsigned long) t_run.tv_usec,
-               (unsigned long) t_run.tv_sec,
-               (unsigned long) t_run.tv_usec / 1000);
+      unsigned long sec = (unsigned long) t_run.tv_sec;
+      unsigned long us  = (unsigned long) t_run.tv_usec;
+      double ms = 1000. * sec + 0.001 * us;
+      sprintf (s_runtime, " avrtest run: %lu:%lu.%lu  =  %lu.%03lu sec,  "
+               "%.3f instructions / ms\n",
+               sec/60, sec%60, us, sec, us/1000,
+               ms > 0.01 ? instr_count/ms : 0.0);
     }
 
   printf ("\n"
@@ -2061,11 +2065,14 @@ execute (void)
   if (!max_instr_count)
     {
       for (;;)
-        do_step();
+        {
+          do_step();
+          instr_count++;
+        }
     }
   else
     {
-      for (dword count = 0; count < max_instr_count; count++)
+      for (instr_count = 0; instr_count < max_instr_count; instr_count++)
         {
           do_step();
         }

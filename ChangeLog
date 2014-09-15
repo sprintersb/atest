@@ -1,5 +1,10 @@
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (leave) [-runtime]: Show instructions per ms.
+	(instr_count): New variable.
+
+2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (-no-ticks): Remove option and replace by...
 	(-ticks): ...this one with reversed logic.
 
