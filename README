@@ -105,8 +105,8 @@ exit address: 0000b8
 total cycles: 30
 
 
-There are two more magic ports besides STDIN_PORT and STDOUT_PORT:
-Try writing to ABORT_PORT resp. EXIT_PORT.
+There are three more magic ports besides STDIN_PORT and STDOUT_PORT:
+Try writing to ABORT_PORT resp. EXIT_PORT or reading from TICKS_PORT.
 
 
 =================================================
@@ -130,12 +130,8 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
   inside /someplace/avrtest which will build executables from avrtest.c
   and avr object file exit-atmega128.o from dejagnuboards/exit.c.
 
-* To build the XMEGA simulator and exit-atxmega128a3.o, run
-
-	make all-xmega
-
 * To build exit*.o modules, avr-gcc will be used.  If you want a different
-  avr-gcc not found in PATH, use (alternatively with all-xmega):
+  avr-gcc not found in PATH, use:
   
 	make clean-exit all AVRGCC=/some-compiler-path/avr-gcc
 
