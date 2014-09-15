@@ -1,0 +1,11 @@
+*~
+*.exe
+*.s
+*.i
+*.o
+*.tmp
+avrtest
+avrtest-xmega
+avrtest_log
+avrtest-xmega_log
+gen-flag-tables
