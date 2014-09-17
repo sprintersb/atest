@@ -1,5 +1,11 @@
 2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (t_load): New variable.
+	(parse_args) [flag_have_runtime]: Set it.
+	(leave) [flag_have_runtime]: Print info about load phase.
+
+2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (t_decode, t_execute): New variables.
 	(main) [flag_have_runtime]: Set them.
 	(leave) [flag_have_runtime]: Print info about decode and execute phase.

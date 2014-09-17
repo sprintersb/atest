@@ -325,7 +325,7 @@ log_dump_line (void)
 #endif /*  LOG_DUMP */
 
 
-static struct timeval t_start, t_decode, t_execute;
+static struct timeval t_start, t_decode, t_execute, t_load;
 
 static void
 time_sub (unsigned long *s, unsigned long *us, double *ms,
@@ -357,7 +357,7 @@ static const char *exit_status_text[] =
 static void __attribute__((noreturn,noinline))
 leave (int status, const char *reason)
 {
-  static char s_runtime[200], s_decode[200], s_execute[200];
+  static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
 
   // make sure we print the last log line before leaving
   log_dump_line();
@@ -365,12 +365,19 @@ leave (int status, const char *reason)
   if (flag_have_runtime)
     {
       struct timeval t_end;
-      unsigned long r_sec, e_sec, d_sec, r_us, e_us, d_us;
-      double r_ms, e_ms, d_ms;
+      unsigned long r_sec, e_sec, d_sec, l_sec, r_us, e_us, d_us, l_us;
+      double r_ms, e_ms, d_ms, l_ms;
       gettimeofday (&t_end, ((void *)0));
       time_sub (&r_sec, &r_us, &r_ms, &t_end, &t_start);
       time_sub (&e_sec, &e_us, &e_ms, &t_end, &t_execute);
       time_sub (&d_sec, &d_us, &d_ms, &t_execute, &t_decode);
+      time_sub (&l_sec, &l_us, &l_ms, &t_decode, &t_load);
+
+      sprintf (s_load, "        load: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+               " %6.2f%%,  %10.3f        words / ms, 0x%05x words\n",
+               l_sec/60, l_sec%60, l_us, l_sec, l_us/1000,
+               r_ms > 0.01 ? 100.*l_ms/r_ms : 0.0,
+               l_ms > 0.01 ? program_size/l_ms : 0.0, program_size);
 
       sprintf (s_decode, "      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
                " %6.2f%%,  %10.3f        words / ms, 0x%05x words\n",
@@ -392,13 +399,13 @@ leave (int status, const char *reason)
     }
 
   printf ("\n"
-          "%s%s%s"
+          "%s%s%s%s"
           " exit status: %s\n"
           "      reason: %s\n"
           "     program: %s\n"
           "exit address: %06x\n"
           "total cycles: %u\n\n",
-          s_decode, s_execute, s_runtime,
+          s_load, s_decode, s_execute, s_runtime,
           exit_status_text[status], reason,
           program_name ? program_name : "-not set-",
           cpu_PC * 2, program_cycles);
@@ -1784,6 +1791,9 @@ parse_args (int argc, char *argv[])
 
   if (program_name == NULL)
     usage();
+
+  if (flag_have_runtime)
+    gettimeofday (&t_load, NULL);
   load_to_flash (program_name);
 
   if (program_size & (~flash_addr_mask))
