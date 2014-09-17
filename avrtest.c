@@ -204,6 +204,9 @@ static unsigned int flash_addr_mask;
 // maximum number of executed instructions (used as a timeout)
 static dword max_instr_count;
 
+// number of executed instructions so far
+static dword instr_count;
+
 // Initialize sram from .data segment.
 static int flag_initialize_sram;
 
@@ -219,10 +222,6 @@ static int flag_have_ticks;
 // From the command line, can be enabled by -runtime
 static int flag_have_runtime;
 
-// Lock updating TICKS_PORT for the next TICKER_LOCKED
-// instructions to avoid read glitches.
-static int ticker_locked;
-
 // filename of the file being executed
 static const char *program_name;
 static unsigned int program_size;
@@ -232,9 +231,6 @@ static unsigned int program_size;
 
 // cycle counter
 static dword program_cycles;
-
-// number of executed instructions
-static dword instr_count;
 
 static unsigned cpu_PC;
 
@@ -398,31 +394,19 @@ leave (int status, const char *reason)
 
 // lowest level memory accessors
 
-static INLINE int
-data_read_byte_raw (int address)
-{
-  // add code here to handle special events
-  if (address == STDIN_PORT && flag_have_stdin)
-    return getchar();
-
-  if (address <= TICKS_PORT + 2 && address >= TICKS_PORT
-      && flag_have_ticks)
-    ticker_locked++;
-
-  return cpu_data[address];
-}
-
 static INLINE void
-data_write_byte_raw (int address, int value)
+data_write_magic_port (int address, int value)
 {
   // add code here to handle special events
   switch (address)
     {
     case STDOUT_PORT:
-      if (!flag_have_stdout)
-        break;
-      putchar (0xff & value);
-      return;
+      if (flag_have_stdout)
+        putchar (0xff & value);
+      else
+        // default action, just store the value
+        cpu_data[address] = value;
+      break;
     case EXIT_PORT:
       leave ((0xff & value) ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT,
              "exit function called");
@@ -431,9 +415,48 @@ data_write_byte_raw (int address, int value)
       leave (EXIT_STATUS_ABORTED, "abort function called");
       break;
     }
+}
 
-  // default action, just store the value
-  cpu_data[address] = value;
+static INLINE int
+data_read_magic_port (int address)
+{
+  // add code here to handle special events
+  if (address == STDIN_PORT && flag_have_stdin)
+    return getchar();
+
+  if (address == TICKS_PORT && flag_have_ticks)
+    {
+      // update TICKS_PORT only on access of first byte to avoid glitches
+      dword cycles = program_cycles;
+      cpu_data[TICKS_PORT+0] = cycles;
+      cpu_data[TICKS_PORT+1] = cycles >> 8;
+      cpu_data[TICKS_PORT+2] = cycles >> 16;
+      cpu_data[TICKS_PORT+3] = cycles >> 24;
+    }
+
+  return cpu_data[address];
+}
+
+// lowest level memory accessors
+
+static INLINE int
+data_read_byte_raw (int address)
+{
+  if (address <= LAST_MAGIC_IN_PORT && address >= FIRST_MAGIC_IN_PORT)
+    return data_read_magic_port (address);
+
+  // default action, just read the value
+  return cpu_data[address];
+}
+
+static INLINE void
+data_write_byte_raw (int address, int value)
+{
+  if (address <= LAST_MAGIC_OUT_PORT && address >= FIRST_MAGIC_OUT_PORT)
+    data_write_magic_port (address, value);
+  else
+    // default action, just store the value
+    cpu_data[address] = value;
 }
 
 static INLINE int
@@ -2041,19 +2064,6 @@ do_step (void)
   cpu_PC += data->size;
   add_program_cycles (data->cycles);
   data->func (dop.oper1, dop.oper2);
-  if (flag_have_ticks)
-    {
-      if (ticker_locked)
-        ticker_locked--;
-      else
-        {
-          dword cycles = program_cycles;
-          cpu_data[TICKS_PORT+0] = cycles;
-          cpu_data[TICKS_PORT+1] = cycles >> 8;
-          cpu_data[TICKS_PORT+2] = cycles >> 16;
-          cpu_data[TICKS_PORT+3] = cycles >> 24;
-        }
-    }
   log_dump_line();
 }
 

@@ -1,5 +1,15 @@
 2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (data_read_byte_raw): Factor out magic ports to...
+	(data_read_magic_port): ...this new function.
+	(data_write_byte_raw): Factor out magic ports to...
+	(data_write_magic_port): ...this new function.
+	(do_step): Move TICKS_PORT handling to data_read_magic_port.
+	* avrtest.h (FIRST_MAGIC_IN_PORT, LAST_MAGIC_IN_PORT)
+	(FIRST_MAGIC_OUT_PORT, LAST_MAGIC_OUT_PORT): New defines.
+
+2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (execute): Merge two loops to one.  Make inline.
 
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
