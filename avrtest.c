@@ -2057,26 +2057,19 @@ do_step (void)
   log_dump_line();
 }
 
-static void
+static INLINE void
 execute (void)
 {
+  dword max_instr = max_instr_count;
   program_cycles = 0;
 
-  if (!max_instr_count)
+  for (;;)
     {
-      for (;;)
-        {
-          do_step();
-          instr_count++;
-        }
-    }
-  else
-    {
-      for (instr_count = 0; instr_count < max_instr_count; instr_count++)
-        {
-          do_step();
-        }
-      leave (EXIT_STATUS_TIMEOUT, "instruction count limit reached");
+      do_step();
+
+      instr_count++;
+      if (max_instr && instr_count >= max_instr)
+        leave (EXIT_STATUS_TIMEOUT, "instruction count limit reached");
     }
 }
 

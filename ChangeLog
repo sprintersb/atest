@@ -1,3 +1,7 @@
+2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avrtest.c (execute): Merge two loops to one.  Make inline.
+
 2014-09-15  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (leave) [-runtime]: Show instructions per ms.
