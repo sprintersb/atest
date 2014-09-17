@@ -1,5 +1,12 @@
 2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (t_decode, t_execute): New variables.
+	(main) [flag_have_runtime]: Set them.
+	(leave) [flag_have_runtime]: Print info about decode and execute phase.
+	(time_sub): Change interface to return sec, us and ms.
+
+2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
+
 	* Makefile (CFLAGS): Resurrect -O3.
 	* avr-insns.def (LDI, MOV, MOVW): Move before...
 	(LAST_FAST): This new insn.

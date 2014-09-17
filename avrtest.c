@@ -325,24 +325,25 @@ log_dump_line (void)
 #endif /*  LOG_DUMP */
 
 
-static struct timeval t_start;
+static struct timeval t_start, t_decode, t_execute;
 
 static void
-time_sub (struct timeval *t, struct timeval *t1, struct timeval *t0)
+time_sub (unsigned long *s, unsigned long *us, double *ms,
+          const struct timeval *t1, const struct timeval *t0)
 {
-  uint32_t s0 = (uint32_t) t0->tv_sec, u0 = (uint32_t) t0->tv_usec;
-  uint32_t s1 = (uint32_t) t1->tv_sec, u1 = (uint32_t) t1->tv_usec;
-  uint32_t s = s1 - s0;
-  uint32_t u = u1 - u0;
-  
+  unsigned long s0 = (unsigned long) t0->tv_sec;
+  unsigned long s1 = (unsigned long) t1->tv_sec;
+  unsigned long u0 = (unsigned long) t0->tv_usec;
+  unsigned long u1 = (unsigned long) t1->tv_usec;
+
+  *s = s1 - s0;
+  *us = u1 - u0;
   if (u1 < u0)
     {
-      s--;
-      u += 1000000u;
+      (*s)--;
+      *us += 1000000UL;
     }
-
-  t->tv_sec = s;
-  t->tv_usec = u;
+  *ms = 1000. * (*s) + 0.001 * (*us);
 }
 
 
@@ -356,33 +357,48 @@ static const char *exit_status_text[] =
 static void __attribute__((noreturn,noinline))
 leave (int status, const char *reason)
 {
-  static char s_runtime[100];
+  static char s_runtime[200], s_decode[200], s_execute[200];
 
   // make sure we print the last log line before leaving
   log_dump_line();
 
   if (flag_have_runtime)
     {
-      struct timeval t_end, t_run;
-      gettimeofday (&t_end, NULL);
-      time_sub (&t_run, &t_end, &t_start);
-      unsigned long sec = (unsigned long) t_run.tv_sec;
-      unsigned long us  = (unsigned long) t_run.tv_usec;
-      double ms = 1000. * sec + 0.001 * us;
-      sprintf (s_runtime, " avrtest run: %lu:%lu.%lu  =  %lu.%03lu sec,  "
-               "%.3f instructions / ms\n",
-               sec/60, sec%60, us, sec, us/1000,
-               ms > 0.01 ? instr_count/ms : 0.0);
+      struct timeval t_end;
+      unsigned long r_sec, e_sec, d_sec, r_us, e_us, d_us;
+      double r_ms, e_ms, d_ms;
+      gettimeofday (&t_end, ((void *)0));
+      time_sub (&r_sec, &r_us, &r_ms, &t_end, &t_start);
+      time_sub (&e_sec, &e_us, &e_ms, &t_end, &t_execute);
+      time_sub (&d_sec, &d_us, &d_ms, &t_execute, &t_decode);
+
+      sprintf (s_decode, "      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+               " %6.2f%%,  %10.3f        words / ms, 0x%05x words\n",
+               d_sec/60, d_sec%60, d_us, d_sec, d_us/1000,
+               r_ms > 0.01 ? 100.*d_ms/r_ms : 0.0,
+               d_ms > 0.01 ? program_size/d_ms : 0.0, program_size);
+
+      sprintf (s_execute, "     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+               " %6.2f%%,  %10.3f instructions / ms\n",
+               e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
+               r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
+               e_ms > 0.01 ? instr_count/e_ms : 0.0);
+
+      sprintf (s_runtime, " avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+               " %6.2f%%,  %10.3f instructions / ms\n",
+               r_sec/60, r_sec%60, r_us, r_sec, r_us/1000,
+               100.,
+               r_ms > 0.01 ? instr_count/r_ms : 0.0);
     }
 
   printf ("\n"
-          "%s"
+          "%s%s%s"
           " exit status: %s\n"
           "      reason: %s\n"
           "     program: %s\n"
           "exit address: %06x\n"
           "total cycles: %u\n\n",
-          s_runtime,
+          s_decode, s_execute, s_runtime,
           exit_status_text[status], reason,
           program_name ? program_name : "-not set-",
           cpu_PC * 2, program_cycles);
@@ -2116,7 +2132,12 @@ main (int argc, char *argv[])
   arch = arch_descs[0];
   parse_args (argc, argv);
 
+  if (flag_have_runtime)
+    gettimeofday (&t_decode, NULL);
   decode_flash();
+
+  if (flag_have_runtime)
+    gettimeofday (&t_execute, NULL);
   execute();
 
   return EXIT_SUCCESS;
