@@ -45,7 +45,7 @@ gen-flag-tables$(exe): gen-flag-tables.c sreg.h Makefile
 ifneq ($(exe),.exe)
 exe: avrtest.exe avrtest-xmega.exe
 %.exe: %.c $(DEPS)
-	$(WINCC) $(WARN) $(CFLAGS) $< -o $*.exe -save-temps -dp
+	$(WINCC) $(WARN) $(CFLAGS) $< -o $*.exe
 	$(WINCC) $(WARN) $(CFLAGS) $< -o $*_log.exe -DLOG_DUMP
 	$(WINSTRIP) $*.exe
 	$(WINSTRIP) $*_log.exe

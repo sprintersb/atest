@@ -1,5 +1,9 @@
 2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (func_MOV, func_MOVW, func_LDI): Make inline.
+
+2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (t_load): New variable.
 	(parse_args) [flag_have_runtime]: Set it.
 	(leave) [flag_have_runtime]: Print info about load phase.

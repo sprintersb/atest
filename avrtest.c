@@ -963,7 +963,7 @@ static OP_FUNC_TYPE func_EOR (int rd, int rr)
 }
 
 /* 0010 11rd dddd rrrr | MOV */
-static OP_FUNC_TYPE func_MOV (int rd, int rr)
+static INLINE OP_FUNC_TYPE func_MOV (int rd, int rr)
 {
   put_reg (rd, get_reg (rr));
 }
@@ -1251,7 +1251,7 @@ static OP_FUNC_TYPE func_CPI (int rd, int rr)
 }
 
 /* 1110 KKKK dddd KKKK | LDI or SER */
-static OP_FUNC_TYPE func_LDI (int rd, int rr)
+static INLINE OP_FUNC_TYPE func_LDI (int rd, int rr)
 {
   put_reg (rd, rr);
 }
@@ -1488,7 +1488,7 @@ static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 
 /* opcodes with two 4-bit register (Rd and Rr) operands */
 /* 0000 0001 dddd rrrr | MOVW */
-static OP_FUNC_TYPE func_MOVW (int rd, int rr)
+static INLINE OP_FUNC_TYPE func_MOVW (int rd, int rr)
 {
 #ifdef LOG_DUMP
   put_word_reg (rd, get_word_reg (rr));
