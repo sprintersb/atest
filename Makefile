@@ -1,4 +1,4 @@
-CFLAGS=-Os -fomit-frame-pointer -std=c99
+CFLAGS=-O3 -fomit-frame-pointer -std=c99
 WARN=-W -Wall -Wno-unused-parameter -pedantic
 CC=gcc
 STRIP=strip

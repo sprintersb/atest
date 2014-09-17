@@ -1506,6 +1506,10 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
   do_multiply (rd, rr, 1, 0, 1);
 }
 
+static OP_FUNC_TYPE func_LAST_FAST (int rd, int rr)
+{
+  leave (EXIT_STATUS_ABORTED, "internal error");
+}
 
 // ----------------------------------------------------------------------------
 //     ELF loader.
@@ -2051,19 +2055,39 @@ decode_flash (void)
 //     main execution loop
 
 static INLINE void
+do_fast (byte id, int op1, int op2)
+{
+  // Some instructions are used so frequently and are so easy to simulate
+  // (not more than 4 instructions) that they are not worth a function call.
+  switch (id)
+    {
+    default: leave (EXIT_STATUS_ABORTED, "internal error");
+    case ID_LDI:  func_LDI  (op1, op2); break;
+    case ID_MOV:  func_MOV  (op1, op2); break;
+    case ID_MOVW: func_MOVW (op1, op2); break;
+    }
+}
+    
+static INLINE void
 do_step (void)
 {
   // fetch decoded instruction
   decoded_op dop = decoded_flash[cpu_PC];
-  if (!dop.data_index)
+  byte id = dop.data_index;
+  if (!id)
     leave (EXIT_STATUS_ABORTED, "program counter out of program space");
 
   // execute instruction
-  const opcode_t *data = &opcode_func_array[dop.data_index];
+  const opcode_t *data = &opcode_func_array[id];
   log_add_instr (data->hreadable);
   cpu_PC += data->size;
   add_program_cycles (data->cycles);
-  data->func (dop.oper1, dop.oper2);
+  int op1 = dop.oper1;
+  int op2 = dop.oper2;
+  if (id >= ID_LAST_FAST)
+    data->func (op1, op2);
+  else
+    do_fast (id, op1, op2);
   log_dump_line();
 }
 

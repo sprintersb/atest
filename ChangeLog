@@ -1,5 +1,15 @@
 2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
 
+	* Makefile (CFLAGS): Resurrect -O3.
+	* avr-insns.def (LDI, MOV, MOVW): Move before...
+	(LAST_FAST): This new insn.
+	* avrtest.c (do_fast): New function.
+	(do_step): Use it for IDs < ID_LAST_FAST.
+	(func_LAST_FAST): New function.
+	(leave): Fix missing 0s in %ld.
+
+2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (data_read_byte_raw): Factor out magic ports to...
 	(data_read_magic_port): ...this new function.
 	(data_write_byte_raw): Factor out magic ports to...
