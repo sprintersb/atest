@@ -374,25 +374,27 @@ leave (int status, const char *reason)
       time_sub (&l_sec, &l_us, &l_ms, &t_decode, &t_load);
 
       sprintf (s_load, "        load: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f        words / ms, 0x%05x words\n",
+               " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
                l_sec/60, l_sec%60, l_us, l_sec, l_us/1000,
                r_ms > 0.01 ? 100.*l_ms/r_ms : 0.0,
-               l_ms > 0.01 ? program_size/l_ms : 0.0, program_size);
+               l_ms > 0.01 ? program_size/l_ms : 0.0,
+               program_size, program_size);
 
       sprintf (s_decode, "      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f        words / ms, 0x%05x words\n",
+               " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
                d_sec/60, d_sec%60, d_us, d_sec, d_us/1000,
                r_ms > 0.01 ? 100.*d_ms/r_ms : 0.0,
-               d_ms > 0.01 ? program_size/d_ms : 0.0, program_size);
+               d_ms > 0.01 ? program_size/d_ms : 0.0,
+               program_size, program_size);
 
       sprintf (s_execute, "     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f instructions / ms\n",
+               " %6.2f%%,  %10.3f instructions/ms\n",
                e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
                r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
                e_ms > 0.01 ? instr_count/e_ms : 0.0);
 
       sprintf (s_runtime, " avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f instructions / ms\n",
+               " %6.2f%%,  %10.3f instructions/ms\n",
                r_sec/60, r_sec%60, r_us, r_sec, r_us/1000,
                100.,
                r_ms > 0.01 ? instr_count/r_ms : 0.0);
@@ -2087,7 +2089,6 @@ do_fast (byte id, int op1, int op2)
   // (not more than 4 instructions) that they are not worth a function call.
   switch (id)
     {
-    default: leave (EXIT_STATUS_ABORTED, "internal error");
     case ID_LDI:  func_LDI  (op1, op2); break;
     case ID_MOV:  func_MOV  (op1, op2); break;
     case ID_MOVW: func_MOVW (op1, op2); break;

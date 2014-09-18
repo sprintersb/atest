@@ -37,7 +37,7 @@
 
     N_TICKS
         is the number of instruction cycles needed by the instruction.
-        Instruction marked with `*' might need extra cycles.
+        Instructions marked with `*' might need extra cycles.
 
     NAME
         is a human-readable representation of the instruction (nmemonic)

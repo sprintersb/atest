@@ -1,3 +1,9 @@
+2014-09-18  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avrtest.c (leave): Typo.  Also print program_size in decimal.
+	(do_fast): Remove dead code.
+	* avr-insn.def: Typo.
+
 2014-09-17  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (func_MOV, func_MOVW, func_LDI): Make inline.
