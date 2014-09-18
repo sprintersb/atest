@@ -176,9 +176,12 @@ gen_flag_update_tables (void)
   table_end ();
 }
 
-int main (void)
+int main (int argc, char *argv[])
 {
   FILE *self = fopen ("gen-flag-tables.c", "r");
+
+  if (!self && argc == 2)
+    self = fopen (argv[1], "r");
 
   if (!self)
     return EXIT_FAILURE;

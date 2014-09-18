@@ -1,5 +1,9 @@
 2014-09-18  Georg-Johann Lay  <avr@gjlay.de>
 
+	* gen-flag-tables.c (main): Accept argv[1] as input file name.
+
+2014-09-18  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avrtest.c (leave): Typo.  Also print program_size in decimal.
 	(do_fast): Remove dead code.
 	* avr-insn.def: Typo.
