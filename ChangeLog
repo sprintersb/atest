@@ -1,5 +1,14 @@
 2014-09-19  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (NOINLINE, NORETURN): New defines.
+	(leave): Use them.
+	(opcode_t): Remove .hreadable if !LOG_DUMP.
+	(AVR_INSN): Adjust.
+	(FASTCALL): New define.
+	(OP_FUNC_TYPE): Use it.
+
+2014-09-19  Georg-Johann Lay  <avr@gjlay.de>
+
 	* Makefile (flag-tables): New phony to build flag-tables.c.
 	(flag-tables.c): Remove rule to build.
 	(exe): Rename to EXEEXT resp. BUILD_EXEEXT.

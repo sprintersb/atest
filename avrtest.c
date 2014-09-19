@@ -73,6 +73,9 @@ typedef uint32_t dword;
 #define REGZ    30
 
 #define INLINE inline __attribute__((always_inline))
+#define NOINLINE __attribute__((noinline))
+#define NORETURN __attribute__((noreturn))
+#define FASTCALL __attribute__((fastcall))
 
 typedef struct
 {
@@ -88,22 +91,10 @@ typedef struct
 const arch_t arch_descs[] =
   {
 #ifdef ISA_XMEGA
-    { 
-      .name = "avrxmega6",
-      .pc_3bytes = 1,
-      .has_eind = 1
-    },
+    { "avrxmega6", 1, 1 },
 #else
-    { 
-      .name = "avr51",
-      .pc_3bytes = 0,
-      .has_eind = 0
-    },
-    {
-      .name = "avr6",
-      .pc_3bytes = 1,
-      .has_eind = 1
-    },
+    { "avr51",     0, 0 },
+    { "avr6",      1, 1 },
 #endif
     { NULL, 0, 0}
   };
@@ -167,14 +158,16 @@ typedef struct
   word oper2;
 } decoded_op;
 
-#define OP_FUNC_TYPE void __attribute__((fastcall))
+#define OP_FUNC_TYPE void FASTCALL
 
 typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 
 typedef struct
 {
   opcode_func func;
+#ifdef LOG_DUMP
   const char *hreadable;
+#endif
   short size;
   short cycles;
 } opcode_t;
@@ -184,11 +177,10 @@ typedef struct
 
 enum
   {
-    // dummy entry to guarantee that "zero" is an invalid function
-    ID_dummy = 0,
-
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)    \
     ID_ ## ID,
+    // dummy entry to guarantee that "zero" is an invalid function
+    AVR_INSN(NULL, 0, 0, NULL)
 #include "avr-insn.def"
 #undef AVR_INSN
   };
@@ -354,7 +346,7 @@ static const char *exit_status_text[] =
     [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
   };
 
-static void __attribute__((noreturn,noinline))
+static void NOINLINE NORETURN
 leave (int status, const char *reason)
 {
   static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
@@ -1536,6 +1528,8 @@ static OP_FUNC_TYPE func_LAST_FAST (int rd, int rr)
   leave (EXIT_STATUS_ABORTED, "internal error");
 }
 
+#define func_NULL NULL
+
 // ----------------------------------------------------------------------------
 //     ELF loader.
 
@@ -1811,11 +1805,15 @@ parse_args (int argc, char *argv[])
 // flash pre-decoding functions
 
 const opcode_t opcode_func_array[] = {
-  // dummy entry to guarantee that "zero" is an invalid function
-  [ID_dummy] = { NULL, NULL, 0, 0 },
-
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                    \
+#ifdef LOG_DUMP
+#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
   [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
+#else
+#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
+  [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
+#endif // LOG_DUMP
+  // dummy entry to guarantee that "zero" is an invalid function
+  AVR_INSN(NULL, 0, 0, NULL)
 #include "avr-insn.def"
 #undef AVR_INSN
 };
