@@ -151,6 +151,15 @@ enum decoder_operand_masks
 #define EXIT_STATUS_ABORTED 1
 #define EXIT_STATUS_TIMEOUT 2
 
+static const char *exit_status_text[] =
+  {
+    [EXIT_STATUS_EXIT]    = "EXIT",
+    [EXIT_STATUS_ABORTED] = "ABORTED",
+    [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
+  };
+
+static void NOINLINE NORETURN leave (int status, const char *reason);
+
 typedef struct
 {
   byte data_index;
@@ -248,6 +257,8 @@ static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
 // empty placeholders to keep the rest of the code clean
 
 #define log_add_instr(...)    (void) 0
+#define log_add_bit(...)      (void) 0
+#define log_add_immed(...)    (void) 0
 #define log_add_data_mov(...) (void) 0
 #define log_add_reg_mov(...)  (void) 0
 #define log_dump_line(...)    (void) 0
@@ -265,27 +276,132 @@ log_add_data (const char *data)
   cur_log_pos += len;
 }
 
-static void
-log_add_instr (const char *instr)
+static INLINE int
+mask_to_bit (int val)
 {
+  switch (val)
+    {
+    default: return -1;
+    case 1<<0 : return 0;
+    case 1<<1 : return 1;
+    case 1<<2 : return 2;
+    case 1<<3 : return 3;
+    case 1<<4 : return 4;
+    case 1<<5 : return 5;
+    case 1<<6 : return 6;
+    case 1<<7 : return 7;
+    }
+}
+
+static void
+log_put_bit (const decoded_op *op, char *buf)
+{
+  int id, mask, style = 0;
+  
+  switch (id = op->data_index)
+    {
+    default:
+      return;
+    case ID_BLD:  case ID_SBI:  case ID_SBIS:  case ID_SBRS:
+    case ID_BST:  case ID_CBI:  case ID_SBIC:  case ID_SBRC:
+      mask = op->oper2;
+      style = 1;
+      break;
+    case ID_BRBS:  case ID_BRBC:
+      mask = op->oper2;
+      style = 2;
+      break;
+    case ID_BSET: case ID_BCLR:
+      mask = op->oper1;
+      style = 3;
+      break;
+    }
+  
+  int val = mask_to_bit (mask);
+  
+  if (val < 0 || val > 7)
+    leave (EXIT_STATUS_ABORTED, "internal error");
+
+  switch (style)
+    {
+    case 1:
+      // CBI.* --> CBI.4 etc.
+      buf[-1] = "01234567"[val];
+        return;
+    case 2:
+      {
+        const char *s = NULL;
+        switch (mask)
+          {
+          // "BR*S" --> "BREQ" etc.
+          // "BR*C" --> "BRNE" etc.
+          case FLAG_Z: s = id == ID_BRBS ? "EQ" : "NE"; break;
+          case FLAG_N: s = id == ID_BRBS ? "MI" : "PL"; break;
+          case FLAG_S: s = id == ID_BRBS ? "LT" : "GE"; break;
+          // "BR*C" --> "BRVC" etc.
+          // "BR*S" --> "BRVS" etc.
+          default: buf[-2] = s_SREG[val]; return;
+          }
+        buf[-2] = s[0];
+        buf[-1] = s[1];
+        return;
+        }
+    case 3:
+      // SE* --> SEI  etc.
+      // CL* --> CLI  etc.
+      buf[-1] = s_SREG[val];
+      return;
+    }
+}
+
+static void
+log_add_instr (const decoded_op *op)
+{
+  byte id = op->data_index;
+  const char *instr = opcode_func_array[id].hreadable;
   char buf[32];
   if (arch.pc_3bytes)
-    sprintf (buf, "%06x: %-5s ", cpu_PC * 2, instr);
+    sprintf (buf, "%06x: %-7s ", cpu_PC * 2, instr);
   else
-    sprintf (buf, "%04x: %-5s ", cpu_PC * 2, instr);
+    sprintf (buf, "%04x: %-7s ", cpu_PC * 2, instr);
+    
+  log_put_bit (op, buf + 6 + 2*arch.pc_3bytes + strlen (instr));
+  log_add_data (buf);
+}
+
+static void
+log_add_immed (int value)
+{
+  char buf[32];
+  sprintf (buf, "(###)->%02x ", value);
   log_add_data (buf);
 }
 
 static void
 log_add_data_mov (const char *format, int addr, int value)
 {
-  char buf[32], adname[16];
+  char buf[32], ad[16], *adname = ad;
 
   switch (addr)
     {
-    case SREG: strcpy (adname, "SREG"); break;
-    case SPH:  strcpy (adname, "SPH"); break;
-    case SPL:  strcpy (adname, "SPL"); break;
+    case SREG:
+      for (const char *f = s_SREG; *f; f++, value >>= 1)
+        if (value & 1)
+          *adname++ = *f;
+      *adname++ = '\0';
+      sprintf (buf, format, ad);
+      log_add_data (buf);
+      return;
+    case SPH:   adname = "SPH"; break;
+    case SPL:   adname = "SPL"; break;
+    case RAMPZ: adname = "RAMPZ"; break;
+    case EIND:
+      if (arch.has_eind)
+        {
+          adname = "EIND";
+          break;
+        }
+      // FALLTHRU
     default:
       if (addr < 256)
         sprintf (adname, "%02x", addr);
@@ -338,13 +454,6 @@ time_sub (unsigned long *s, unsigned long *us, double *ms,
   *ms = 1000. * (*s) + 0.001 * (*us);
 }
 
-
-static const char *exit_status_text[] =
-  {
-    [EXIT_STATUS_EXIT]    = "EXIT",
-    [EXIT_STATUS_ABORTED] = "ABORTED",
-    [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
-  };
 
 static void NOINLINE NORETURN
 leave (int status, const char *reason)
@@ -493,7 +602,8 @@ static INLINE int
 data_read_byte (int address)
 {
   int ret = data_read_byte_raw (address);
-  log_add_data_mov ("(%s)->%02x ", address, ret);
+  log_add_data_mov (address == SREG ? "(SREG)->'%s' " : "(%s)->%02x ",
+                    address, ret);
   return ret;
 }
 
@@ -502,7 +612,8 @@ data_read_byte (int address)
 static INLINE void
 data_write_byte (int address, int value)
 {
-  log_add_data_mov ("(%s)<-%02x ", address, value);
+  log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
+                    address, value & 0xff);
   data_write_byte_raw (address, value);
 }
 
@@ -575,7 +686,7 @@ update_flags (int flags, int new_values)
 static INLINE int
 get_carry (void)
 {
-  return (data_read_byte (SREG) & FLAG_C) != 0;
+  return (data_read_byte_raw (SREG) & FLAG_C) != 0;
 }
 
 // fast flag update tables to avoid conditional branches on frequently
@@ -670,11 +781,10 @@ do_addition_8 (int rd, int rr, int carry)
   int value1 = get_reg (rd);
   int value2 = get_reg (rr);
   int result = value1 + value2 + carry;
+  put_reg (rd, result);
 
   int sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX (value1, value2, result)];
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
-
-  put_reg (rd, result & 0xFF);
 }
 
 // perform the left shift and set the appropriate flags
@@ -695,7 +805,7 @@ do_subtraction_8 (int value1, int value2, int carry, int use_carry)
 {
   int result = value1 - value2 - carry;
   int sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
-  unsigned flag = use_carry && ((data_read_byte (SREG) & FLAG_Z) == 0);
+  unsigned flag = use_carry && ((data_read_byte_raw (SREG) & FLAG_Z) == 0);
   sreg &= ~(flag << FLAG_Z_BIT);
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
@@ -1272,6 +1382,7 @@ static OP_FUNC_TYPE func_SWAP (int rd, int rr)
 /* 0111 KKKK dddd KKKK | CBR or ANDI */
 static OP_FUNC_TYPE func_ANDI (int rd, int rr)
 {
+  log_add_immed (rr);
   int result = get_reg (rd) & rr;
   store_logical_result (rd, result);
 }
@@ -1279,6 +1390,7 @@ static OP_FUNC_TYPE func_ANDI (int rd, int rr)
 /* 0011 KKKK dddd KKKK | CPI */
 static OP_FUNC_TYPE func_CPI (int rd, int rr)
 {
+  log_add_immed (rr);
   do_subtraction_8 (get_reg (rd), rr, 0, 0);
 }
 
@@ -1291,6 +1403,7 @@ static INLINE OP_FUNC_TYPE func_LDI (int rd, int rr)
 /* 0110 KKKK dddd KKKK | SBR or ORI */
 static OP_FUNC_TYPE func_ORI (int rd, int rr)
 {
+  log_add_immed (rr);
   int result = get_reg (rd) | rr;
   store_logical_result (rd, result);
 }
@@ -1300,6 +1413,7 @@ static OP_FUNC_TYPE func_ORI (int rd, int rr)
 static INLINE OP_FUNC_TYPE func_SBCI_SUBI (int rd, int rr, int carry,
                                              int use_carry)
 {
+  log_add_immed (rr);
   put_reg (rd, do_subtraction_8 (get_reg (rd), rr, carry, use_carry));
 }
 
@@ -1421,6 +1535,7 @@ static OP_FUNC_TYPE func_BSET (int rd, int rr)
 /* 1001 0110 KKdd KKKK | ADIW */
 static OP_FUNC_TYPE func_ADIW (int rd, int rr)
 {
+  log_add_immed (rr);
   int svalue = get_word_reg (rd);
   int evalue = svalue + rr;
   put_word_reg (rd, evalue);
@@ -1436,6 +1551,7 @@ static OP_FUNC_TYPE func_ADIW (int rd, int rr)
 /* 1001 0111 KKdd KKKK | SBIW */
 static OP_FUNC_TYPE func_SBIW (int rd, int rr)
 {
+  log_add_immed (rr);
   int svalue = get_word_reg (rd);
   int evalue = svalue - rr;
   put_word_reg (rd, evalue);
@@ -2146,7 +2262,7 @@ do_step (void)
 
   // execute instruction
   const opcode_t *data = &opcode_func_array[id];
-  log_add_instr (data->hreadable);
+  log_add_instr (&dop);
   cpu_PC += data->size;
   add_program_cycles (data->cycles);
   int op1 = dop.oper1;

@@ -41,7 +41,8 @@
 
     NAME
         is a human-readable representation of the instruction (nmemonic)
-        displayed when logging is active.
+        displayed when logging is active.  log_put_bit() will fix '*'
+        on the fly.
 */
 
 AVR_INSN (LDI,         1, 1,    "LDI"    )
@@ -57,14 +58,14 @@ AVR_INSN (SBIW,        1, 2,    "SBIW"   )
 AVR_INSN (AND,         1, 1,    "AND"    )
 AVR_INSN (ANDI,        1, 1,    "ANDI"   )
 AVR_INSN (ASR,         1, 1,    "ASR"    )
-AVR_INSN (BCLR,        1, 1,    "BCLR"   )
-AVR_INSN (BLD,         1, 1,    "BLD"    )
-AVR_INSN (BRBC,        1, 1,    "BRBC"   ) // *
-AVR_INSN (BRBS,        1, 1,    "BRBS"   ) // *
-AVR_INSN (BSET,        1, 1,    "BSET"   )
-AVR_INSN (BST,         1, 1,    "BST"    )
+AVR_INSN (BCLR,        1, 1,    "CL*"    )
+AVR_INSN (BLD,         1, 1,    "BLD.*"  )
+AVR_INSN (BRBC,        1, 1,    "BR*C"   ) // *
+AVR_INSN (BRBS,        1, 1,    "BR*S"   ) // *
+AVR_INSN (BSET,        1, 1,    "SE*"    )
+AVR_INSN (BST,         1, 1,    "BST.*"  )
 AVR_INSN (CALL,        2, 4,    "CALL"   ) // *
-AVR_INSN (CBI,         1, 2-CX, "CBI"    )
+AVR_INSN (CBI,         1, 2-CX, "CBI.*"  )
 AVR_INSN (COM,         1, 1,    "COM"    )
 AVR_INSN (CP,          1, 1,    "CP"     )
 AVR_INSN (CPC,         1, 1,    "CPC"    )
@@ -124,11 +125,11 @@ AVR_INSN (RJMP,        1, 2,    "RJMP"   )
 AVR_INSN (ROR,         1, 1,    "ROR"    )
 AVR_INSN (SBC,         1, 1,    "SBC"    )
 AVR_INSN (SBCI,        1, 1,    "SBCI"   )
-AVR_INSN (SBI,         1, 2-CX, "SBI"    )
-AVR_INSN (SBIC,        1, 1+CX, "SBIC"   ) // *
-AVR_INSN (SBIS,        1, 1+CX, "SBIS"   ) // *
-AVR_INSN (SBRC,        1, 1,    "SBRC"   ) // *
-AVR_INSN (SBRS,        1, 1,    "SBRS"   ) // *
+AVR_INSN (SBI,         1, 2-CX, "SBI.*"  )
+AVR_INSN (SBIC,        1, 1+CX, "SBIC.*" ) // *
+AVR_INSN (SBIS,        1, 1+CX, "SBIS.*" ) // *
+AVR_INSN (SBRC,        1, 1,    "SBRC.*" ) // *
+AVR_INSN (SBRS,        1, 1,    "SBRS.*" ) // *
 AVR_INSN (SLEEP,       1, 1,    "SLEEP"  )
 AVR_INSN (SPM,         1, 1,    "SPM"    )
 AVR_INSN (STD_Y,       1, 2,    "STD Y+q")

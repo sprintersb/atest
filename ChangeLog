@@ -1,5 +1,29 @@
 2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
 
+	Pretty-print SREG, flags and bits.
+
+	* sreg.h (s_SREG): New variable.
+
+	* avr-insn.def (BCLR, BLD, BRBC, BRBS, BSET, BST, CBI, SBI)
+	(SBIS, SBIC, SBRC, SBRS) [NAME]: Use '*' as placeholder for
+	bits printed by log_put_bit.
+
+	* avrtest.c (exit_status_text): Move up.
+	(mask_to_bit, log_put_bit): New functions.
+	(log_add_instr): Use them to fix '*' in NAMEs of: BCLR,
+	BLD, BRBC, BRBS, BSET, BST, CBI, SBI, SBIS, SBIC, SBRC, SBRS.
+	Change argument to decoded_op*.
+	(do_step): Pass decoded_op* to log_add_instr.
+	(log_add_immed): New function.
+	(func_ANDI, func_ORI, func_CPI, func_SBCI_SUBI, func_ADIW)
+	(func_ADIW): Call it.
+	(update_flags, do_subtraction_8): Use data_read_byte_raw for SREG.
+	(data_read_byte, data_write_byte): Use special format for SREG.
+	(log_add_data_mov): Pretty print EIND, RAMPZ.  Print SREG
+	as 'CZNVSHTI' instead of as hex value.
+
+2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avr-insn.def (CLR, LSL, ROL, TST): New shortcuts.
 	* avrtest.c (decode_opcode): Decode them.
 	(func_CLR, func_LSL, func_ROL, func_TST): New to implement them.
