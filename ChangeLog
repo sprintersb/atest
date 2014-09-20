@@ -1,5 +1,12 @@
 2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avr-insn.def (CLR, LSL, ROL, TST): New shortcuts.
+	* avrtest.c (decode_opcode): Decode them.
+	(func_CLR, func_LSL, func_ROL, func_TST): New to implement them.
+	(do_shift_8): New function.
+
+2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
+
 	* avr-insn.def (NAME): Remove redundant r's.
 
 2014-09-19  Georg-Johann Lay  <avr@gjlay.de>

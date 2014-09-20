@@ -145,3 +145,9 @@ AVR_INSN (SUB,         1, 1,    "SUB"    )
 AVR_INSN (SUBI,        1, 1,    "SUBI"   )
 AVR_INSN (SWAP,        1, 1,    "SWAP"   )
 AVR_INSN (WDR,         1, 1,    "WDR"    )
+
+// Some common shortcuts
+AVR_INSN (CLR,         1, 1,    "CLR"    )
+AVR_INSN (LSL,         1, 1,    "LSL"    )
+AVR_INSN (ROL,         1, 1,    "ROL"    )
+AVR_INSN (TST,         1, 1,    "TST"    )

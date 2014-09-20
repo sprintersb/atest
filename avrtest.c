@@ -677,6 +677,18 @@ do_addition_8 (int rd, int rr, int carry)
   put_reg (rd, result & 0xFF);
 }
 
+// perform the left shift and set the appropriate flags
+static INLINE void
+do_shift_8 (int rd, int carry)
+{
+  int value = get_reg (rd);
+  int result = value + value + carry;
+  put_reg (rd, result);
+
+  int sreg = flag_update_table_add8[FUT_ADD_SUB_INDEX (value, value, result)];
+  update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
+}
+
 // perform the subtraction and set the appropriate flags
 static INLINE int
 do_subtraction_8 (int value1, int value2, int carry, int use_carry)
@@ -918,10 +930,22 @@ static OP_FUNC_TYPE func_ADC (int rd, int rr)
   do_addition_8 (rd, rr, get_carry());
 }
 
+/* 0001 11rd dddd dddd | ROL */
+static OP_FUNC_TYPE func_ROL (int rd, int rr)
+{
+  do_shift_8 (rd, get_carry());
+}
+
 /* 0000 11rd dddd rrrr | ADD or LSL */
 static OP_FUNC_TYPE func_ADD (int rd, int rr)
 {
   do_addition_8 (rd, rr, 0);
+}
+
+/* 0000 11rd dddd dddd | LSL */
+static OP_FUNC_TYPE func_LSL (int rd, int rr)
+{
+  do_shift_8 (rd, 0);
 }
 
 /* 0010 00rd dddd rrrr | AND or TST */
@@ -929,6 +953,14 @@ static OP_FUNC_TYPE func_AND (int rd, int rr)
 {
   int result = get_reg (rd) & get_reg (rr);
   store_logical_result (rd, result);
+}
+
+/* 0010 00rd dddd dddd | TST */
+static OP_FUNC_TYPE func_TST (int rd, int rr)
+{
+  int result = get_reg (rd);
+  update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z,
+                flag_update_table_logical[result]);
 }
 
 /* 0001 01rd dddd rrrr | CP */
@@ -954,6 +986,12 @@ static OP_FUNC_TYPE func_EOR (int rd, int rr)
 {
   int result = get_reg (rd) ^ get_reg (rr);
   store_logical_result (rd, result);
+}
+
+/* 0010 01rd dddd rrrr | CLR */
+static OP_FUNC_TYPE func_CLR (int rd, int rr)
+{
+  store_logical_result (rd, 0);
 }
 
 /* 0010 11rd dddd rrrr | MOV */
@@ -1912,6 +1950,10 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
     {
       op->oper2 = (opcode1 & 0x0F) | ((opcode1 >> 5) & 0x0010);
       op->oper1 = (opcode1 >> 4) & 0x1F;
+      if (ID_ADD == index && op->oper1 == op->oper2)  return ID_LSL;
+      if (ID_ADC == index && op->oper1 == op->oper2)  return ID_ROL;
+      if (ID_EOR == index && op->oper1 == op->oper2)  return ID_CLR;
+      if (ID_AND == index && op->oper1 == op->oper2)  return ID_TST;
       return index;
     }
 
