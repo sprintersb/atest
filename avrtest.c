@@ -518,9 +518,9 @@ leave (int status, const char *reason)
 // ----------------------------------------------------------------------------
 //     ioport / ram / flash, read / write entry points
 
-// lowest level memory accessors
+// Adding magic to some I/O ports as we read from or write to them
 
-static INLINE void
+static NOINLINE void
 data_write_magic_port (int address, int value)
 {
   // add code here to handle special events
@@ -543,7 +543,7 @@ data_write_magic_port (int address, int value)
     }
 }
 
-static INLINE int
+static NOINLINE int
 data_read_magic_port (int address)
 {
   // add code here to handle special events
@@ -560,29 +560,22 @@ data_read_magic_port (int address)
       cpu_data[TICKS_PORT+3] = cycles >> 24;
     }
 
+  // default action, just read the value
   return cpu_data[address];
 }
 
-// lowest level memory accessors
+// Lowest level vanilla memory accessors, no magic, no logging.
 
 static INLINE int
 data_read_byte_raw (int address)
 {
-  if (address <= LAST_MAGIC_IN_PORT && address >= FIRST_MAGIC_IN_PORT)
-    return data_read_magic_port (address);
-
-  // default action, just read the value
   return cpu_data[address];
 }
 
 static INLINE void
 data_write_byte_raw (int address, int value)
 {
-  if (address <= LAST_MAGIC_OUT_PORT && address >= FIRST_MAGIC_OUT_PORT)
-    data_write_magic_port (address, value);
-  else
-    // default action, just store the value
-    cpu_data[address] = value;
+  cpu_data[address] = value;
 }
 
 static INLINE int
@@ -593,15 +586,47 @@ flash_read_byte (int address)
   return cpu_flash[address];
 }
 
+// Memory accessors: with logging and with magic
+// Used by memory accessing instructions like IN, OUT,
+// LD*, ST* ... that might trigger magic.
 
-// mid-level memory accessors
+static INLINE int
+data_read_magic_byte (int address)
+{
+  int ret;
+  if (address <= LAST_MAGIC_IN_PORT && address >= FIRST_MAGIC_IN_PORT)
+    ret = data_read_magic_port (address);
+  else
+    // default action, just read the value
+    ret = cpu_data[address];
 
-// read a byte from memory / ioport / register
+  log_add_data_mov (address == SREG ? "(SREG)->'%s' " : "(%s)->%02x ",
+                    address, ret);
+  return ret;
+}
+
+static INLINE void
+data_write_magic_byte (int address, int value)
+{
+  if (address <= LAST_MAGIC_OUT_PORT && address >= FIRST_MAGIC_OUT_PORT)
+    data_write_magic_port (address, value);
+  else
+    // default action, just store the value
+    cpu_data[address] = value;
+
+  log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
+                    address, value & 0xff);
+}
+
+
+// Memory accessors: with logging but no magic
+// Used by PUSH, POP, CALL, RET ...  These instrucion should
+// never ever need or do magic actions.
 
 static INLINE int
 data_read_byte (int address)
 {
-  int ret = data_read_byte_raw (address);
+  int ret = cpu_data[address];
   log_add_data_mov (address == SREG ? "(SREG)->'%s' " : "(%s)->%02x ",
                     address, ret);
   return ret;
@@ -614,7 +639,7 @@ data_write_byte (int address, int value)
 {
   log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
                     address, value & 0xff);
-  data_write_byte_raw (address, value);
+  cpu_data[address] = value;
 }
 
 // get_reg / put_reg are just placeholders for read/write calls where we can
@@ -830,7 +855,7 @@ load_indirect (int rd, int ind_register, int adjust, int displacement_bits)
 
   if (adjust < 0)
     ind_value += adjust;
-  put_reg (rd, data_read_byte (ind_value + displacement_bits));
+  put_reg (rd, data_read_magic_byte (ind_value + displacement_bits));
   if (adjust > 0)
     ind_value += adjust;
   if (adjust)
@@ -845,7 +870,7 @@ store_indirect (int rd, int ind_register, int adjust, int displacement_bits)
 
   if (adjust < 0)
     ind_value += adjust;
-  data_write_byte (ind_value + displacement_bits, get_reg (rd));
+  data_write_magic_byte (ind_value + displacement_bits, get_reg (rd));
   if (adjust > 0)
     ind_value += adjust;
   if (adjust)
@@ -1187,7 +1212,7 @@ static OP_FUNC_TYPE func_INC (int rd, int rr)
 static OP_FUNC_TYPE func_LDS (int rd, int rr)
 {
   //TODO:RAMPD
-  put_reg (rd, data_read_byte (rr));
+  put_reg (rd, data_read_magic_byte (rr));
 }
 
 /* 1001 000d dddd 1100 | LD */
@@ -1269,7 +1294,7 @@ xmega_atomic (int regno, int op)
 {
   int mask = get_reg (regno);
   int address = get_word_reg (REGZ);
-  int val = data_read_byte (address);
+  int val = data_read_magic_byte (address);
 
   put_reg (regno, val);
 
@@ -1281,7 +1306,7 @@ xmega_atomic (int regno, int op)
     case ID_LAT: val ^=  mask; break;
     }
 
-  data_write_byte (address, val);
+  data_write_magic_byte (address, val);
 }
 
 /* 1001 001d dddd 0100 | XCH */
@@ -1326,7 +1351,7 @@ static OP_FUNC_TYPE func_ROR (int rd, int rr)
 static OP_FUNC_TYPE func_STS (int rd, int rr)
 {
   //TODO:RAMPD
-  data_write_byte (rr, get_reg (rd));
+  data_write_magic_byte (rr, get_reg (rd));
 }
 
 /* 1001 001d dddd 1100 | ST */
@@ -1569,25 +1594,25 @@ static OP_FUNC_TYPE func_SBIW (int rd, int rr)
 /* 1001 1000 AAAA Abbb | CBI */
 static OP_FUNC_TYPE func_CBI (int rd, int rr)
 {
-  data_write_byte (rd, data_read_byte (rd) & ~(rr));
+  data_write_magic_byte (rd, data_read_magic_byte (rd) & ~(rr));
 }
 
 /* 1001 1010 AAAA Abbb | SBI */
 static OP_FUNC_TYPE func_SBI (int rd, int rr)
 {
-  data_write_byte (rd, data_read_byte (rd) | rr);
+  data_write_magic_byte (rd, data_read_magic_byte (rd) | rr);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC */
 static OP_FUNC_TYPE func_SBIC (int rd, int rr)
 {
-  skip_instruction_on_condition (!(data_read_byte (rd) & rr));
+  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr));
 }
 
 /* 1001 1011 AAAA Abbb | SBIS */
 static OP_FUNC_TYPE func_SBIS (int rd, int rr)
 {
-  skip_instruction_on_condition (data_read_byte (rd) & rr);
+  skip_instruction_on_condition (data_read_magic_byte (rd) & rr);
 }
 
 
@@ -1595,13 +1620,13 @@ static OP_FUNC_TYPE func_SBIS (int rd, int rr)
 /* 1011 0AAd dddd AAAA | IN */
 static OP_FUNC_TYPE func_IN (int rd, int rr)
 {
-  put_reg (rd, data_read_byte (rr));
+  put_reg (rd, data_read_magic_byte (rr));
 }
 
 /* 1011 1AAd dddd AAAA | OUT */
 static OP_FUNC_TYPE func_OUT (int rd, int rr)
 {
-  data_write_byte (rr, get_reg (rd));
+  data_write_magic_byte (rr, get_reg (rd));
 }
 
 

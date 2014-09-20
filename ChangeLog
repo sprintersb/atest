@@ -1,5 +1,15 @@
 2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
 
+	Remove magic action from PUSH, POP, CALL, ... to speed up.
+
+	* avrtest.c (data_read_byte_raw, data_write_byte_raw)
+	(data_read_byte, data_write_byte): Don't do magic.
+	(data_read_magic_byte, data_write_magic_byte): New functions.
+	(IN, OUT, CBI, SBI, SBIC, SBIS, LD*, ST*): Use them.
+	(load_indirect, store_indirect, xmega_atomic): Dito.
+
+2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
+
 	Pretty-print SREG, flags and bits.
 
 	* sreg.h (s_SREG): New variable.
