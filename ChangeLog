@@ -1,6 +1,8 @@
 2014-09-21  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (do_subtraction_8, FUT_ADD_SUB_INDEX): Minor tweak.
+	(rotate_right): Minor tweak.
+	(func_ASR, func_ROR): Adjust.
 
 2014-09-20  Georg-Johann Lay  <avr@gjlay.de>
 

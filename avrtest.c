@@ -924,9 +924,9 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
 }
 
 static INLINE void
-rotate_right (int rd, int value, int top_bit)
+rotate_right (int rd, int value, int top_bit /* 0 or 0x100 */)
 {
-  value |= (!!top_bit) << 8;
+  value |= top_bit;
   put_reg (rd, value >> 1);
 
   update_flags (FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C,
@@ -1171,7 +1171,7 @@ static OP_FUNC_TYPE func_SUB (int rd, int rr)
 static OP_FUNC_TYPE func_ASR (int rd, int rr)
 {
   int value = get_reg (rd);
-  rotate_right (rd, value, value & 0x80);
+  rotate_right (rd, value, (value & 0x80) << 1);
 }
 
 /* 1001 010d dddd 0000 | COM */
@@ -1349,7 +1349,7 @@ static OP_FUNC_TYPE func_PUSH (int rd, int rr)
 /* 1001 010d dddd 0111 | ROR */
 static OP_FUNC_TYPE func_ROR (int rd, int rr)
 {
-  rotate_right (rd, get_reg (rd), get_carry());
+  rotate_right (rd, get_reg (rd), get_carry() << 8);
 }
 
 /* 1001 001d dddd 0000 | STS */
