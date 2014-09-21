@@ -716,13 +716,18 @@ get_carry (void)
 
 // fast flag update tables to avoid conditional branches on frequently
 // used operations
-
-#define FUT_ADD_SUB_INDEX(v1,v2,res)            \
-  ((((v1) & 0x08) << 9)                         \
-   | (((v2) & 0x08) << 8)                       \
-   | (((v1) & 0x80) << 3)                       \
-   | (((v2) & 0x80) << 2)                       \
-   | ((res) & 0x1FF))
+static INLINE unsigned
+FUT_ADD_SUB_INDEX (unsigned v1, unsigned v2, unsigned res)
+{
+  /*   ((v1 & 0x08) << 9)
+     | ((v2 & 0x08) << 8)
+     | ((v1 & 0x80) << 3)
+     | ((v2 & 0x80) << 2)
+     | (res & 0x1FF) */
+  unsigned v = 2 * (v1 & 0x88) + (v2 & 0x88);
+  v *= 0x104;
+  return (res & 0x1ff) | (v & 0x1e00);
+}
 
 #define FUT_ADDSUB16_INDEX(v1, res)                             \
   (((((v1) >> 8) & 0x80) << 3) | (((res) >> 8) & 0x1FF))
@@ -830,8 +835,8 @@ do_subtraction_8 (int value1, int value2, int carry, int use_carry)
 {
   int result = value1 - value2 - carry;
   int sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
-  unsigned flag = use_carry && ((data_read_byte_raw (SREG) & FLAG_Z) == 0);
-  sreg &= ~(flag << FLAG_Z_BIT);
+  unsigned flag = (data_read_byte_raw (SREG) | ~FLAG_Z) | (use_carry-1);
+  sreg &= flag;
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
 
   return result & 0xFF;
