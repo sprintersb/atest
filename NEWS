@@ -1,0 +1,58 @@
+
+                                 
+
+                          avrtest NEWS
+                          ============
+
+
+
+* Improve log output:                                      r135  2014-09-20
+
+  - Print flags like 'CZNVSHTI' insted of hex value when accessing SREG.
+  - Print instruction shortcut for CLR, LSL, ROL, TST when applicable.
+  - Better log of conditional jumps and instructions dealing with bits.
+
+
+* New options:                                             r121  2014-09-15
+
+  -runtime         Show runtime statistics of avrtest itself.
+
+  -e ADDRESS       Use byte address ADDRESS instead of the default
+                   program entry point to start the simulation.
+
+
+* Support AVR Xmega                                        r92   2012-06-04
+
+  - New executables 'avrtest-xega' and 'avrtest-xmega_log'.
+  - New Xmega instructions XCH, LAC, LAS, LAT.
+
+
+* New options:                                             r76   2011-06-09
+
+  -no-stdin        Disable wait and magic action when reading STDIN_PORT.
+
+  -no-stdout       Disable magic action when writing to STDOUT_PORT.
+                    
+
+* New header "avrtest.h"
+
+  - Applications can #include "avrtest.h" in their programs or compile
+    with -include "avrtest.h" to get macros for the magic ports
+    EXIT_PORT, ABORT_PORT, STDOUT_PORT and STDIN_PORT.
+
+
+* Add support for devices with 3-byte PC                   r52   2008-07-22
+
+  -mmcu=ARCH       New command line option to set the architecture.
+                   Valid arguments for ARCH are: 'avr51' and 'avr6'.
+                   Default is 'avr51'.
+
+
+* Support ELF executables                                  r37   2008-05-25
+
+* New options:
+
+  -m CYCLES        Execute at most CYCLES instructions.
+                   Default is -m 0 (no limit).
+
+  -d               Initialize SRAM before program execution.

@@ -15,12 +15,16 @@ proc sim_load {dest prog args} {
 
 #  Disabling stdin will prevent some malfunction programs from
 #  "hanging" because user does not type something.
-   set result [exec avrtest -m 200000000 -no-stdin $prog]
+   set result [exec avrtest -runtime -m 200000000 -no-stdin $prog]
 #
 # The variable $result now contains the output of the run-atmega128 script.
 # 
 # Let's now look for the strings EXIT, ABORTED or TIMEOUT in result.
 # 
+
+# send_user $text  -->  .log + console
+# send_log  $text  -->  .log
+   send_log "$result\n"
    set exit_position [string last EXIT $result ]
    if {$exit_position != -1 } then {
       return [list "pass" ""]
@@ -61,7 +65,7 @@ set_board_info compiler  "[find_gcc]"
 # SIGNAL_SUPPRESS in order to find out whether to use signal.h when
 # checking compliance of IEEE floating point.
 # we do not have signal.h and, thus, define this symbol. 
-set_board_info cflags  " -DSIGNAL_SUPPRESS -mmcu=atmega128 -I/home/georg/gnu/install/gcc-4.7/avr/include"
+set_board_info cflags  " -DSIGNAL_SUPPRESS -mmcu=atmega128 -I/home/georg/gnu/install/gcc-4.9/avr/include"
 set_board_info gcc,stack_size 2048
 set_board_info gcc,no_trampolines 1
 set_board_info gcc,no_pch_tests 1
