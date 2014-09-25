@@ -426,3 +426,40 @@
 	* avrtest.c: Add ELF support. Add command-line option (-d) to
 	initialize SRAM from .data (for ELF program). Add command-line
 	option (-m) to limit the number of instructions executed.
+
+------------------------------------------------------------------------
+
+2008-02-13  Paulo Marques  <pmarques@grupopie.com>
+
+	* avrtest.c: Use 'flag update tables' to speed up flag updates
+	after arithmetic / logic opcode execution.
+
+2008-02-02  Paulo Marques  <pmarques@grupopie.com>
+
+	* avrtest.c: Give more information at program exit.
+	Cleanup a lot of #ifdef's.  Change the timeout from cycles to
+	instructions, because the simulator runs slightly faster this way.
+	Add a barrier for the stack at 0x60, that makes avrtest abort with
+	stack overflow when crossed.
+
+2008-01-30  Paulo Marques  <pmarques@grupopie.com>
+
+	* avrtest.c: Show the instruction in human readable form in the
+	execution log.
+
+2008-01-29  Paulo Marques  <pmarques@grupopie.com>
+
+	* avrtest.c: Predecode flash using tables to speed up execution.
+
+2008-01-26  Eric B. Weddington  <eric.weddington@atmel.com>
+
+	Initial import of avrtest into CVS.
+
+	* avrtest.c: New file.
+	* Makefile: New file.
+	* .dejagnurc: New file.
+	* dejagnuboards/exit.c: New file.
+	* dejagnuboards/atmega128-sim.exp: New file.
+
+------------------------------------------------------------------------
+
