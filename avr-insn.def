@@ -111,12 +111,6 @@ AVR_INSN (OR,          1, 1,    "OR"     )
 AVR_INSN (ORI,         1, 1,    "ORI"    )
 AVR_INSN (OUT,         1, 1,    "OUT"    )
 AVR_INSN (POP,         1, 2,    "POP"    )
-#ifdef ISA_XMEGA
-AVR_INSN (XCH,         1, 1,    "XCH"    )
-AVR_INSN (LAS,         1, 1,    "LAS"    )
-AVR_INSN (LAC,         1, 1,    "LAC"    )
-AVR_INSN (LAT,         1, 1,    "LAT"    )
-#endif // ISA_XMEGA
 AVR_INSN (PUSH,        1, 2-CX, "PUSH"   )
 AVR_INSN (RCALL,       1, 3-CX, "RCALL"  ) // *
 AVR_INSN (RET,         1, 4,    "RET"    ) // *
@@ -152,3 +146,11 @@ AVR_INSN (CLR,         1, 1,    "CLR"    )
 AVR_INSN (LSL,         1, 1,    "LSL"    )
 AVR_INSN (ROL,         1, 1,    "ROL"    )
 AVR_INSN (TST,         1, 1,    "TST"    )
+
+// XMEGA must be at the end of this file
+#ifdef ISA_XMEGA
+AVR_INSN (XCH,         1, 1,    "XCH"    )
+AVR_INSN (LAS,         1, 1,    "LAS"    )
+AVR_INSN (LAC,         1, 1,    "LAC"    )
+AVR_INSN (LAT,         1, 1,    "LAT"    )
+#endif // ISA_XMEGA

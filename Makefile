@@ -1,7 +1,9 @@
 # Compile for host at build (cross if desired)
 CC	= gcc
 STRIP	= strip
-WARN	= -W -Wall -Wno-unused-parameter -pedantic
+WARN	= -W -Wall -Wno-unused-parameter -pedantic \
+	  # -Wstrict-prototypes -Wmissing-prototypes
+
 CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 $(WARN) $(CFLAGS)
 
 # compile for i386-mingw32 at *-linux-*
@@ -23,24 +25,56 @@ CFLAGS_FOR_BUILD= -W -Wall -std=c99 -O2 -g
 CC_FOR_AVR	= avr-gcc$(BUILD_EXEEXT)
 CFLAGS_FOR_AVR	= -Os 
 
-all	: avrtest$(EXEEXT) exit \
-	  avrtest-xmega$(EXEEXT)
-exit	: exit-atmega128.o exit-atmega103.o exit-atmega2560.o \
-	  exit-atxmega128a3.o exit-atxmega128a1.o
+.SUFFIXES:
 
-DEPS = avrtest.h flag-tables.c sreg.h avr-insn.def Makefile
+A	= $(patsubst *%, avrtest%, * *_log *-xmega *-xmega_log)
+A_log	= $(patsubst *%, avrtest%, *_log *-xmega_log)
+A_xmega	= $(patsubst *%, avrtest%, *-xmega *-xmega_log)
 
-avrtest$(EXEEXT) : %$(EXEEXT) : avrtest.c $(DEPS)
-	$(CC) $(CFLAGS_FOR_HOST) $< -o $*$(EXEEXT)
-	$(CC) $(CFLAGS_FOR_HOST) $< -o $*_log$(EXEEXT) -DLOG_DUMP
-	$(STRIP) $*$(EXEEXT)
-	$(STRIP) $*_log$(EXEEXT)
+EXE	= $(A:=$(EXEEXT))
 
-avrtest-xmega$(EXEEXT) : %$(EXEEXT) : avrtest.c $(DEPS)
-	$(CC) $(CFLAGS_FOR_HOST) $< -o $*$(EXEEXT) -DISA_XMEGA
-	$(CC) $(CFLAGS_FOR_HOST) $< -o $*_log$(EXEEXT) -DISA_XMEGA -DLOG_DUMP
-	$(STRIP) $*$(EXEEXT)
-	$(STRIP) $*_log$(EXEEXT)
+all : all-host all-avr
+
+all-avrtest: $(A:=$(EXEEXT))
+
+all-host : $(EXE)
+
+all-avr	: exit
+
+all-build : flag-tables
+
+EXIT_MCUS = atmega8 atmega168 atmega128 atmega103 atmega2560 atxmega128a3 atxmega128a1
+
+EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
+
+exit	: $(EXIT_O)
+
+DEP_OPTIONS = 	options.def options.h Makefile
+DEPS_LOGGING =	$(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
+DEPS =		$(DEPS_LOGGING) flag-tables.c
+
+$(A_log:=.s)	: XDEF += -DLOG_DUMP
+$(A_xmega:=.s)	: XDEF += -DISA_XMEGA
+
+$(A:=$(EXEEXT))     : XOBJ += options.o
+$(A:=$(EXEEXT))     : options.o
+
+$(A_log:=$(EXEEXT)) : XOBJ += logging.o
+$(A_log:=$(EXEEXT)) : XLIB += -lm
+$(A_log:=$(EXEEXT)) : logging.o
+
+options.o: options.c $(DEP_OPTIONS)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+logging.o: logging.c $(DEPS_LOGGING)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DLOG_DUMP
+
+$(A:=.s) : avrtest.c $(DEPS)
+	$(CC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
+
+$(EXE) : avrtest%$(EXEEXT) : avrtest%.s
+	$(CC) $< -o $@ $(XOBJ) $(XLIB)
+	$(STRIP) $@
 
 # Build some auto-generated files
 
@@ -56,29 +90,49 @@ gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 
 ifneq ($(EXEEXT),.exe)
 exe: avrtest.exe avrtest-xmega.exe
-%.exe: %.c $(DEPS)
-	$(WINCC) $(CFLAGS_FOR_HOST) $< -o $*.exe
-	$(WINCC) $(CFLAGS_FOR_HOST) $< -o $*_log.exe -DLOG_DUMP
-	$(WINSTRIP) $*.exe
-	$(WINSTRIP) $*_log.exe
 
-%-xmega.exe: %.c $(DEPS)
-	$(WINCC) $(CFLAGS_FOR_HOST) $< -o $*-xmega.exe -DISA_XMEGA
-	$(WINCC) $(CFLAGS_FOR_HOST) $< -o $*-xmega_log.exe -DISA_XMEGA -DLOG_DUMP
-	$(WINSTRIP) $*-xmega.exe
-	$(WINSTRIP) $*-xmega_log.exe
+W=-mingw32
+
+$(A_log:=$(W).s)   : XDEF += -DLOG_DUMP
+$(A_xmega:=$(W).s) : XDEF += -DISA_XMEGA
+
+$(A:=.exe)     : XOBJ_W += options$(W).o
+$(A:=.exe)     : options$(W).o
+
+$(A_log:=.exe) : XOBJ_W += logging$(W).o
+$(A_log:=.exe) : XLIB += -lm
+$(A_log:=.exe) : logging$(W).o
+
+
+options$(W).o: options.c $(DEP_OPTIONS)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+logging$(W).o: logging.c $(DEPS_LOGGING)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DLOG_DUMP
+
+$(A:=$(W).s) : avrtest.c $(DEPS)
+	$(WINCC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
+
+EXE_W = $(A:=.exe)
+$(EXE_W) : avrtest%.exe : avrtest%$(W).s
+	$(WINCC) $< -o $@ $(XOBJ_W) $(XLIB)
+	$(WINSTRIP) $@
+
 endif
+
+all-mingw32: $(EXE_W)
 
 # Cross-compile AVR exit*.o objects
 
 exit-%.o: dejagnuboards/exit.c avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps -dp
 
-.PHONY: all clean clean-exit exe exit
+.PHONY: all all-host all-avr clean clean-exit exe exit all-mingw32 all-avrtest
 
 clean: clean-exit
 	rm -f $(wildcard *.o *.i *.s)
-	rm -f avrtest avrtest_log avrtest-xmega avrtest-xmega_log
+	rm -f $(EXE)
+	rm -f $(A:=.s) $(A:=.i) $(A:=.o)
 	rm -f $(wildcard *.exe)
 	rm -f gen-flag-tables
 

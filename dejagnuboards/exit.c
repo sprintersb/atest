@@ -43,7 +43,12 @@ putchar_exit_c (char c, FILE *stream)
   return 0;
 }
 
-static void __attribute__ ((constructor))
+#define BY_AVRTEST_LOG (*((unsigned char*) 0xffff))
+
+static int xargc;
+static int xargv;
+
+static void __attribute__ ((constructor, used))
 init_exit_c (void)
 {
   static FILE file_exit_c;
@@ -54,6 +59,27 @@ init_exit_c (void)
   file_exit_c.udata = 0;
 
   stderr = stdout = &file_exit_c;
+}
+
+
+static void __attribute__ ((naked, section(".init9"), used))
+init_args (void)
+{
+  if (BY_AVRTEST_LOG)
+    {
+      extern void *__heap_start[];
+      uintptr_t pargs = (uintptr_t) __heap_start;
+      LOG_GET_ARGS;
+      LOG_PORT = pargs;
+      LOG_PORT = pargs >> 8;
+    }
+  else
+    {
+      static void *pnull[2];
+      register int r24 __asm ("24") = 0;
+      register void **r22 __asm ("22") = pnull;
+      __asm volatile ("" :: "r" (r24 = 0), "r" (r22 = pnull));
+    }
 }
 
 

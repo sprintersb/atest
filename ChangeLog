@@ -1,3 +1,42 @@
+2014-09-29  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support -args, -no-log, LOG_PORT.
+
+	* logging.c: New file.
+	* testavr.h: New file.
+	* options.h: New file.
+	* options.c: New file.
+	* options.def: New file.
+	* Makefile: Tidy up.
+	(logging.o, options.o): New rules to build them.
+	* avrtest.c (is_xmega): New const.
+	(INLINE, NOINLINE, NORETURN, FASTCALL, OP_FUNC_TYPE)
+	(EXIT_STATUS_EXIT, EXIT_STATUS_ABORTED, EXIT_STATUS_TIMEOUT)
+	(MAX_RAM_SIZE, MAX_FLASH_SIZE, PC_VALID_MASK, ID_*)
+	(byte, word, dword, decoded_op, opcode_t): Move to testavr.h.
+	(log_add_instr, log_add_bit, log_add_immed, log_add_data_mov)
+	(log_add_reg_mov, log_dump_line, mask_to_bit, log_put_bit):
+	Move to logging.c.
+	(arch_t): Move to options.h
+	(arch, usage, parse_args): Move to options.c
+	(flag_have_*): Replace by options.do_*.
+	(program_name): Use options.program_name instead.
+	(flash_addr_mask): Use arch.flash_addr_mask instead.
+	(addr_SREG, addr_SPH, addr_SPL, addr_EIND, addr_RAMPZ): New.
+	(log_data_read_SP, log_data_write_byte, log_put_word_reg)
+	(log_data_write_word): New functions.
+	(cpu_data[MAX_RAM_SIZE-1]) <LOG_DUMP>: Set to 1.
+	* avrtest.h (LOG_PORT_ADDR, LOG_PORT, LOG_SET): New macros.
+	(LOG_CMD, LOG_NUM, LOG_STOP_NUM, LOG_START_NUM)
+	(LOG_PERF_NUM, LOG_GET_ARGS_NUM, PERF_STOP, PERF_START, PERF_MEAN)
+	(PERF_DUMP, PERF_CMD, PERF_N, PERF_ALL) <IN_AVRTEST>: New macros.
+	(LOG_SET_CMD, LOG_STOP_CMD, LOG_START_CMD, LOG_PERF_CMD)
+	(LOG_GET_ARGS_CMD, PERF_STOP_VAL, PERF_START_VAL, PERF_MEAN_VAL)
+	(PERF_DUMP_VAL, LOG_SET, LOG_START, LOG_STOP, LOG_PERF)
+	(LOG_GET_ARGS, PERF_STOP, PERF_START, PERF_MEAN, PERF_DUMP)
+	(PERF_STOP_ALL, PERF_START_ALL, PERF_MEAN_ALL, PERF_DUMP_ALL)
+	<!IN_AVRTEST>: New macros.
+
 2014-09-21  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (do_subtraction_8, FUT_ADD_SUB_INDEX): Minor tweak.

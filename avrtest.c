@@ -25,34 +25,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-
 #include <sys/time.h>
 
-typedef uint8_t byte;
-typedef uint16_t word;
-typedef uint32_t dword;
-
-// ---------------------------------------------------------------------------
-//     configuration values (in bytes).
-
-#define MAX_RAM_SIZE     (64 * 1024)
-#define MAX_FLASH_SIZE  (256 * 1024)  // Must be at least 128KB
-
-// PC is used as array index into decoded_flash[].
-// If PC has bits outside the following mask, something went really wrong,
-// e.g. in pop_PC.
-
-#define PC_VALID_MASK (MAX_FLASH_SIZE/2 - 1)
-
+#include "testavr.h"
+#include "options.h"
+#include "sreg.h"
 // ---------------------------------------------------------------------------
 //     register and port definitions
 
 #ifdef ISA_XMEGA
 #define IOBASE  0
 #define CX 1
+const int is_xmega = 1;
 #else
 #define IOBASE  0x20
 #define CX 0
+const int is_xmega = 0;
 #endif
 
 #define SREG    (0x3F + IOBASE)
@@ -66,40 +54,10 @@ typedef uint32_t dword;
 #define IN_AVRTEST
 #include "avrtest.h"
 #include "flag-tables.c"
-#include "sreg.h"
 
 #define REGX    26
 #define REGY    28
 #define REGZ    30
-
-#define INLINE inline __attribute__((always_inline))
-#define NOINLINE __attribute__((noinline))
-#define NORETURN __attribute__((noreturn))
-#define FASTCALL __attribute__((fastcall))
-
-typedef struct
-{
-  // Name of the architecture.
-  const char *name;
-  // True if PC is 3 bytes, false if only 2 bytes.
-  unsigned char pc_3bytes;
-  // True if the architecture has EIND related insns (EICALL/EIJMP).
-  unsigned char has_eind;
-} arch_t;
-
-// List of supported archs with their features.
-const arch_t arch_descs[] =
-  {
-#ifdef ISA_XMEGA
-    { "avrxmega6", 1, 1 },
-#else
-    { "avr51",     0, 0 },
-    { "avr6",      1, 1 },
-#endif
-    { NULL, 0, 0}
-  };
-
-arch_t arch;
 
 
 enum decoder_operand_masks
@@ -147,10 +105,6 @@ enum decoder_operand_masks
 // ----------------------------------------------------------------------------
 //     some helpful types and constants
 
-#define EXIT_STATUS_EXIT    0
-#define EXIT_STATUS_ABORTED 1
-#define EXIT_STATUS_TIMEOUT 2
-
 static const char *exit_status_text[] =
   {
     [EXIT_STATUS_EXIT]    = "EXIT",
@@ -158,82 +112,24 @@ static const char *exit_status_text[] =
     [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
   };
 
-static void NOINLINE NORETURN leave (int status, const char *reason);
-
-typedef struct
-{
-  byte data_index;
-  byte oper1;
-  word oper2;
-} decoded_op;
-
-#define OP_FUNC_TYPE void FASTCALL
-
-typedef OP_FUNC_TYPE (*opcode_func)(int,int);
-
-typedef struct
-{
-  opcode_func func;
-#ifdef LOG_DUMP
-  const char *hreadable;
-#endif
-  short size;
-  short cycles;
-} opcode_t;
-
-// ---------------------------------------------------------------------------
-//     auxiliary lookup tables
-
-enum
-  {
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)    \
-    ID_ ## ID,
-    // dummy entry to guarantee that "zero" is an invalid function
-    AVR_INSN(NULL, 0, 0, NULL)
-#include "avr-insn.def"
-#undef AVR_INSN
-  };
-
-extern const opcode_t opcode_func_array[];
-
 // ---------------------------------------------------------------------------
 // vars that hold core definitions
 
-// configured flash size
-static unsigned int flash_addr_mask;
-
 // maximum number of executed instructions (used as a timeout)
-static dword max_instr_count;
+dword max_instr_count;
 
 // number of executed instructions so far
-static dword instr_count;
+dword instr_count;
 
-// Initialize sram from .data segment.
-static int flag_initialize_sram;
-
-// From the command line, can be disabled by -no-stdin
-static int flag_have_stdin = 1;
-
-// From the command line, can be disabled by -no-stdout
-static int flag_have_stdout = 1;
-
-// From the command line, can be enabled by -ticks
-static int flag_have_ticks;
-
-// From the command line, can be enabled by -runtime
-static int flag_have_runtime;
-
-// filename of the file being executed
-static const char *program_name;
 static unsigned int program_size;
 
 // ----------------------------------------------------------------------------
 // vars that hold simulator state. These are kept as global vars for simplicity
 
 // cycle counter
-static dword program_cycles;
+dword program_cycles;
 
-static unsigned cpu_PC;
+unsigned cpu_PC;
 
 #ifdef ISA_XMEGA
 static byte cpu_reg[0x20];
@@ -248,190 +144,6 @@ static byte cpu_data[MAX_RAM_SIZE];
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
 static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
-
-// ----------------------------------------------------------------------------
-//     log functions
-
-#ifndef LOG_DUMP
-
-// empty placeholders to keep the rest of the code clean
-
-#define log_add_instr(...)    (void) 0
-#define log_add_bit(...)      (void) 0
-#define log_add_immed(...)    (void) 0
-#define log_add_data_mov(...) (void) 0
-#define log_add_reg_mov(...)  (void) 0
-#define log_dump_line(...)    (void) 0
-
-#else /* LOG_DUMP */
-
-static char log_data[256];
-char *cur_log_pos = log_data;
-
-static void
-log_add_data (const char *data)
-{
-  int len = strlen (data);
-  memcpy (cur_log_pos, data, len);
-  cur_log_pos += len;
-}
-
-static INLINE int
-mask_to_bit (int val)
-{
-  switch (val)
-    {
-    default: return -1;
-    case 1<<0 : return 0;
-    case 1<<1 : return 1;
-    case 1<<2 : return 2;
-    case 1<<3 : return 3;
-    case 1<<4 : return 4;
-    case 1<<5 : return 5;
-    case 1<<6 : return 6;
-    case 1<<7 : return 7;
-    }
-}
-
-static void
-log_put_bit (const decoded_op *op, char *buf)
-{
-  int id, mask, style = 0;
-  
-  switch (id = op->data_index)
-    {
-    default:
-      return;
-    case ID_BLD:  case ID_SBI:  case ID_SBIS:  case ID_SBRS:
-    case ID_BST:  case ID_CBI:  case ID_SBIC:  case ID_SBRC:
-      mask = op->oper2;
-      style = 1;
-      break;
-    case ID_BRBS:  case ID_BRBC:
-      mask = op->oper2;
-      style = 2;
-      break;
-    case ID_BSET: case ID_BCLR:
-      mask = op->oper1;
-      style = 3;
-      break;
-    }
-  
-  int val = mask_to_bit (mask);
-  
-  if (val < 0 || val > 7)
-    leave (EXIT_STATUS_ABORTED, "internal error");
-
-  switch (style)
-    {
-    case 1:
-      // CBI.* --> CBI.4 etc.
-      buf[-1] = "01234567"[val];
-        return;
-    case 2:
-      {
-        const char *s = NULL;
-        switch (mask)
-          {
-          // "BR*S" --> "BREQ" etc.
-          // "BR*C" --> "BRNE" etc.
-          case FLAG_Z: s = id == ID_BRBS ? "EQ" : "NE"; break;
-          case FLAG_N: s = id == ID_BRBS ? "MI" : "PL"; break;
-          case FLAG_S: s = id == ID_BRBS ? "LT" : "GE"; break;
-          // "BR*C" --> "BRVC" etc.
-          // "BR*S" --> "BRVS" etc.
-          default: buf[-2] = s_SREG[val]; return;
-          }
-        buf[-2] = s[0];
-        buf[-1] = s[1];
-        return;
-        }
-    case 3:
-      // SE* --> SEI  etc.
-      // CL* --> CLI  etc.
-      buf[-1] = s_SREG[val];
-      return;
-    }
-}
-
-static void
-log_add_instr (const decoded_op *op)
-{
-  byte id = op->data_index;
-  const char *instr = opcode_func_array[id].hreadable;
-  char buf[32];
-  if (arch.pc_3bytes)
-    sprintf (buf, "%06x: %-7s ", cpu_PC * 2, instr);
-  else
-    sprintf (buf, "%04x: %-7s ", cpu_PC * 2, instr);
-    
-  log_put_bit (op, buf + 6 + 2*arch.pc_3bytes + strlen (instr));
-  log_add_data (buf);
-}
-
-static void
-log_add_immed (int value)
-{
-  char buf[32];
-  sprintf (buf, "(###)->%02x ", value);
-  log_add_data (buf);
-}
-
-static void
-log_add_data_mov (const char *format, int addr, int value)
-{
-  char buf[32], ad[16], *adname = ad;
-
-  switch (addr)
-    {
-    case SREG:
-      for (const char *f = s_SREG; *f; f++, value >>= 1)
-        if (value & 1)
-          *adname++ = *f;
-      *adname++ = '\0';
-      sprintf (buf, format, ad);
-      log_add_data (buf);
-      return;
-    case SPH:   adname = "SPH"; break;
-    case SPL:   adname = "SPL"; break;
-    case RAMPZ: adname = "RAMPZ"; break;
-    case EIND:
-      if (arch.has_eind)
-        {
-          adname = "EIND";
-          break;
-        }
-      // FALLTHRU
-    default:
-      if (addr < 256)
-        sprintf (adname, "%02x", addr);
-      else
-        sprintf (adname, "%04x", addr);
-    }
-
-  sprintf (buf, format, adname, value);
-  log_add_data (buf);
-}
-
-static void
-log_add_reg_mov (const char *format, int regno, int value)
-{
-  char buf[32];
-
-  sprintf (buf, format, regno, value);
-  log_add_data (buf);
-}
-
-static void
-log_dump_line (void)
-{
-  *cur_log_pos = '\0';
-  puts (log_data);
-  cur_log_pos = log_data;
-}
-
-#endif /*  LOG_DUMP */
-
 
 static struct timeval t_start, t_decode, t_execute, t_load;
 
@@ -455,15 +167,15 @@ time_sub (unsigned long *s, unsigned long *us, double *ms,
 }
 
 
-static void NOINLINE NORETURN
+void NOINLINE NORETURN
 leave (int status, const char *reason)
 {
   static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
 
   // make sure we print the last log line before leaving
-  log_dump_line();
+  log_dump_line (0);
 
-  if (flag_have_runtime)
+  if (options.do_runtime)
     {
       struct timeval t_end;
       unsigned long r_sec, e_sec, d_sec, l_sec, r_us, e_us, d_us, l_us;
@@ -510,7 +222,7 @@ leave (int status, const char *reason)
           "total cycles: %u\n\n",
           s_load, s_decode, s_execute, s_runtime,
           exit_status_text[status], reason,
-          program_name ? program_name : "-not set-",
+          options.program_name ? options.program_name : "-not set-",
           cpu_PC * 2, program_cycles);
   exit (0);
 }
@@ -527,7 +239,7 @@ data_write_magic_port (int address, int value)
   switch (address)
     {
     case STDOUT_PORT:
-      if (flag_have_stdout)
+      if (options.do_stdout)
         putchar (0xff & value);
       else
         // default action, just store the value
@@ -541,16 +253,23 @@ data_write_magic_port (int address, int value)
       leave (EXIT_STATUS_ABORTED, "abort function called");
       break;
     }
+
+#ifdef LOG_DUMP
+  if (address == LOG_PORT)
+    do_log_cmd (value);
+#endif // LOG_DUMP
 }
 
 static NOINLINE int
 data_read_magic_port (int address)
 {
   // add code here to handle special events
-  if (address == STDIN_PORT && flag_have_stdin)
+
+  if (address == STDIN_PORT && options.do_stdin)
     return getchar();
 
-  if (address == TICKS_PORT && flag_have_ticks)
+#ifdef LOG_DUMP
+  if (address == TICKS_PORT && options.do_ticks)
     {
       // update TICKS_PORT only on access of first byte to avoid glitches
       dword cycles = program_cycles;
@@ -559,6 +278,7 @@ data_read_magic_port (int address)
       cpu_data[TICKS_PORT+2] = cycles >> 16;
       cpu_data[TICKS_PORT+3] = cycles >> 24;
     }
+#endif // LOG_DUMP
 
   // default action, just read the value
   return cpu_data[address];
@@ -581,7 +301,7 @@ data_write_byte_raw (int address, int value)
 static INLINE int
 flash_read_byte (int address)
 {
-  address &= flash_addr_mask;
+  address &= arch.flash_addr_mask;
   // add code here to handle special events
   return cpu_flash[address];
 }
@@ -696,6 +416,52 @@ data_write_word (int address, int value)
   data_write_byte_raw (address, value & 0xFF);
   data_write_byte_raw (address + 1, value >> 8);
 }
+
+// ----------------------------------------------------------------------------
+// extern functions to make logging.c independent of ISA_XMEGA
+
+const int addr_SREG  = SREG;
+const int addr_SPH   = SPH;
+const int addr_SPL   = SPL;
+const int addr_EIND  = EIND;
+const int addr_RAMPZ = RAMPZ;
+  
+int log_data_read_SP (void)
+{
+  return data_read_byte_raw (SPL) | (data_read_byte_raw (SPH) << 8);
+}
+
+void log_data_write_byte (int address, int value, int nraw)
+{
+  if (nraw)
+    data_write_byte (address, value);
+  else
+    data_write_byte_raw (address, value);
+}
+
+void log_put_word_reg (int regno, int value, int nraw)
+{
+  if (nraw)
+    put_word_reg (regno, value);
+  else
+    {
+      cpu_reg[regno] = value;
+      cpu_reg[regno + 1] = value >> 8;
+    }
+}
+
+void log_data_write_word (int address, int value, int nraw)
+{
+  if (nraw)
+    data_write_word (address, value);
+  else
+    {
+      value &= 0xffff;
+      data_write_byte_raw (address, value & 0xFF);
+      data_write_byte_raw (address + 1, value >> 8);
+    }
+}
+
 
 // ----------------------------------------------------------------------------
 //     flag manipulation functions
@@ -1833,7 +1599,7 @@ load_elf (FILE *f)
       if (fread (cpu_flash + addr, filesz, 1, f) != 1)
         leave (EXIT_STATUS_ABORTED, "ELF file truncated");
       /* Also copy in SRAM.  */
-      if (flag_initialize_sram && vaddr >= DATA_VADDR)
+      if (options.do_initialize_sram && vaddr >= DATA_VADDR)
         memcpy (cpu_data + vaddr - DATA_VADDR,
                 cpu_flash + addr, filesz);
       /* No need to clear memory.  */
@@ -1841,9 +1607,6 @@ load_elf (FILE *f)
         program_size = addr + memsz;
     }
 }
-
-// ----------------------------------------------------------------------------
-//     parse command line arguments
 
 static void
 load_to_flash (const char *filename)
@@ -1869,117 +1632,11 @@ load_to_flash (const char *filename)
       program_size = fread (cpu_flash, 1, MAX_FLASH_SIZE, fp);
     }
   fclose (fp);
-}
 
-
-static void
-usage (void)
-{
-  printf ("usage: avrtest [-d] [-e entry-point] [-m MAXCOUNT] [-mmcu=ARCH]"
-          " [-runtime] [-ticks] program\n");
-  printf ("Options:\n"
-          "  -d           Initialize SRAM from .data (for ELF program)\n"
-          "  -e ADDRESS   Byte address of program entry point (defaults to 0)\n"
-          "  -m MAXCOUNT  Execute at most MAXCOUNT instructions\n"
-          "  -runtime     Print avrtest execution time\n"
-          "  -ticks       Enable the 32-bit cycle counter TICKS_PORT\n"
-          "               that can be used to measure performance.\n"
-          "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT\n"
-          "               will not wait for user input.\n"
-          "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT\n"
-          "               will not print to stdout.\n"
-          "  -mmcu=ARCH   Select instruction set for ARCH\n"
-          "    ARCH is one of:");
-  for (const arch_t *d = arch_descs; d->name; d++)
-    printf (" %s", d->name);
-  printf ("\n");
-  leave (EXIT_STATUS_ABORTED, "command line error");
-}
-
-static void
-parse_args (int argc, char *argv[])
-{
-  //max_instr_count = 1000000000;
-  max_instr_count = 0;
-
-  // parse command line arguments
-  for (int i = 1; i < argc; i++)
-    {
-      //  Use naive but very portable method to decode arguments.
-      if (strcmp (argv[i], "-d") == 0)
-        {
-          flag_initialize_sram = 1;
-        }
-      else if (strcmp (argv[i], "-e") == 0)
-        {
-          i++;
-          if (i >= argc)
-            usage();
-          cpu_PC = strtoul (argv[i], NULL, 0);
-          if (cpu_PC % 2 != 0)
-            {
-              fprintf (stderr, "program entry point must be an even byte"
-                       " address\n");
-              leave (EXIT_STATUS_ABORTED, "command line error");
-            }
-          cpu_PC /= 2;
-        }
-      else if (strcmp (argv[i], "-no-stdin") == 0)
-        {
-          flag_have_stdin = 0;
-        }
-      else if (strcmp (argv[i], "-no-stdout") == 0)
-        {
-          flag_have_stdout = 0;
-        }
-      else if (strcmp (argv[i], "-ticks") == 0)
-        {
-          flag_have_ticks = 1;
-        }
-      else if (strcmp (argv[i], "-runtime") == 0)
-        {
-          flag_have_runtime = 1;
-        }
-      else if (strcmp (argv[i], "-m") == 0)
-        {
-          i++;
-          if (i >= argc)
-            usage();
-          max_instr_count = strtoul (argv[i], NULL, 0);
-        }
-      else if (strncmp (argv[i], "-mmcu=", 6) == 0)
-        {
-          for (const arch_t *d = arch_descs; ; d++)
-            if (d->name == NULL)
-              usage();
-            else if (strcmp (argv[i] + 6, d->name) == 0)
-              {
-                arch = *d;
-                break;
-              }
-        }
-      else
-        {
-          if (program_name != NULL)
-            usage();
-          program_name = argv[i];
-      }
-    }
-
-  // setup default values
-  flash_addr_mask = (arch.pc_3bytes ? MAX_FLASH_SIZE : (1 << 17)) - 1;
-
-  if (program_name == NULL)
-    usage();
-
-  if (flag_have_runtime)
-    gettimeofday (&t_load, NULL);
-  load_to_flash (program_name);
-
-  if (program_size & (~flash_addr_mask))
+  if (program_size & (~arch.flash_addr_mask))
     {
       fprintf (stderr, "program is too large (size: %u, max: %u)\n",
-               program_size, flash_addr_mask + 1);
+               program_size, arch.flash_addr_mask + 1);
       leave (EXIT_STATUS_ABORTED, "program too large");
     }
 }
@@ -1988,19 +1645,20 @@ parse_args (int argc, char *argv[])
 // ----------------------------------------------------------------------------
 // flash pre-decoding functions
 
-const opcode_t opcode_func_array[] = {
+const opcode_t opcode_func_array[] =
+  {
 #ifdef LOG_DUMP
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
-  [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
+#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                    \
+    [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
 #else
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
-  [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
+    [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
 #endif // LOG_DUMP
-  // dummy entry to guarantee that "zero" is an invalid function
-  AVR_INSN(NULL, 0, 0, NULL)
+    // dummy entry to guarantee that "zero" is an invalid function
+    AVR_INSN(NULL, 0, 0, NULL)
 #include "avr-insn.def"
 #undef AVR_INSN
-};
+  };
 
 // Opcodes with no arguments except NOP       1001 010~ ~~~~ ~~~~ 
 static const byte avr_op_16_index[1 + 0x1ff] = {
@@ -2263,6 +1921,9 @@ decode_flash (void)
         = decode_opcode (&decoded_flash[i / 2], opcode1, opcode2);
       opcode1 = opcode2;
     }
+#ifdef LOG_DUMP
+  cpu_data[MAX_RAM_SIZE-1] = 1;
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -2301,7 +1962,7 @@ do_step (void)
     data->func (op1, op2);
   else
     do_fast (id, op1, op2);
-  log_dump_line();
+  log_dump_line (id);
 }
 
 static INLINE void
@@ -2326,15 +1987,21 @@ main (int argc, char *argv[])
 {
   gettimeofday (&t_start, NULL);
 
-  arch = arch_descs[0];
   parse_args (argc, argv);
 
-  if (flag_have_runtime)
+  if (options.do_runtime)
+    gettimeofday (&t_load, NULL);
+
+  load_to_flash (options.program_name);
+
+  if (options.do_runtime)
     gettimeofday (&t_decode, NULL);
+
   decode_flash();
 
-  if (flag_have_runtime)
+  if (options.do_runtime)
     gettimeofday (&t_execute, NULL);
+
   execute();
 
   return EXIT_SUCCESS;

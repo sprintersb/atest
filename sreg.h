@@ -10,8 +10,6 @@
 #define FLAG_Z_BIT  1
 #define FLAG_C_BIT  0
 
-const char s_SREG[] = "CZNVSHTI";
-
 #define FLAG_I  (1 << FLAG_I_BIT)
 #define FLAG_T  (1 << FLAG_T_BIT)
 #define FLAG_H  (1 << FLAG_H_BIT)

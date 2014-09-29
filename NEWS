@@ -4,6 +4,31 @@
                           avrtest NEWS
                           ============
 
+* New options for avrtest_log:
+  (ignored by avrtest)  
+
+
+  - -no-log        Don't log instructions as they are simulated.
+
+  - -args ...      Pass all following command options to the running
+                   running program ready to use as 'argc' and 'argv'
+                   like in any hosted program:
+
+                       int main (int argc, char *argv[])
+                       {
+                           /* code */
+                       }
+
+  - -no-args ...   Ignore all parameters following -no-args.
+                   Set argc=0 and argv=NULL as main is entered.
+
+* New magic LOG_PORT for avrtest_log:
+  (ignored by avrtest)  
+
+  - Turn on / off logging by the simulated program.
+  - Capture and print performance data.
+
+  See README for details and examples.
 
 
 * Improve log output:                                      r135  2014-09-20

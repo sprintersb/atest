@@ -11,11 +11,11 @@ to run the GCC testsuite for avr-gcc.  Thus, its main audience are guys
 that develop parts of the AVR toolchain like avr-gcc or avr-libc.
 
 avrtest is an instruction set simulator for AVR core families
-   avr51: ATmega128*, AT90can128, AT90usb128*
-   avr6:  ATmega256*
+    avr51: ATmega128*, AT90can128, AT90usb128*
+    avr6:  ATmega256*
 
 avrtest-xmega is an instruction set simulator for AVR XMEGA core families
-   avrxmega6: ATXmega128*, ...
+    avrxmega6: ATXmega128*, ...
 
 The exectuable that supports AVR XMEGA cores is named avrtest-xmega.
 In addition to the avrtest simulator, it supports the XMEGA instructions
@@ -47,13 +47,13 @@ Compile this program as usual but link against exit-atmega128.o.
 How to build that object is explained in the next chapter. Store the
 C source as hello.c and compile it with, e.g.
 
-	avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
+  $ avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
 The exit-*.o object arranges the putchar function to write to the mentioned
-location.  avrtest will pick the value and print it to standard output of your
-host computer.  To start the program, type
+location.  avrtest will pick the value and print it to standard output of
+your host computer.  To start the program, type
 
-	avrtest -mmcu=avr51 hello.elf
+    avrtest -mmcu=avr51 hello.elf
 
 This will print something like
 
@@ -87,11 +87,11 @@ int main (void)
 
 avrtest.h defines the port locations. Compile the C source with
 
-	avr-gcc inout.c -O -mmcu=atmega128 -o inout.elf -I /someplace/avrtest
+    avr-gcc inout.c -O -mmcu=atmega128 -o inout.elf -I /someplace/avrtest
 
 When running the program with
 
-	avrtest -mmcu=avr51 inout.elf
+    avrtest -mmcu=avr51 inout.elf
 
 The simulator will print a 'Q' on the console and wait for input. 
 Type '1<Enter>' and the output will be
@@ -105,8 +105,8 @@ exit address: 0000b8
 total cycles: 30
 
 
-There are three more magic ports besides STDIN_PORT and STDOUT_PORT:
-Try writing to ABORT_PORT resp. EXIT_PORT or reading from TICKS_PORT.
+There are more magic ports to control logging and help performance
+measurements, see the respective sections below.
 
 
 =================================================
@@ -120,12 +120,12 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 * Install dejagnu, expect and TCL
 
 * Unpack the avrtest tar file from WinAVR sources top "someplace".
-  You find a link to the package at "Download GNU tarball" on
-  http://winavr.svn.sourceforge.net/viewvc/winavr/trunk/avrtest/?view=tar
+  You find a link to the package at "Download Snapshot" on
+  https://sourceforge.net/p/winavr/code/HEAD/tree/trunk/avrtest/
 
 * Run
 
-	make
+    make
   
   inside /someplace/avrtest which will build executables from avrtest.c
   and avr object file exit-atmega128.o from dejagnuboards/exit.c.
@@ -133,36 +133,124 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 * To build exit*.o modules, avr-gcc will be used.  If you want a different
   avr-gcc not found in PATH, use:
   
-	make clean-exit all AVRGCC=/some-compiler-path/avr-gcc
+    make clean-exit all CC_FOR_AVR=/some-compiler-path/avr-gcc
 
 * Copy /someplace/avrtest/.dejagnurc to your $HOME and change the path
   inside to point to directory where "board file" is located.
   This is dejagnuboards subdirectory of avrtest files:
 
-	set board dir /someplace/avrtest/dejagnuboards
+    set board dir /someplace/avrtest/dejagnuboards
 
 * Edit /someplace/avrtest/dejagnuboards/atmega128-sim.exp and replace paths
   to point to correct location of files for simulator (avrtest executable
   and exit-atmega128.o object file) or add avrtest to $PATH:
 
-	set result [exec /someplace/avrtest/avrtest -m 2000000000 -no-stdin $prog ]
+    set result [exec /someplace/avrtest/avrtest -m 2000000000 -no-stdin $prog ]
 
-	set board_info ldflags "/someplace/avrtest/exit-atmega128.o" -Wl,-u,vfprintf ...
+    set board_info ldflags "/someplace/avrtest/exit-atmega128.o" -Wl,-u,vfprintf ...
 
 * Run the tests from gcc subdirectory of your avr-gcc build directory like:
 
-	make -k check RUNTESTFLAGS="--target_board=atmega128-sim"
-	make -k check RUNTESTFLAGS="--target_board=atxmega128-sim"
+    make -k check RUNTESTFLAGS="--target_board=atmega128-sim"
+    make -k check RUNTESTFLAGS="--target_board=atxmega128-sim"
 
 * Look in the ./gcc/testsuite subdirectory of avr-gcc build directory
   for logged results or you can add -all switch to
   see it working 1 test at a time.
 
-	make -k check RUNTESTFLAGS="--target_board=atmega128-sim -all"
+    make -k check RUNTESTFLAGS="--target_board=atmega128-sim -all"
 
 * You can run parts of the testsuite like this:
 
-	make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr.exp"
-	make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr-torture.exp=pr418854.c"
+    make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr.exp"
+    make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr-torture.exp=pr418854.c"
 
 Voila!
+
+
+
+=============================================
+ -args ... : passing arguments to the program
+=============================================
+
+* This feature is only available in avrtest_log and avrtest-xmaga_log.
+
+All arguments after -args will be passed to the target program as if
+the target program was running from the command line.
+
+The first argument (argv[0]) is the program name with directories
+stripped off to save space.  The last argument argv[argc] is set to NULL.
+
+The feature works by writing 3 values to LOG_PORT in exit.c:
+
+    LOG_GET_ARGS_CMD, <ADDR_LOW>, <ADDR_HIGH>
+
+LOG_GET_ARGS_CMD is defined in avrtest.h.  The next two bytes
+are the address where to drop the arguments following -args.
+
+A convenient place for <ADDR> is right after the variables in static
+storage, and this is the place where exit.c puts them.
+Please notice that the arguments consume RAM and that the arguments
+will be overriden by malloc or similar functions that use RAM located
+after the static storage (startig at __heap_start with the standard
+linker description file).
+
+After these 3 bytes are written to LOG_PORT, the simulator transfers the
+arguments to RAM and sets R24 to argc and R22 to argv so thet you can write
+
+
+int main (int argc, char *argv[])
+{
+    ...
+}
+
+
+as in any hosted application.
+
+========
+-no-args  will skip all arguments thereafter, set argc=0 and argv[0] = NULL.
+========
+
+The start-up code in exit.c detects whether the code is executed by
+avrtest or by avrtest.log.  If avrtest executes the code (and hence
+-[no-]args is ignored) the startup code sets argc=0 and argv[0] = NULL.
+
+Thus you can test in the program what simulator is executing it by
+testing on argc != 0 provided you don't run the simulator with -no-args.
+
+
+=======================================
+ Performance measurement using LOG_PORT
+=======================================
+
+* This feature is only available in avrtest_log and avrtest-xmaga_log.
+
+The simulator supports 15 independently operating performance-meters:
+
+To start perf-meter N use
+  
+    PERF_START (N);
+
+This will start capturing some values of the running program like
+program counter, instruction count, stack pointer, call depth, etc.
+
+    PERF_STOP (N);
+
+will halt the perf-meter.  Upon encountering the next PERF_START(N)
+the meter will be re-enabled and proceed.  The collected values can
+be dumped at any time by
+
+    PERF_DUMP (N);
+
+This will show a summary of the extremal values for each perf-meter:
+
+ - Calls (abs):  The absolute call depth (CALLs increment, RETs decrement).
+ - Calls (rel):  Call depth relative to the starting point.
+ - Stack (abs):  Values of the stack pointer (SP).
+ - Stack (rel):  Stack usage relative to the starting point.
+
+
+    PERF_MEAN (N)
+
+Instead of summarizing the values over all start/stop cycles, this mode
+takes the extremal values, mean and standard deviation over all cycles.
