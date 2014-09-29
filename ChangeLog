@@ -36,6 +36,7 @@
 	(LOG_GET_ARGS, PERF_STOP, PERF_START, PERF_MEAN, PERF_DUMP)
 	(PERF_STOP_ALL, PERF_START_ALL, PERF_MEAN_ALL, PERF_DUMP_ALL)
 	<!IN_AVRTEST>: New macros.
+	* dejagnuboargs/exit.c (init_args): New function in .init9.
 
 2014-09-21  Georg-Johann Lay  <avr@gjlay.de>
 

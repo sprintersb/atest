@@ -4,7 +4,8 @@
                           avrtest NEWS
                           ============
 
-* New options for avrtest_log:
+
+* New options for avrtest_log:                             r142  2014-09-29
   (ignored by avrtest)  
 
 
