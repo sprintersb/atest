@@ -154,9 +154,8 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
     make -k check RUNTESTFLAGS="--target_board=atmega128-sim"
     make -k check RUNTESTFLAGS="--target_board=atxmega128-sim"
 
-* Look in the ./gcc/testsuite subdirectory of avr-gcc build directory
-  for logged results or you can add -all switch to
-  see it working 1 test at a time.
+* Look in the ./gcc/testsuite subdirectory of avr-gcc build directory for
+  logged results or add the -all switch to see it working 1 test at a time.
 
     make -k check RUNTESTFLAGS="--target_board=atmega128-sim -all"
 
@@ -170,13 +169,28 @@ Voila!
 
 
 =============================================
+ -q : Quiet operation
+=============================================
+
+With -q turned on avrtest will print no messages except the ones
+explicitly requested by:
+  - -runtime
+  - PERF_DUMP (N)
+  - PERF_DUMP_ALL
+
+
+=============================================
  -args ... : passing arguments to the program
 =============================================
 
-* This feature is only available in avrtest_log and avrtest-xmaga_log.
+* This feature is only available in avrtest_log and avrtest-xmega_log.
 
-All arguments after -args will be passed to the target program as if
-the target program was running from the command line.
+All arguments after -args will be passed to the target program as if the
+program was running from the command line.  This is accomplished by startup
+code from exit.c located in section .init8 right before main is called.
+If you have own startup code in .init8 make sure it will be located before
+the code from exit.c, e.g. by appropriate order of the objects passed to
+the linker.
 
 The first argument (argv[0]) is the program name with directories
 stripped off to save space.  The last argument argv[argc] is set to NULL.
@@ -188,15 +202,8 @@ The feature works by writing 3 values to LOG_PORT in exit.c:
 LOG_GET_ARGS_CMD is defined in avrtest.h.  The next two bytes
 are the address where to drop the arguments following -args.
 
-A convenient place for <ADDR> is right after the variables in static
-storage, and this is the place where exit.c puts them.
-Please notice that the arguments consume RAM and that the arguments
-will be overriden by malloc or similar functions that use RAM located
-after the static storage (startig at __heap_start with the standard
-linker description file).
-
 After these 3 bytes are written to LOG_PORT, the simulator transfers the
-arguments to RAM and sets R24 to argc and R22 to argv so thet you can write
+arguments to RAM and sets R24 to argc and R22 to argv so that you can write
 
 
 int main (int argc, char *argv[])
@@ -207,13 +214,19 @@ int main (int argc, char *argv[])
 
 as in any hosted application.
 
+exit.c:init_args() requests the command args to be put at <ADDR> = 0xf000.
+If you prefer a different address then simply adjust exit.c.
+
+
 ========
--no-args  will skip all arguments thereafter, set argc=0 and argv[0] = NULL.
+-no-args
 ========
 
+will skip all arguments thereafter and set argc = 0 and argv[0] = NULL.
+
 The start-up code in exit.c detects whether the code is executed by
-avrtest or by avrtest.log.  If avrtest executes the code (and hence
--[no-]args is ignored) the startup code sets argc=0 and argv[0] = NULL.
+avrtest or by avrtest_log.  If avrtest executes the code (and hence
+-[no-]args is ignored) the startup code sets argc = 0 and argv[0] = NULL.
 
 Thus you can test in the program what simulator is executing it by
 testing on argc != 0 provided you don't run the simulator with -no-args.

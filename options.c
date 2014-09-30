@@ -23,6 +23,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "testavr.h"
@@ -32,12 +33,16 @@
 //     parse command line arguments
 
 static const char USAGE[] =
-  "  usage: avrtest [-d] [-e entry-point] [-m MAXCOUNT] [-mmcu=ARCH]\n"
-  "                 [-runtime] [-ticks] [-no-log] program\n"
+  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-q]\n"
+  "                 [-runtime] [-ticks] [-no-log] [-no-stdin] [-no-stdout]\n"
+  "                 program [-args [...]]\n"
   "Options:\n"
+  "  -args ...    Pass all following parameters as argc and argv to main.\n"
   "  -d           Initialize SRAM from .data (for ELF program)\n"
-  "  -e ADDRESS   Byte address of program entry point (defaults to 0).\n"
+  "  -e ENTRY     Byte address of program entry point (defaults to 0).\n"
   "  -m MAXCOUNT  Execute at most MAXCOUNT instructions.\n"
+  "  -q           Quiet operation.  Only print messages explicitly requested,\n"
+  "               e.g. by PERF_DUMP_ALL.  Pass exit status from the program.\n"
   "  -runtime     Print avrtest execution time.\n"
   "  -ticks       Enable the 32-bit cycle counter TICKS_PORT that can be used\n"
   "               to measure performance.\n"
@@ -62,21 +67,10 @@ static const arch_t arch_desc[] =
     { NULL, 0, 0, 0, 0}
   };
 
+arch_t arch;
+
 // args from -args ... to pass to the target program (*_log only)
-
 args_t args;
-
-static void
-usage (void)
-{
-  printf (USAGE);
-  for (const arch_t *d = arch_desc; d->name; d++)
-    if (is_xmega == d->is_xmega)
-      printf (" %s", d->name);
-
-  printf ("\n");
-  leave (EXIT_STATUS_ABORTED, "command line error");
-}
 
 typedef struct
 {
@@ -91,6 +85,27 @@ typedef struct
 } option_t;
 
 
+static void
+usage (const char *fmt, ...)
+{
+  static char reason[300];
+  
+  options.do_quiet = 0;
+
+  printf (USAGE);
+  for (const arch_t *d = arch_desc; d->name; d++)
+    if (is_xmega == d->is_xmega)
+      printf (" %s", d->name);
+
+  va_list args;
+  va_start (args, fmt);
+  vsnprintf (reason, sizeof (reason)-1, fmt, args);
+  va_end (args);
+
+  printf ("\n");
+  leave (EXIT_STATUS_USAGE, "command line error: %s", reason);
+}
+
 static option_t option_desc[] =
   {
 #define AVRTEST_OPT(NAME, DEFLT, VAR)           \
@@ -102,6 +117,7 @@ static option_t option_desc[] =
 
 options_t options =
   {
+    "", // .self
     NULL, // .program_name
 #define AVRTEST_OPT(NAME, DEFLT, VAR)           \
     DEFLT,
@@ -109,12 +125,23 @@ options_t options =
 #undef AVRTEST_OPT
   };
 
-arch_t arch;
+
+static unsigned long
+get_valid_number (const char *str, const char *opt)
+{
+  char *end;
+  unsigned long val = strtoul (str, &end, 0);
+  if (*end)
+    usage ("invalid number in '%s %s'", opt, str);
+  return val;
+}
+
 
 // parse command line arguments
 void
 parse_args (int argc, char *argv[])
 {
+  options.self = argv[0];
   arch = arch_desc[is_xmega];
 
   for (int i = 1; i < argc; i++)
@@ -138,29 +165,32 @@ parse_args (int argc, char *argv[])
         case OPT_unknown:
           if (strncmp (argv[i], "-mmcu=", 6) == 0)
             {
-              for (const arch_t *d = arch_desc; d->name; d++)
+              for (const arch_t *d = arch_desc; ; d++)
                 if (d->name == NULL)
-                  usage();
-                else if (strcmp (argv[i] + 6, d->name) == 0)
-                  arch = *d;
+                  usage ("unknown ARCH '%s'", argv[i] + 6);
+                else if (is_xmega == d->is_xmega
+                         && strcmp (argv[i] + 6, d->name) == 0)
+                  {
+                    arch = *d;
+                    break;
+                  }
               break;
             } // -mmcu=
           
           if (options.program_name != NULL)
-            usage();
+            usage ("unknown option or second program name '%s'", argv[i]);
           options.program_name = argv[i];
           break;
 
         case OPT_e:
           if (++i >= argc)
-            usage();
+            usage ("missing program ENTRY point after '%s'", argv[i]);
           // FIXME: get from avr-ld --entry-point if !on
-          cpu_PC = on ? strtoul (argv[i], NULL, 0) : 0UL;
-          if (cpu_PC % 2 != 0)
+          if (on)
             {
-              fprintf (stderr, "program entry point must be an even"
-                       " byte address\n");
-              leave (EXIT_STATUS_ABORTED, "command line error");
+              cpu_PC = get_valid_number (argv[i], "-e");
+              if (cpu_PC % 2 != 0)
+                usage ("odd byte address in '-e %s'", argv[i]);
             }
           cpu_PC /= 2;
           break; // -e
@@ -174,12 +204,13 @@ parse_args (int argc, char *argv[])
 
         case OPT_m:
           if (++i >= argc)
-            usage();
-          max_instr_count = on ? strtoul (argv[i], NULL, 0) : 0UL;
+            usage ("missing MAXCOUNT after '%s'", argv[i]);
+          if (on)
+            max_instr_count = get_valid_number (argv[i], "-m");
           break; // -m
         }
     }
 
   if (options.program_name == NULL)
-    usage();
+    usage ("missing program name");
 }

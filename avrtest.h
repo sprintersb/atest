@@ -91,7 +91,6 @@
 #define LOG_START    do { LOG_PORT = LOG_START_CMD;  } while (0)
 #define LOG_STOP     do { LOG_PORT = LOG_STOP_CMD;   } while (0)
 #define LOG_PERF     do { LOG_PORT = LOG_PERF_CMD;   } while (0)
-#define LOG_GET_ARGS do { LOG_PORT = LOG_GET_ARGS_CMD; } while (0)
 
 #define PERF_STOP(n)  do { LOG_PORT = PERF_STOP_VAL(n);  } while (0)
 #define PERF_START(n) do { LOG_PORT = PERF_START_VAL(n); } while (0)

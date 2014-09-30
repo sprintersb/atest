@@ -4,7 +4,7 @@ STRIP	= strip
 WARN	= -W -Wall -Wno-unused-parameter -pedantic \
 	  # -Wstrict-prototypes -Wmissing-prototypes
 
-CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 $(WARN) $(CFLAGS)
+CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
 
 # compile for i386-mingw32 at *-linux-*
 WINCC	= i386-mingw32-gcc

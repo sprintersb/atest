@@ -1,3 +1,39 @@
+2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
+
+	* AUTHORS: New file.
+
+2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
+
+	* logging.c (s_SREG): Make global.
+	(log_add_flag_read): New function.
+	(branch_on_sreg_condition): Use it.
+	(data_write_magic_port) <leave>: Add exit value to reason.
+
+2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboargs/exit.c (xargc, xargv): Clean up.
+	(init_exit_c:file_exit_c): Initialize statically.
+
+2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support -q for quiet operation.
+
+	* README (-q): Document it.
+	* options.def (q): New entry.
+	* avrtest.c (stdarg.h): Include it.
+	(qprintf): New function.
+	(leave): Use it as needed, pass exit status from program on -q.
+	Turn to varargs function.
+	* logging.c (putchar_escaped): New function.
+	(do_put_args): Use it.  And use qprintf as needed.
+	(do_log_cmd, perf_instruction, log_dump_line): Use qprintf as needed.
+	* options.c (USAGE): Add -q.
+	(usage): Turn to varargs function.
+	(get_valid_number): New function.
+	(parse_args) [-e,-m]: Use it.
+	* testavr.h (qprintf): New prototype.
+	(EXIT_STATUS_USAGE, EXIT_STATUS_FATAL): New exit stati.
+
 2014-09-29  Georg-Johann Lay  <avr@gjlay.de>
 
 	Support -args, -no-log, LOG_PORT.
@@ -36,7 +72,7 @@
 	(LOG_GET_ARGS, PERF_STOP, PERF_START, PERF_MEAN, PERF_DUMP)
 	(PERF_STOP_ALL, PERF_START_ALL, PERF_MEAN_ALL, PERF_DUMP_ALL)
 	<!IN_AVRTEST>: New macros.
-	* dejagnuboargs/exit.c (init_args): New function in .init9.
+	* dejagnuboargs/exit.c (init_args): New function in .init8.
 
 2014-09-21  Georg-Johann Lay  <avr@gjlay.de>
 
@@ -384,7 +420,7 @@
 
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
-	* avrtest.c (avr_op_EICALL, avr_op_EIJMP): Use get_word_reg to read Z. 
+	* avrtest.c (avr_op_EICALL, avr_op_EIJMP): Use get_word_reg to read Z.
 
 2012-02-23  Georg-Johann Lay  <avr@gjlay.de>
 
@@ -449,7 +485,7 @@
 	Increase RAM and stack size.
 	Set Compat options to restrict compatibility tests and optimize to
 	reduce size.
-	Extend simulation  time limit.
+	Extend simulation time limit.
 
 2008-06-04  Eric B. Weddington  <eric.weddington@atmel.com>
 

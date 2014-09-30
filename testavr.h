@@ -67,16 +67,22 @@ extern const int addr_RAMPZ;
 #define NORETURN __attribute__((noreturn))
 #define FASTCALL __attribute__((fastcall))
 
-#define EXIT_STATUS_EXIT    0
-#define EXIT_STATUS_ABORTED 1
-#define EXIT_STATUS_TIMEOUT 2
+enum
+  {
+    EXIT_STATUS_EXIT,
+    EXIT_STATUS_ABORTED,
+    EXIT_STATUS_TIMEOUT,
+    EXIT_STATUS_USAGE,
+    EXIT_STATUS_FATAL
+  };
 
-extern void NOINLINE NORETURN leave (int status, const char *reason);
+extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
 
 extern int log_data_read_SP (void);
 extern void log_put_word_reg (int, int, int);
 extern void log_data_write_byte (int, int, int);
 extern void log_data_write_word (int, int, int);
+extern void qprintf (const char *fmt, ...);
 
 #define OP_FUNC_TYPE void FASTCALL
 
@@ -97,13 +103,14 @@ typedef struct
 
 // empty placeholders to keep the rest of the code clean
 
-#define log_add_instr(...)    (void) 0
-#define log_add_bit(...)      (void) 0
-#define log_add_immed(...)    (void) 0
-#define log_add_data_mov(...) (void) 0
-#define log_add_reg_mov(...)  (void) 0
-#define log_dump_line(...)    (void) 0
-#define do_log_cmd(...)       (void) 0
+#define log_add_instr(...)     (void) 0
+#define log_add_bit(...)       (void) 0
+#define log_add_immed(...)     (void) 0
+#define log_add_data_mov(...)  (void) 0
+#define log_add_reg_mov(...)   (void) 0
+#define log_add_flag_read(...) (void) 0
+#define log_dump_line(...)     (void) 0
+#define do_log_cmd(...)        (void) 0
 
 #else
 
@@ -111,8 +118,9 @@ extern void log_add_data (const char *data);
 extern void log_add_instr (const decoded_op *op);
 extern void log_add_immed (int value);
 extern void log_add_data_mov (const char *format, int addr, int value);
-extern void log_dump_line (int id);
+extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
+extern void log_dump_line (int id);
 extern void do_log_cmd (int x);
 
 #endif  // LOG_DUMP

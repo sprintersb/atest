@@ -1,0 +1,29 @@
+Theodore A. Roth              Original author.
+
+Klaus Rudolph                 Original author.
+
+Bjoern Haase                  Contributed exit.c.
+
+Eric B. Weddington            Import into CVS.
+                              Support -m.
+
+Paulo Marques                 General code clean-ups.
+                              Optimize execution speed.
+                              Improve instruction logging.
+                             
+Tristan Gingold               Add ELF support.
+                              Add support for -d.
+                              Add -mmcu= support for multiple architectures.
+                              Support EIJMP, EICALL.
+
+Andy Hutchinson               Improve exit.c.
+                              Improve DejaGNU board descriptions.
+
+Jörg Wunsch                   Migrate from CVS to SVN.
+
+Georg-Johann Lay              Support XMEGA cores.
+                              General code clean-ups and GNU coding rules.
+                              Support options: -no-stdin, -no-stdout, -no-log,
+                              -args, -runtime, -ticks, -q, -e.
+                              Support TICKS_PORT, LOG_PORT.
+                              Support performance-meter.

@@ -63,5 +63,9 @@ AVRTEST_OPT (stdout, 1, stdout)
 // Whether TICKS_PORT is active
 AVRTEST_OPT (ticks, 0, ticks)
 
+// Whether just to print messages that are explicitly requested
+// Use return status
+AVRTEST_OPT (q, 0, quiet)
+
 // Whether to report information about avrtest's run time
 AVRTEST_OPT (runtime, 0, runtime)

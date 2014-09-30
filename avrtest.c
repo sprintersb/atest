@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
+#include <stdarg.h>
 #include <sys/time.h>
 
 #include "testavr.h"
@@ -109,7 +111,9 @@ static const char *exit_status_text[] =
   {
     [EXIT_STATUS_EXIT]    = "EXIT",
     [EXIT_STATUS_ABORTED] = "ABORTED",
-    [EXIT_STATUS_TIMEOUT] = "TIMEOUT"
+    [EXIT_STATUS_TIMEOUT] = "TIMEOUT",
+    [EXIT_STATUS_FATAL]   = "FATAL ERROR",
+    [EXIT_STATUS_USAGE]   = "ABORTED"
   };
 
 // ---------------------------------------------------------------------------
@@ -167,13 +171,29 @@ time_sub (unsigned long *s, unsigned long *us, double *ms,
 }
 
 
+// Skip any output if -q (quiet) is on
+void qprintf (const char *fmt, ...)
+{
+  if (!options.do_quiet)
+    {
+      va_list args;
+      va_start (args, fmt);
+      vprintf (fmt, args);
+      va_end (args);
+    }
+}
+
+static byte exit_value;
+
 void NOINLINE NORETURN
-leave (int status, const char *reason)
+leave (int status, const char *reason, ...)
 {
   static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
 
   // make sure we print the last log line before leaving
   log_dump_line (0);
+
+  qprintf ("\n");
 
   if (options.do_runtime)
     {
@@ -211,19 +231,45 @@ leave (int status, const char *reason)
                r_sec/60, r_sec%60, r_us, r_sec, r_us/1000,
                100.,
                r_ms > 0.01 ? instr_count/r_ms : 0.0);
+
+      printf ("%s%s%s%s", s_load, s_decode, s_execute, s_runtime);
     }
 
-  printf ("\n"
-          "%s%s%s%s"
-          " exit status: %s\n"
-          "      reason: %s\n"
-          "     program: %s\n"
-          "exit address: %06x\n"
-          "total cycles: %u\n\n",
-          s_load, s_decode, s_execute, s_runtime,
-          exit_status_text[status], reason,
-          options.program_name ? options.program_name : "-not set-",
-          cpu_PC * 2, program_cycles);
+  if (!options.do_quiet)
+    {
+      va_list args;
+      va_start (args, reason);
+
+      printf (" exit status: %s\n"
+              "      reason: ",
+              exit_status_text[exit_value ? EXIT_STATUS_ABORTED : status]);
+      vprintf (reason, args);
+      printf ("\n"
+              "     program: %s\n"
+              "exit address: %06x\n"
+              "total cycles: %u\n\n",
+              options.program_name ? options.program_name : "-not set-",
+              cpu_PC * 2, program_cycles);
+
+      va_end (args);
+    }
+  else
+    switch (status)
+      {
+      case EXIT_STATUS_EXIT:     exit (exit_value);
+      case EXIT_STATUS_ABORTED:  exit (EXIT_FAILURE);
+      case EXIT_STATUS_TIMEOUT:  exit (EXIT_FAILURE);
+      case EXIT_STATUS_USAGE:    exit (EXIT_FAILURE);
+      default:
+        status = EXIT_STATUS_FATAL;
+      }
+
+  if (EXIT_STATUS_FATAL == status)
+    {
+      fprintf (stderr, "\n%s: internal error: %s\n", options.self, reason);
+      abort();
+    }
+
   exit (0);
 }
 
@@ -246,8 +292,7 @@ data_write_magic_port (int address, int value)
         cpu_data[address] = value;
       break;
     case EXIT_PORT:
-      leave ((0xff & value) ? EXIT_STATUS_ABORTED : EXIT_STATUS_EXIT,
-             "exit function called");
+      leave (EXIT_STATUS_EXIT, "exit(%d) function called", exit_value = value);
       break;
     case ABORT_PORT:
       leave (EXIT_STATUS_ABORTED, "abort function called");
@@ -320,7 +365,7 @@ data_read_magic_byte (int address)
     // default action, just read the value
     ret = cpu_data[address];
 
-  log_add_data_mov (address == SREG ? "(SREG)->'%s' " : "(%s)->%02x ",
+  log_add_data_mov (address == SREG ? "(SREG)->'%s'" : "(%s)->%02x ",
                     address, ret);
   return ret;
 }
@@ -515,7 +560,7 @@ push_byte (int value)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
+    leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp, value);
   data_write_word (SPL, sp - 1);
 }
@@ -536,7 +581,7 @@ push_PC (void)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (EXIT_STATUS_ABORTED, "stack pointer overflow");
+    leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp, cpu_PC);
   sp--;
   data_write_byte (sp, cpu_PC >> 8);
@@ -678,7 +723,9 @@ skip_instruction_on_condition (int condition)
 static INLINE void
 branch_on_sreg_condition (int rd, int rr, int flag_value)
 {
-  if (((data_read_byte (SREG) & rr) != 0) == flag_value)
+  int flag = data_read_byte (SREG) & rr;
+  log_add_flag_read (rr, flag);
+  if ((flag != 0) == flag_value)
     {
       int delta = rd;
       // if (delta & 0x40) delta |= ~0x7F;
@@ -716,9 +763,7 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 // handle illegal instructions
 static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
 {
-  char buf[128];
-  sprintf (buf, "illegal opcode %04x", rr);
-  leave (EXIT_STATUS_ABORTED, buf);
+  leave (EXIT_STATUS_ABORTED, "illegal opcode %04x", rr);
 }
 
 // ----------------------------------------------------------------------------
@@ -1475,7 +1520,7 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 
 static OP_FUNC_TYPE func_LAST_FAST (int rd, int rr)
 {
-  leave (EXIT_STATUS_ABORTED, "internal error");
+  leave (EXIT_STATUS_FATAL, "func_LAST_FAST must be unreachable");
 }
 
 #define func_NULL NULL
@@ -1635,9 +1680,8 @@ load_to_flash (const char *filename)
 
   if (program_size & (~arch.flash_addr_mask))
     {
-      fprintf (stderr, "program is too large (size: %u, max: %u)\n",
-               program_size, arch.flash_addr_mask + 1);
-      leave (EXIT_STATUS_ABORTED, "program too large");
+      leave (EXIT_STATUS_ABORTED, "program is too large (size: %"PRIu32
+             ", max: %u)", program_size, arch.flash_addr_mask + 1);
     }
 }
 
@@ -1949,7 +1993,8 @@ do_step (void)
   decoded_op dop = decoded_flash[cpu_PC];
   byte id = dop.data_index;
   if (!id)
-    leave (EXIT_STATUS_ABORTED, "program counter out of program space");
+    leave (EXIT_STATUS_ABORTED, "program counter out of program space"
+           " (0x%x--0x%x)", 0, program_size);
 
   // execute instruction
   const opcode_t *data = &opcode_func_array[id];

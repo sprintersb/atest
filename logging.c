@@ -36,7 +36,7 @@
 #error no function herein is needed without LOG_DUMP
 #endif // LOG_DUMP
 
-static const char s_SREG[] = "CZNVSHTI";
+const char s_SREG[] = "CZNVSHTI";
 
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
@@ -161,6 +161,20 @@ log_add_immed (int value)
   log_add_data (buf);
 }
 
+
+void
+log_add_flag_read (int mask, int value)
+{
+  int bit = mask_to_bit (mask);
+
+  if (bit < 0 || bit > 7)
+    leave (EXIT_STATUS_FATAL, "not a power of 2: %02x", mask);
+
+  sprintf (buf, " %c->%c", s_SREG[bit], '0' + !!value);
+  log_add_data (buf);
+}
+
+
 void
 log_add_data_mov (const char *format, int addr, int value)
 {
@@ -195,6 +209,20 @@ log_add_reg_mov (const char *format, int regno, int value)
   log_add_data (buf);
 }
 
+static void
+putchar_escaped (char c)
+{
+  if (options.do_quiet)
+    return;
+
+  if (c == '\0') {}
+  else if (c == '\n')  { putchar ('\\'); putchar ('n'); }
+  else if (c == '\t')  { putchar ('\\'); putchar ('t'); }
+  else if (c == '\r')  { putchar ('\\'); putchar ('r'); }
+  else if (c == '\"')  { putchar ('\\'); putchar ('\"'); }
+  else if (c == '\\')  { putchar ('\\'); putchar ('\\'); }
+  else putchar (c);
+}
 
 // set argc and argv[] from -args
 static void
@@ -221,19 +249,14 @@ do_put_args (byte x)
     {
       const char *arg = i == args.i ? program : args.argv[i];
       int len = 1 + strlen (arg);
-      printf ("*** (%04x) <-- *argv[%d] = \"", a, i - args.i);
+      qprintf ("*** (%04x) <-- *argv[%d] = \"", a, i - args.i);
       for (int j = 0; j < len; j++)
         {
           char c = arg[j];
-          if (c == '\n')       { putchar ('\\'); putchar ('n'); }
-          else if (c == '\t')  { putchar ('\\'); putchar ('t'); }
-          else if (c == '\r')  { putchar ('\\'); putchar ('r'); }
-          else if (c == '\"')  { putchar ('\\'); putchar ('\"'); }
-          else if (c == '\\')  { putchar ('\\'); putchar ('\\'); }
-          else putc (c, stdout);
+          putchar_escaped (c);
           log_data_write_byte (a++, c, 0);
         }
-      printf ("\"\n");
+      qprintf ("\"\n");
     }
 
   // put their addresses to argv[]
@@ -243,18 +266,18 @@ do_put_args (byte x)
     {
       const char *arg = i == args.i ? program : args.argv[i];
       int len = 1 + strlen (arg);
-      printf ("*** (%04x) <-- argv[%d] = %04x\n", a, i - args.i, aa);
+      qprintf ("*** (%04x) <-- argv[%d] = %04x\n", a, i - args.i, aa);
       log_data_write_word (a, aa, 0);
       a += 2;
       aa += len;
     }
-  printf ("*** (%04x) <-- argv[%d] = NULL\n", a, argc);
+  qprintf ("*** (%04x) <-- argv[%d] = NULL\n", a, argc);
   log_data_write_word (a, aa, 0);
 
-  // set argc, argc: picked up by exit.c:init_args() in .init9
-  printf ("*** -args: at=%04x, argc=%d, argv=%04x\n", args.addr, argc, argv);
-  printf ("*** R24 = %04x\n", argc);
-  printf ("*** R22 = %04x\n", argv);
+  // set argc, argc: picked up by exit.c:init_args() in .init8
+  qprintf ("*** -args: at=%04x, argc=%d, argv=%04x\n", args.addr, argc, argv);
+  qprintf ("*** R24 = %04x\n", argc);
+  qprintf ("*** R22 = %04x\n", argv);
 
   log_put_word_reg (24, argc, 0);
   log_put_word_reg (22, argv, 0);
@@ -287,23 +310,23 @@ do_log_cmd (int x)
         {
         case LOG_GET_ARGS_NUM:
           args.request = 2;
-          printf ("*** transfer %s-args\n", args.on ? "" : "-no");
+          qprintf ("*** transfer %s-args\n", options.do_args ? "" : "-no");
           break;
         case LOG_START_NUM:
-          puts ("*** start log");
+          qprintf ("*** start log\n");
           SET_LOGGING (1, 0, 0);
           break;
         case LOG_STOP_NUM:
-          puts ("*** stop log");
+          qprintf ("*** stop log\n");
           SET_LOGGING (0, 0, 0);
           break;
         case LOG_PERF_NUM:
-          printf ("*** performance log\n");
+          qprintf ("*** performance log\n");
           SET_LOGGING (0, 1, 0);
           break;
         default:
           log_count_val = LOG_NUM (x);
-          printf ("*** start log %u\n", log_count_val);
+          qprintf ("*** start log %u\n", log_count_val);
           SET_LOGGING (1, 0, 1 + log_count_val);
           break;
         } // LOG_NUM
@@ -397,10 +420,10 @@ perf_instruction (int id)
       if (stop && !dump && !p->on)
         {
           if (p->valid)
-            printf ("\n--- Stop T%d %signored: T%d already stopped (after "
+            qprintf ("\n--- Stop T%d %signored: T%d already stopped (after "
                     "round %d)\n", i, sm == PERF_MEAN ? "Mean " : "", i, p->n);
           else
-            printf ("\n--- Stop T%d ignored: -unused-\n", i);
+            qprintf ("\n--- Stop T%d ignored: -unused-\n", i);
         }
       if ((stop | dump) && p->on)
         {
@@ -419,7 +442,7 @@ perf_instruction (int id)
           minmax_update (& p->insn, insns);
           minmax_update (& p->tick, ticks);
 
-          printf ("%sStop T%d %s(round %d,   %04lx--%04lx, %ld Ticks)\n",
+          qprintf ("%sStop T%d %s(round %d,   %04lx--%04lx, %ld Ticks)\n",
                   dumps == PERF_ALL ? "  " : "\n--- ", i,
                   p->valid == PERF_MEAN ? "Mean " : "", p->n,
                   2*p->pc.at_start, 2*p->pc.at_end,
@@ -476,14 +499,14 @@ perf_instruction (int id)
       if (sm)
         {
           if (!p->valid)
-            printf ("\n--- %s%d (round 1)\n", s_start, i);
+            qprintf ("\n--- %s%d (round 1)\n", s_start, i);
           else if (p->on && sm == p->valid)
-            printf ("\n--- %s%d ignored: T%d already started (round %d)\n",
+            qprintf ("\n--- %s%d ignored: T%d already started (round %d)\n",
                     s_start, i, i, p->n);
           else if (!p->on && sm == p->valid)
-            printf ("\n--- re%s%d (round %d)\n", s_start, i, 1 + p->n);
+            qprintf ("\n--- re%s%d (round %d)\n", s_start, i, 1 + p->n);
           else
-            printf ("\n--- %s%d ignored: T%d is in %s/Stop mode (%s "
+            qprintf ("\n--- %s%d ignored: T%d is in %s/Stop mode (%s "
                     "round %d)\n", s_start, i, i, s_mode,
                     p->on ? "started and in" : "stopped and after", p->n);
           if (!p->on && sm == p->valid)
@@ -526,7 +549,7 @@ log_dump_line (int id)
   if (id && log_count && --log_count == 0)
     {
       options.do_log = 0;
-      printf ("*** done log %u", log_count_val);
+      qprintf ("*** done log %u", log_count_val);
     }
   *cur_log_pos = '\0';
   if (options.do_log
