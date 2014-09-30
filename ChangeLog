@@ -1,5 +1,11 @@
 2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
 
+	* avrtest.c (do_subtraction_8): Reduce register pressure.
+	(func_CP/CPI/CPC/NEG/SUB/SUBI/SBC/SBCI): Adjust interface.
+	(func_SBCI_SUBI): Remove.
+
+2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
+
 	* AUTHORS: New file.
 
 2014-09-30  Georg-Johann Lay  <avr@gjlay.de>

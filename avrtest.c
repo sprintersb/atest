@@ -641,16 +641,17 @@ do_shift_8 (int rd, int carry)
 }
 
 // perform the subtraction and set the appropriate flags
-static INLINE int
-do_subtraction_8 (int value1, int value2, int carry, int use_carry)
+static INLINE void
+do_subtraction_8 (int rd, int value1, int value2, int carry,
+                  int use_carry, int writeback)
 {
   int result = value1 - value2 - carry;
+  if (writeback)
+    put_reg (rd, result);
   int sreg = flag_update_table_sub8[FUT_ADD_SUB_INDEX (value1, value2, result)];
   unsigned flag = (data_read_byte_raw (SREG) | ~FLAG_Z) | (use_carry-1);
   sreg &= flag;
   update_flags (FLAG_H | FLAG_S | FLAG_V | FLAG_N | FLAG_Z | FLAG_C, sreg);
-
-  return result & 0xFF;
 }
 
 static INLINE void
@@ -917,13 +918,13 @@ static OP_FUNC_TYPE func_TST (int rd, int rr)
 /* 0001 01rd dddd rrrr | CP */
 static OP_FUNC_TYPE func_CP (int rd, int rr)
 {
-  do_subtraction_8 (get_reg (rd), get_reg (rr), 0, 0);
+  do_subtraction_8 (0, get_reg (rd), get_reg (rr), 0, 0, 0);
 }
 
 /* 0000 01rd dddd rrrr | CPC */
 static OP_FUNC_TYPE func_CPC (int rd, int rr)
 {
-  do_subtraction_8 (get_reg (rd), get_reg (rr), get_carry(), 1);
+  do_subtraction_8 (0, get_reg (rd), get_reg (rr), get_carry(), 1, 0);
 }
 
 /* 0001 00rd dddd rrrr | CPSE */
@@ -967,13 +968,13 @@ static OP_FUNC_TYPE func_OR (int rd, int rr)
 /* 0000 10rd dddd rrrr | SBC */
 static OP_FUNC_TYPE func_SBC (int rd, int rr)
 {
-  put_reg (rd, do_subtraction_8 (get_reg (rd), get_reg (rr), get_carry(), 1));
+  do_subtraction_8 (rd, get_reg (rd), get_reg (rr), get_carry(), 1, 1);
 }
 
 /* 0001 10rd dddd rrrr | SUB */
 static OP_FUNC_TYPE func_SUB (int rd, int rr)
 {
-  put_reg (rd, do_subtraction_8 (get_reg (rd), get_reg (rr), 0, 0));
+  do_subtraction_8 (rd, get_reg (rd), get_reg (rr), 0, 0, 1);
 }
 
 
@@ -1094,7 +1095,7 @@ static OP_FUNC_TYPE func_LSR (int rd, int rr)
 /* 1001 010d dddd 0001 | NEG */
 static OP_FUNC_TYPE func_NEG (int rd, int rr)
 {
-  put_reg (rd, do_subtraction_8 (0, get_reg (rd), 0, 0));
+  do_subtraction_8 (rd, 0, get_reg (rd), 0, 0, 1);
 }
 
 /* 1001 000d dddd 1111 | POP */
@@ -1232,7 +1233,7 @@ static OP_FUNC_TYPE func_ANDI (int rd, int rr)
 static OP_FUNC_TYPE func_CPI (int rd, int rr)
 {
   log_add_immed (rr);
-  do_subtraction_8 (get_reg (rd), rr, 0, 0);
+  do_subtraction_8 (0, get_reg (rd), rr, 0, 0, 0);
 }
 
 /* 1110 KKKK dddd KKKK | LDI or SER */
@@ -1250,22 +1251,17 @@ static OP_FUNC_TYPE func_ORI (int rd, int rr)
 }
 
 /* 0100 KKKK dddd KKKK | SBCI */
-/* 0101 KKKK dddd KKKK | SUBI */
-static INLINE OP_FUNC_TYPE func_SBCI_SUBI (int rd, int rr, int carry,
-                                             int use_carry)
-{
-  log_add_immed (rr);
-  put_reg (rd, do_subtraction_8 (get_reg (rd), rr, carry, use_carry));
-}
-
 static OP_FUNC_TYPE func_SBCI (int rd, int rr)
 {
-  func_SBCI_SUBI (rd, rr, get_carry(), 1);
+  log_add_immed (rr);
+  do_subtraction_8 (rd, get_reg (rd), rr, get_carry(), 1, 1);
 }
 
+/* 0101 KKKK dddd KKKK | SUBI */
 static OP_FUNC_TYPE func_SUBI (int rd, int rr)
 {
-  func_SBCI_SUBI (rd, rr, 0, 0);
+  log_add_immed (rr);
+  do_subtraction_8 (rd, get_reg (rd), rr, 0, 0, 1);
 }
 
 
