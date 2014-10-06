@@ -96,12 +96,16 @@ log_patch_mnemo (const decoded_op *op, char *buf)
 {
   int id, mask, style = 0;
 
-  switch (id = op->data_index)
+  switch (id = op->id)
     {
     default:
       return;
-    case ID_BLD:  case ID_SBI:  case ID_SBIS:  case ID_SBRS:
-    case ID_BST:  case ID_CBI:  case ID_SBIC:  case ID_SBRC:
+    case ID_BLD:  case ID_SBI:
+    case ID_BST:  case ID_CBI:
+    case ID_SBIS:  case ID_SBIS1:  case ID_SBIS2:
+    case ID_SBIC:  case ID_SBIC1:  case ID_SBIC2:
+    case ID_SBRS:  case ID_SBRS1:  case ID_SBRS2:
+    case ID_SBRC:  case ID_SBRC1:  case ID_SBRC2:
       mask = op->oper2;
       style = 1;
       break;
@@ -153,7 +157,7 @@ void
 log_add_instr (const decoded_op *op)
 {
   char mnemo_[16];
-  alog.id = op->data_index;
+  alog.id = op->id;
   const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
 
   // OUT and ST* might turn on logging: always log them to alog.data[].
@@ -166,7 +170,6 @@ log_add_instr (const decoded_op *op)
 
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (op, mnemo_ + strlen (mnemo));
-
   fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
   log_append (fmt, cpu_PC * 2, mnemo_);
 }
@@ -862,20 +865,7 @@ perf_instruction (int id)
       if (perf.id != ID_PUSH)
         perf.calls--;
       break;
-    case ID_STS:
-      alog.stat.sts++;
-      break;
-    case ID_LDS:
-      alog.stat.lds++;
-      break;
-    case ID_SBRC: case ID_SBRS: case ID_SBIC: case ID_SBIS: case ID_CPSE:
-      alog.stat.skip++;
-      break;
     }
-  if (id >= ID_LDD_Y && id <= ID_LD_Z_incr)
-    alog.stat.load++;
-  if (id >= ID_STD_Y && id <= ID_ST_Z_incr)
-    alog.stat.store++;
 
   perf.id = id;
   perf.will_be_on = 0;
@@ -980,27 +970,7 @@ log_dump_line (int id)
 
   alog.log_this = log_this;
 
-  alog.stat.logged += log_this == 1;
-  alog.stat.not_logged += log_this == 0;
-  alog.stat.guess_good += log_this != alog.unused;
-  alog.stat.guess_bad  += log_this == alog.unused;
-
   alog.pos = alog.data;
   *alog.pos = '\0';
   perf_instruction (id);
-}
-
-void
-log_stat_guesses (void)
-{
-  const __typeof (alog.stat) *s = &alog.stat;
-  unsigned n_insns = s->logged + s->not_logged;
-  printf ("   %u Instr.:  log: %u, no log: %u, STS: %.3f%%, LDS: %.3f%%"
-          ", Skips: %.3f%%, Loads: %.3f%%, Stores: %.3f%%\n"
-          "   Bad Guesses: %u (%.2f%% of all, %.2f%% of unlogged)\n",
-          n_insns, s->logged, s->not_logged,  100. * s->sts / n_insns,
-          100. * s->lds / n_insns, 100. * s->skip / n_insns,
-          100. * s->load / n_insns, 100. * s->store / n_insns,
-          s->guess_bad, 100. * s->guess_bad / n_insns,
-          s->not_logged ? 100. * s->guess_bad /  s->not_logged : 0.0);
 }

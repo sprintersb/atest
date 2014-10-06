@@ -46,18 +46,6 @@ typedef struct
   // No log needed for the current instruction; dont' add stuff to .data[]
   // in order to speed up matters if logging is (temporarily) off.
   int unused;
-  // Some statistics about guessing whether an instruction needs no logging
-  struct
-  {
-    // Correct guesses: instruction logged as guessed in log_add_instr().
-    unsigned guess_good;
-    // Wrong guess: instruction not logged, stuff in alog.data[] is waste.
-    unsigned guess_bad;
-    // Connts logged resp. not logged instructions.
-    unsigned logged, not_logged;
-    
-    unsigned sts, lds, skip, load, store;
-  } stat;
 } alog_t;
 
 typedef struct

@@ -44,7 +44,7 @@ typedef uint32_t dword;
 
 typedef struct
 {
-  byte data_index;
+  byte id;
   byte oper1;
   word oper2;
 } decoded_op;
@@ -119,7 +119,6 @@ typedef struct
 #define log_add_data_mov(...)  (void) 0
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
-#define log_stat_guesses(...)  (void) 0
 
 #else
 
@@ -131,7 +130,6 @@ extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
 extern void do_log_port_cmd (int x);
-extern void log_stat_guesses (void);
 
 #endif  // AVRTEST_LOG
 
@@ -144,8 +142,6 @@ enum
   {
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)    \
     ID_ ## ID,
-    // dummy entry to guarantee that "zero" is an invalid function
-    AVR_INSN(NULL, 0, 0, NULL)
 #include "avr-insn.def"
 #undef AVR_INSN
   };

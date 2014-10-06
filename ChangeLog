@@ -1,5 +1,25 @@
 2014-10-06  Georg-Johann Lay  <avr@gjlay.de>
 
+	Tweak skip instructions.
+
+	* avr-insn.def: (CPSE, SBRC, SBRS, SBIC, SBIS):
+	Add instruction variants for known skip of 1 resp. 2 words.
+	* testavr.h (decoded_op.data_index): Rename to .id.
+	(log_stat_guesses): Remove.
+	* avrtest.c (leave): Handle varargs consistently.
+	(bad_PC): New function.
+	(func_EICALL/EIJMP, pop_PC, do_step): Use it.
+	(skip_instruction_on_condition): Add size argument.
+	Patch skip on the fly as skip offset is known.
+	(func_CPSE/SBRC/SBRS/SBIC/SBIS): New variants to skip = 1,2 words.
+	* logging.c (log_patch_mnemo): Handle new variants of: CPSE, SBRC,
+	SBRS, SBIC, SBIS.
+	(perf_function, log_dump_line): Clean up alog.stat stuff.
+	(log_stat_guesses): Remove.
+	* logging.h (alog_t.stat): Remove.
+
+2014-10-06  Georg-Johann Lay  <avr@gjlay.de>
+
 	Improve logging and support performance-meters.
 
 	* logging.h: New file.

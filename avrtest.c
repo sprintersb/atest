@@ -32,6 +32,7 @@
 #include "testavr.h"
 #include "options.h"
 #include "sreg.h"
+
 // ---------------------------------------------------------------------------
 //     register and port definitions
 
@@ -188,6 +189,7 @@ static byte exit_value;
 void NOINLINE NORETURN
 leave (int status, const char *reason, ...)
 {
+  int args_consumed = 0;
   static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
 
   // make sure we print the last log line before leaving
@@ -233,8 +235,6 @@ leave (int status, const char *reason, ...)
                r_ms > 0.01 ? instr_count/r_ms : 0.0);
 
       printf ("%s%s%s%s", s_load, s_decode, s_execute, s_runtime);
-
-      log_stat_guesses();
     }
 
   if (!options.do_quiet)
@@ -254,6 +254,7 @@ leave (int status, const char *reason, ...)
               cpu_PC * 2, program_cycles);
 
       va_end (args);
+      args_consumed = 1;
     }
   else
     switch (status)
@@ -268,8 +269,18 @@ leave (int status, const char *reason, ...)
 
   if (EXIT_STATUS_FATAL == status)
     {
-      fprintf (stderr, "\n%s: internal error: %s\n", options.self, reason);
-      fflush (stderr);
+      if (!args_consumed)
+        {
+          va_list args;
+          va_start (args, reason);
+
+          fprintf (stderr, "\n%s: internal error: ", options.self);
+          vfprintf (stderr, reason, args);
+          fprintf (stderr, "\n");
+          fflush (stderr);
+
+          va_end (args);
+        }
       abort();
     }
 
@@ -281,7 +292,7 @@ leave (int status, const char *reason, ...)
 
 // Adding magic to some I/O ports as we read from or write to them
 
-static NOINLINE void
+static INLINE void
 data_write_magic_port (int address, int value)
 {
   // add code here to handle special events
@@ -630,6 +641,13 @@ push_PC (void)
   data_write_word (SPL, sp);
 }
 
+static NOINLINE NORETURN void
+bad_PC (unsigned pc)
+{
+  leave (EXIT_STATUS_ABORTED, "program counter 0x%x out of bounds "
+         "(0x%x--0x%x)", 2 * pc, 0, program_size);
+}
+
 static INLINE void
 pop_PC (void)
 {
@@ -640,7 +658,13 @@ pop_PC (void)
       sp++;
       pc = data_read_byte (sp) << 16;
       if (pc >= MAX_FLASH_SIZE / 2)
-        leave (EXIT_STATUS_ABORTED, "program counter out of bounds");
+        {
+          sp++;
+          pc |= data_read_byte (sp) << 8;
+          sp++;
+          pc |= data_read_byte (sp);
+          bad_PC (pc);
+        }
     }
   sp++;
   pc |= data_read_byte (sp) << 8;
@@ -747,11 +771,18 @@ load_program_memory (int rd, int use_RAMPZ, int incr)
 }
 
 static INLINE void
-skip_instruction_on_condition (int condition)
+skip_instruction_on_condition (int condition, int size)
 {
   if (condition)
     {
-      int size = opcode_func_array[decoded_flash[cpu_PC].data_index].size;
+      if (size == 0)
+        {
+          decoded_op *op = & decoded_flash[cpu_PC];
+          size = opcode_func_array[op->id].size;
+          // Patch ID_CPSE to ID_CPSE1 resp. ID_CPSE2 so we don't need
+          // to look up size in the remainder.
+          (op-size)->id += size;
+        }
       cpu_PC = (cpu_PC + size) & PC_VALID_MASK;
       add_program_cycles (size);
     }
@@ -800,7 +831,8 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 // handle illegal instructions
 static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
 {
-  leave (EXIT_STATUS_ABORTED, "illegal opcode %04x", rr);
+  log_append (".word 0x%04x", rr);
+  leave (EXIT_STATUS_ABORTED, "illegal opcode 0x%04x", rr);
 }
 
 // ----------------------------------------------------------------------------
@@ -815,7 +847,7 @@ static OP_FUNC_TYPE func_EICALL (int rd, int rr)
       push_PC();
       cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
       if (cpu_PC >= MAX_FLASH_SIZE / 2)
-        leave (EXIT_STATUS_ABORTED, "program counter out of bounds");
+        bad_PC (cpu_PC);
     }
   else
     {
@@ -830,7 +862,7 @@ static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
     {
       cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
       if (cpu_PC >= MAX_FLASH_SIZE / 2)
-        leave (EXIT_STATUS_ABORTED, "program counter out of bounds");
+        bad_PC (cpu_PC);
     }
   else
     {
@@ -966,7 +998,19 @@ static OP_FUNC_TYPE func_CPC (int rd, int rr)
 /* 0001 00rd dddd rrrr | CPSE */
 static OP_FUNC_TYPE func_CPSE (int rd, int rr)
 {
-  skip_instruction_on_condition (get_reg (rd) == get_reg (rr));
+  skip_instruction_on_condition (get_reg (rd) == get_reg (rr), 0);
+}
+
+/* 0001 00rd dddd rrrr | CPSE skipping 1 word */
+static OP_FUNC_TYPE func_CPSE1 (int rd, int rr)
+{
+  skip_instruction_on_condition (get_reg (rd) == get_reg (rr), 1);
+}
+
+/* 0001 00rd dddd rrrr | CPSE skipping 2 words */
+static OP_FUNC_TYPE func_CPSE2 (int rd, int rr)
+{
+  skip_instruction_on_condition (get_reg (rd) == get_reg (rr), 2);
 }
 
 /* 0010 01rd dddd rrrr | EOR or CLR */
@@ -1321,13 +1365,37 @@ static OP_FUNC_TYPE func_BST (int rd, int rr)
 /* 1111 110d dddd 0bbb | SBRC */
 static OP_FUNC_TYPE func_SBRC (int rd, int rr)
 {
-  skip_instruction_on_condition (!(get_reg (rd) & rr));
+  skip_instruction_on_condition (!(get_reg (rd) & rr), 0);
+}
+
+/* 1111 110d dddd 0bbb | SBRC skipping 1 word */
+static OP_FUNC_TYPE func_SBRC1 (int rd, int rr)
+{
+  skip_instruction_on_condition (!(get_reg (rd) & rr), 1);
+}
+
+/* 1111 110d dddd 0bbb | SBRC skipping 2 words */
+static OP_FUNC_TYPE func_SBRC2 (int rd, int rr)
+{
+  skip_instruction_on_condition (!(get_reg (rd) & rr), 2);
 }
 
 /* 1111 111d dddd 0bbb | SBRS */
 static OP_FUNC_TYPE func_SBRS (int rd, int rr)
 {
-  skip_instruction_on_condition (get_reg (rd) & rr);
+  skip_instruction_on_condition (get_reg (rd) & rr, 0);
+}
+
+/* 1111 111d dddd 0bbb | SBRS skipping 1 word */
+static OP_FUNC_TYPE func_SBRS1 (int rd, int rr)
+{
+  skip_instruction_on_condition (get_reg (rd) & rr, 1);
+}
+
+/* 1111 111d dddd 0bbb | SBRS skipping 2 words */
+static OP_FUNC_TYPE func_SBRS2 (int rd, int rr)
+{
+  skip_instruction_on_condition (get_reg (rd) & rr, 2);
 }
 
 /* opcodes with a relative 7-bit address (k) and a register bit number (b)
@@ -1454,13 +1522,37 @@ static OP_FUNC_TYPE func_SBI (int rd, int rr)
 /* 1001 1001 AAAA Abbb | SBIC */
 static OP_FUNC_TYPE func_SBIC (int rd, int rr)
 {
-  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr));
+  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 0);
+}
+
+/* 1001 1001 AAAA Abbb | SBIC skipping 1 word */
+static OP_FUNC_TYPE func_SBIC1 (int rd, int rr)
+{
+  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 1);
+}
+
+/* 1001 1001 AAAA Abbb | SBIC skipping 2 words */
+static OP_FUNC_TYPE func_SBIC2 (int rd, int rr)
+{
+  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 2);
 }
 
 /* 1001 1011 AAAA Abbb | SBIS */
 static OP_FUNC_TYPE func_SBIS (int rd, int rr)
 {
-  skip_instruction_on_condition (data_read_magic_byte (rd) & rr);
+  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 0);
+}
+
+/* 1001 1011 AAAA Abbb | SBIS skipping 1 word */
+static OP_FUNC_TYPE func_SBIS1 (int rd, int rr)
+{
+  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 1);
+}
+
+/* 1001 1011 AAAA Abbb | SBIS skipping 2 words */
+static OP_FUNC_TYPE func_SBIS2 (int rd, int rr)
+{
+  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 2);
 }
 
 
@@ -1730,8 +1822,6 @@ const opcode_t opcode_func_array[] =
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
     [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
 #endif // AVRTEST_LOG
-    // dummy entry to guarantee that "zero" is an invalid function
-    AVR_INSN(NULL, 0, 0, NULL)
 #include "avr-insn.def"
 #undef AVR_INSN
   };
@@ -1993,7 +2083,7 @@ decode_flash (void)
   for (unsigned i = 0; i < program_size; i += 2)
     {
       word opcode2 = cpu_flash[i + 2] | (cpu_flash[i + 3] << 8);
-      decoded_flash[i / 2].data_index
+      decoded_flash[i / 2].id
         = decode_opcode (&decoded_flash[i / 2], opcode1, opcode2);
       opcode1 = opcode2;
     }
@@ -2023,10 +2113,9 @@ do_step (void)
 {
   // fetch decoded instruction
   decoded_op dop = decoded_flash[cpu_PC];
-  byte id = dop.data_index;
+  byte id = dop.id;
   if (!id)
-    leave (EXIT_STATUS_ABORTED, "program counter out of program space"
-           " (0x%x--0x%x)", 0, program_size);
+    bad_PC (cpu_PC);
 
   // execute instruction
   const opcode_t *data = &opcode_func_array[id];
