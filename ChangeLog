@@ -1,3 +1,13 @@
+2014-10-07  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support entry point from ELF.
+
+	* avrtest.h (program_entry_point): New.
+	* avrtest.c (program_entry_point): New variable.
+	(load_elf) [!-e ENTRY]: Set it and cpu_PC from ELF entry point.
+	(leave): Show entry-point if non-zero.
+	(options.c) [-e]: More sanity checking, set program_entry_point.
+
 2014-10-06  Georg-Johann Lay  <avr@gjlay.de>
 
 	Tweak skip instructions.

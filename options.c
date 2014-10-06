@@ -191,7 +191,12 @@ parse_args (int argc, char *argv[])
               cpu_PC = get_valid_number (argv[i], "-e");
               if (cpu_PC % 2 != 0)
                 usage ("odd byte address as ENTRY point in '-e %s'", argv[i]);
+              if (cpu_PC >= MAX_FLASH_SIZE)
+                usage ("ENTRY point is too big in '-e %s'", argv[i]);
             }
+          else
+            cpu_PC = 0;
+          program_entry_point = cpu_PC;
           cpu_PC /= 2;
           break; // -e
 

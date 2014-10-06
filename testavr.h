@@ -50,6 +50,7 @@ typedef struct
 } decoded_op;
 
 extern unsigned cpu_PC;
+extern unsigned program_entry_point;
 extern dword max_instr_count;
 extern dword instr_count;
 extern dword program_cycles;
