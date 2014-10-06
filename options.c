@@ -42,7 +42,7 @@ static const char USAGE[] =
   "  -e ENTRY     Byte address of program entry point (defaults to 0).\n"
   "  -m MAXCOUNT  Execute at most MAXCOUNT instructions.\n"
   "  -q           Quiet operation.  Only print messages explicitly requested,\n"
-  "               e.g. by PERF_DUMP_ALL.  Pass exit status from the program.\n"
+  "               e.g. by LOG_U8(42).  Pass exit status from the program.\n"
   "  -runtime     Print avrtest execution time.\n"
   "  -ticks       Enable the 32-bit cycle counter TICKS_PORT that can be used\n"
   "               to measure performance.\n"
@@ -61,8 +61,8 @@ static const char USAGE[] =
 
 static const arch_t arch_desc[] =
   {
-    { "avr51",     0, 0, 0, 0x01ffff }, // default for is_xmega = 0
-    { "avrxmega6", 1, 1, 1, 0x03ffff }, // default for is_xmega = 1
+    { "avr51",     0, 0, 0, 0x01ffff }, // default if is_xmega = 0
+    { "avrxmega6", 1, 1, 1, 0x03ffff }, // default if is_xmega = 1
     { "avr6",      1, 1, 0, 0x03ffff },
     { NULL, 0, 0, 0, 0}
   };
@@ -76,7 +76,7 @@ typedef struct
 {
   // unique id
   int id;
-  // name as known to the command line abd prefixed "-no-"
+  // name as known to the command line and prefixed "-no-"
   const char *name;
   // address of target variable
   int *pflag;
@@ -190,7 +190,7 @@ parse_args (int argc, char *argv[])
             {
               cpu_PC = get_valid_number (argv[i], "-e");
               if (cpu_PC % 2 != 0)
-                usage ("odd byte address in '-e %s'", argv[i]);
+                usage ("odd byte address as ENTRY point in '-e %s'", argv[i]);
             }
           cpu_PC /= 2;
           break; // -e

@@ -151,8 +151,8 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
 * Run the tests from gcc subdirectory of your avr-gcc build directory like:
 
-    make -k check RUNTESTFLAGS="--target_board=atmega128-sim"
-    make -k check RUNTESTFLAGS="--target_board=atxmega128-sim"
+    make -k check-gcc RUNTESTFLAGS="--target_board=atmega128-sim"
+    make -k check-gcc RUNTESTFLAGS="--target_board=atxmega128-sim"
 
 * Look in the ./gcc/testsuite subdirectory of avr-gcc build directory for
   logged results or add the -all switch to see it working 1 test at a time.
@@ -175,6 +175,7 @@ Voila!
 With -q turned on avrtest will print no messages except the ones
 explicitly requested by:
   - -runtime
+  - LOG_U8 (X)  etc.
   - PERF_DUMP (N)
   - PERF_DUMP_ALL
 
@@ -183,7 +184,7 @@ explicitly requested by:
  -args ... : passing arguments to the program
 =============================================
 
-* This feature is only available in avrtest_log and avrtest-xmega_log.
+* This feature is only supported by avrtest_log and avrtest-xmega_log.
 
 All arguments after -args will be passed to the target program as if the
 program was running from the command line.  This is accomplished by startup
@@ -212,7 +213,7 @@ int main (int argc, char *argv[])
 }
 
 
-as in any hosted application.
+and use argc and argv as in any hosted application.
 
 exit.c:init_args() requests the command args to be put at <ADDR> = 0xf000.
 If you prefer a different address then simply adjust exit.c.
@@ -229,23 +230,108 @@ avrtest or by avrtest_log.  If avrtest executes the code (and hence
 -[no-]args is ignored) the startup code sets argc = 0 and argv[0] = NULL.
 
 Thus you can test in the program what simulator is executing it by
-testing on argc != 0 provided you don't run the simulator with -no-args.
+testing on argc != 0 provided you run the simulator with -args.
+
+
+=========================================
+ -no-log and logging control via LOG_PORT
+=========================================
+
+* This feature is only supported by avrtest_log and avrtest-xmega_log.
+
+avrtest_log will log address and action of each executed instruction to
+standard output of the host.  In cases where that is too much a flood of
+information, you can start avrtest_log with -no-log and turn on instruction
+logging by executing special commands defined in avrtest.h:
+
+    LOG_ON;
+
+Turn on instruction logging.
+
+    LOG_OFF;
+
+Turn it off again.
+
+    LOG_SET (N);
+
+Turn on logging for the next N instructions and then switch it off again.
+
+    LOG_PERF;
+
+Turn on logging during performance measurement described below, i.e.
+if any timer is in a START / STOP round.
+
+Please notice that this method of switching logging on / off is (low)
+intrusive to the program.  The commands listed above are translated by
+the compiler to machine instructions that might affect code generation
+for the sourrounding code (register allocation, jump offsets, ...).
+The command have low overhead; usually it's just one LDI and one
+OUT instruction to LOG_PORT.
+
+
+===================================================
+ Logging values to the host computer using LOG_PORT
+===================================================
+
+* This feature is only supported by avrtest_log and avrtest-xmega_log.
+
+In order to get values out of the running program the following commands
+might be useful:
+
+    LOG_U8 (X);         print X as unsigned 8-bit decimal value
+    LOG_S8 (X);         print X as signed 8-bit decimal value
+    LOG_X8 (X);         print X as unsigned 8-bit hexadecimal value
+
+Besides these you can use similar commands for wider values with
+16, 24 and 32 bits, e.g.
+
+    LOG_U16 (X);
+    LOG_X32 (X);
+
+etc.  Moreover, there are the following commands:
+
+    LOG_STR (X);        log string X located in RAM
+    LOG_PSTR (X);       log string X located in Flash
+    LOG_FLOAT (X);      log float X
+    LOG_ADDR (X);       log address X
+
+
+All of these logging command LOG_XXX have variants that take a custom
+printf format string to print the supplied value:
+
+    LOG_FMT_XXX (F, X);    log X using format string F located in RAM
+    LOG_PFMT_XXX (F, X);   log X using format string F located in Flash
+
+!!! Please use formatz strings with care!  You can easily crash avrtest_log
+!!! and make it raise a Segmentation Fault or other undefined behaviour
+!!! by specifying a format string that does not fit the value!
+
+avrtest_log uses "double" to represent float and "unsigned int" for all
+other values.  The default format strings for the vanilla LOG_XXX are:
+
+    " %u "              for the "U" variants
+    " %d "              for the "S" variants
+    " 0x%02x "          for the 8-bit "X" variants
+    ...                 ...
+    " 0x%08x "          for the 32-bit "X" variants
+    "%s"                for strings
+    " %.6f "            for floats
+    " 0x%04x "          for addresses
 
 
 =======================================
  Performance measurement using LOG_PORT
 =======================================
 
-* This feature is only available in avrtest_log and avrtest-xmaga_log.
+* This feature is only supported by avrtest_log and avrtest-xmega_log.
 
-The simulator supports 15 independently operating performance-meters:
+The simulator supports 7 independently operating performance-meters:
 
-To start perf-meter N use
-  
     PERF_START (N);
 
-This will start capturing some values of the running program like
-program counter, instruction count, stack pointer, call depth, etc.
+Starts perf-meter N which will start capturing values of the
+running program like program counter, instruction count, stack pointer,
+call depth, etc.
 
     PERF_STOP (N);
 
@@ -255,15 +341,108 @@ be dumped at any time by
 
     PERF_DUMP (N);
 
-This will show a summary of the extremal values for each perf-meter:
+This will show a summary of the extremal values for the perf-meter and
+reset it completely so that you can use it for a different task afterwards.
+Displayed values are:
 
  - Calls (abs):  The absolute call depth (CALLs increment, RETs decrement).
  - Calls (rel):  Call depth relative to the starting point.
  - Stack (abs):  Values of the stack pointer (SP).
  - Stack (rel):  Stack usage relative to the starting point.
 
+In order to give a specific perf-meter a more descriptive name there are
 
-    PERF_MEAN (N)
+    PERF_LABEL (L);
+    PERF_PLABEL (L);
 
-Instead of summarizing the values over all start/stop cycles, this mode
-takes the extremal values, mean and standard deviation over all cycles.
+where L is a label residing in RAM or Flash, respectively.
+avrtest_log will cache the label so you can override it after PERF_LABEL.
+
+If you want to find out what value lead to the round with mimimal or maximal
+instruction cycles, each round can be tagged with a value:
+
+    PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR
+    PERF_TAG_U16 (N, U);        ... with a 16-bit unsigned integer U
+    PERF_TAG_U32 (N, U);        ... with a 32-bit unsigned integer U
+    PERF_TAG_FLOAT (N, F);      ... with float F
+
+Just like with LOG_XXX(), U16 and U32 are represented internally as
+"unsigned int" and the float as "double".  The default format strings to
+print the tags are "%s", " %u ", " %u " and " %.6f " respectively.
+
+Custom format strings can be supplied by
+
+    PERF_TAG_FMT_U16 (N, FMT, U);
+    PERF_TAG_PFMT_U16 (N, FMT, U);
+
+with a format string FMT located in RAM resp. Flash.  Thus, the
+command to use a signed 32-bit value as tag for the respective
+round of perf-meter 1 could read
+
+    PERF_TAG_FMT_U32 (1, " %d ", n);
+
+Example:
+
+
+#include <math.h>
+#include "avrtest.h"
+
+float x, y;
+
+int main (void)
+{
+    PERF_LABEL (1, "resource consumption of sin()");
+
+    for (x = 0.0; x <= 3.14159; x += 0.01)
+    {
+        PERF_TAG_FMT_FLOAT (1, " sin (%.5f) ", x);
+        PERF_START (1);
+        y = sin (x);
+        PERF_STOP (1);
+
+        PERF_TAG_FMT_FLOAT (2, " x=%.5f ", x);
+        PERF_STAT_FLOAT (2, fabs (x * (1 - x*x / 6) - y));
+    }
+
+    PERF_DUMP_ALL;
+    return 0;
+}
+
+
+Compile as usual and link against exit-***.o.  Running
+
+  $ avrtest_log ... -no-log -q
+
+produces an output like
+
+
+--- Dump # 1:
+ Timer T1 "resource consumption of sin()" (315 rounds):  027c--029e
+              Instructions        Ticks
+    Total:       411402          541887
+    Mean:          1306            1720
+    Stand.Dev:     75.5            85.6
+    Min:            686            1029
+    Max:           1515            1952
+    Calls (abs) in [   1,   5] was:   1 now:   1
+    Calls (rel) in [   0,   4] was:   0 now:   0
+    Stack (abs) in [04f8,04e5] was:04f8 now:04f8
+    Stack (rel) in [   0,  19] was:   0 now:   0
+
+           Min round Max round    Min tag           /   Max tag
+    Calls           -all-same-                      /
+    Stack           -all-same-                      /
+    Instr.         1       315     sin (0.00000)    /   sin (3.14000) 
+    Ticks          1       315     sin (0.00000)    /   sin (3.14000) 
+
+ Stat  T2 "" (315 Values)
+    Mean:       3.589886e-001     round    tag
+    Stand.Dev:  5.247231e-001
+    Min:        0.000000e+000         1     x=0.00000 
+    Max:        2.021442e+000       315     x=3.14000 
+
+
+The computation of sin (x) took 1029..1952 cycles for the 315 values it had
+been computed with an average of 1720 cycles.  sin() needs 19 bytes stack
+space.  The maximal difference between sin (x) and the 3rd-order
+approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14.

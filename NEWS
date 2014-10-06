@@ -1,8 +1,16 @@
-
                                  
 
                           avrtest NEWS
                           ============
+
+
+* New magic LOG_PORT for avrtest_log:                      r150  2014-10-06
+  (ignored by avrtest)  
+
+  - Turn on / off logging by the simulated program.
+  - Capture and print performance data.
+
+  See README for details and examples.
 
 
 * New options for avrtest_log:                             r144  2014-09-30
@@ -22,15 +30,6 @@
 
   - -no-args ...   Ignore all parameters following -no-args.
                    Set argc=0 and argv=NULL as main is entered.
-
-* New magic LOG_PORT for avrtest_log:
-  (ignored by avrtest)  
-
-  - Turn on / off logging by the simulated program.
-  - Capture and print performance data.
-
-  See README for details and examples.
-
 
 * Improve log output:                                      r135  2014-09-20
 

@@ -233,6 +233,8 @@ leave (int status, const char *reason, ...)
                r_ms > 0.01 ? instr_count/r_ms : 0.0);
 
       printf ("%s%s%s%s", s_load, s_decode, s_execute, s_runtime);
+
+      log_stat_guesses();
     }
 
   if (!options.do_quiet)
@@ -267,6 +269,7 @@ leave (int status, const char *reason, ...)
   if (EXIT_STATUS_FATAL == status)
     {
       fprintf (stderr, "\n%s: internal error: %s\n", options.self, reason);
+      fflush (stderr);
       abort();
     }
 
@@ -292,20 +295,22 @@ data_write_magic_port (int address, int value)
         cpu_data[address] = value;
       break;
     case EXIT_PORT:
+      log_add_data_mov ("(%s)<-%02x ", address, value & 0xff);
       leave (EXIT_STATUS_EXIT, "exit(%d) function called", exit_value = value);
       break;
     case ABORT_PORT:
+      log_add_data_mov ("(%s)<-%02x ", address, value & 0xff);
       leave (EXIT_STATUS_ABORTED, "abort function called");
       break;
     }
 
-#ifdef LOG_DUMP
+#ifdef AVRTEST_LOG
   if (address == LOG_PORT)
-    do_log_cmd (value);
-#endif // LOG_DUMP
+    do_log_port_cmd (value);
+#endif // AVRTEST_LOG
 }
 
-static NOINLINE int
+static INLINE int
 data_read_magic_port (int address)
 {
   // add code here to handle special events
@@ -313,7 +318,7 @@ data_read_magic_port (int address)
   if (address == STDIN_PORT && options.do_stdin)
     return getchar();
 
-#ifdef LOG_DUMP
+#ifdef AVRTEST_LOG
   if (address == TICKS_PORT && options.do_ticks)
     {
       // update TICKS_PORT only on access of first byte to avoid glitches
@@ -323,7 +328,7 @@ data_read_magic_port (int address)
       cpu_data[TICKS_PORT+2] = cycles >> 16;
       cpu_data[TICKS_PORT+3] = cycles >> 24;
     }
-#endif // LOG_DUMP
+#endif // AVRTEST_LOG
 
   // default action, just read the value
   return cpu_data[address];
@@ -413,14 +418,14 @@ data_write_byte (int address, int value)
 static INLINE byte
 get_reg (int regno)
 {
-  log_add_reg_mov ("(R%d)->%02x ", regno, cpu_reg[regno]);
+  log_append ("(R%d)->%02x ", regno, cpu_reg[regno]);
   return cpu_reg[regno];
 }
 
 static INLINE void
 put_reg (int regno, byte value)
 {
-  log_add_reg_mov ("(R%d)<-%02x ", regno, value);
+  log_append ("(R%d)<-%02x ", regno, value);
   cpu_reg[regno] = value;
 }
 
@@ -428,14 +433,14 @@ static INLINE int
 get_word_reg (int regno)
 {
   int ret = cpu_reg[regno] | (cpu_reg[regno + 1] << 8);
-  log_add_reg_mov ("(R%d)->%04x ", regno, ret);
+  log_append ("(R%d)->%04x ", regno, ret);
   return ret;
 }
 
 static INLINE void
 put_word_reg (int regno, int value)
 {
-  log_add_reg_mov ("(R%d)<-%04x ", regno, value & 0xFFFF);
+  log_append ("(R%d)<-%04x ", regno, value & 0xFFFF);
   cpu_reg[regno] = value;
   cpu_reg[regno + 1] = value >> 8;
 }
@@ -465,15 +470,46 @@ data_write_word (int address, int value)
 // ----------------------------------------------------------------------------
 // extern functions to make logging.c independent of ISA_XMEGA
 
-const int addr_SREG  = SREG;
-const int addr_SPH   = SPH;
-const int addr_SPL   = SPL;
-const int addr_EIND  = EIND;
-const int addr_RAMPZ = RAMPZ;
+const int addr_SREG       = SREG;
+const int addr_TICKS_PORT = TICKS_PORT;
+
+const magic_t named_port[] =
+  {
+    { SPL,   1, 1, 1, "SPL"   },
+    { SPH,   1, 1, 0, "SPH"   },
+    { EIND,  1, 1, 0, "EIND"  },
+    { RAMPZ, 1, 1, 0, "RAMPZ" },
+
+    { LOG_PORT,       0, 1, 0, "LOG_PORT" },
+    { TICKS_PORT,     1, 1, 0, "TICKS_PORT"   },
+    { TICKS_PORT + 1, 1, 1, 0, "TICKS_PORT+1" },
+    { TICKS_PORT + 2, 1, 1, 0, "TICKS_PORT+2" },
+    { TICKS_PORT + 3, 1, 1, 0, "TICKS_PORT+3" },
+
+    { STDOUT_PORT, 0, 1, 0, "STDOUT_PORT" },
+    { STDIN_PORT,  1, 0, 0, "STDIN_PORT" },
+    { EXIT_PORT,   0, 1, 0, "EXIT_PORT" },
+    { ABORT_PORT,  0, 1, 0, "ABORT_PORT" },
+    { 0, 0, 0, 0, NULL }
+  };
   
 int log_data_read_SP (void)
 {
   return data_read_byte_raw (SPL) | (data_read_byte_raw (SPH) << 8);
+}
+
+byte* log_cpu_address (int address, int flash)
+{
+  return flash
+    ? cpu_flash + address
+    : cpu_data + address;
+}
+
+byte log_data_read_byte (int address, int nraw)
+{
+  return (nraw)
+    ? data_read_byte (address)
+    : data_read_byte_raw (address);
 }
 
 void log_data_write_byte (int address, int value, int nraw)
@@ -1224,7 +1260,7 @@ static OP_FUNC_TYPE func_SWAP (int rd, int rr)
 /* 0111 KKKK dddd KKKK | CBR or ANDI */
 static OP_FUNC_TYPE func_ANDI (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   int result = get_reg (rd) & rr;
   store_logical_result (rd, result);
 }
@@ -1232,7 +1268,7 @@ static OP_FUNC_TYPE func_ANDI (int rd, int rr)
 /* 0011 KKKK dddd KKKK | CPI */
 static OP_FUNC_TYPE func_CPI (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   do_subtraction_8 (0, get_reg (rd), rr, 0, 0, 0);
 }
 
@@ -1245,7 +1281,7 @@ static INLINE OP_FUNC_TYPE func_LDI (int rd, int rr)
 /* 0110 KKKK dddd KKKK | SBR or ORI */
 static OP_FUNC_TYPE func_ORI (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   int result = get_reg (rd) | rr;
   store_logical_result (rd, result);
 }
@@ -1253,14 +1289,14 @@ static OP_FUNC_TYPE func_ORI (int rd, int rr)
 /* 0100 KKKK dddd KKKK | SBCI */
 static OP_FUNC_TYPE func_SBCI (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   do_subtraction_8 (rd, get_reg (rd), rr, get_carry(), 1, 1);
 }
 
 /* 0101 KKKK dddd KKKK | SUBI */
 static OP_FUNC_TYPE func_SUBI (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   do_subtraction_8 (rd, get_reg (rd), rr, 0, 0, 1);
 }
 
@@ -1372,7 +1408,7 @@ static OP_FUNC_TYPE func_BSET (int rd, int rr)
 /* 1001 0110 KKdd KKKK | ADIW */
 static OP_FUNC_TYPE func_ADIW (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   int svalue = get_word_reg (rd);
   int evalue = svalue + rr;
   put_word_reg (rd, evalue);
@@ -1388,7 +1424,7 @@ static OP_FUNC_TYPE func_ADIW (int rd, int rr)
 /* 1001 0111 KKdd KKKK | SBIW */
 static OP_FUNC_TYPE func_SBIW (int rd, int rr)
 {
-  log_add_immed (rr);
+  log_append ("(###)->%02x ", rr);
   int svalue = get_word_reg (rd);
   int evalue = svalue - rr;
   put_word_reg (rd, evalue);
@@ -1475,7 +1511,7 @@ static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 /* 0000 0001 dddd rrrr | MOVW */
 static INLINE OP_FUNC_TYPE func_MOVW (int rd, int rr)
 {
-#ifdef LOG_DUMP
+#ifdef AVRTEST_LOG
   put_word_reg (rd, get_word_reg (rr));
 #else
   put_reg (rd,     get_reg (rr));
@@ -1687,13 +1723,13 @@ load_to_flash (const char *filename)
 
 const opcode_t opcode_func_array[] =
   {
-#ifdef LOG_DUMP
+#ifdef AVRTEST_LOG
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                    \
     [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
 #else
 #define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
     [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
-#endif // LOG_DUMP
+#endif // AVRTEST_LOG
     // dummy entry to guarantee that "zero" is an invalid function
     AVR_INSN(NULL, 0, 0, NULL)
 #include "avr-insn.def"
@@ -1961,7 +1997,7 @@ decode_flash (void)
         = decode_opcode (&decoded_flash[i / 2], opcode1, opcode2);
       opcode1 = opcode2;
     }
-#ifdef LOG_DUMP
+#ifdef AVRTEST_LOG
   cpu_data[MAX_RAM_SIZE-1] = 1;
 #endif
 }
@@ -2009,6 +2045,7 @@ do_step (void)
 static INLINE void
 execute (void)
 {
+  log_init();
   dword max_instr = max_instr_count;
   program_cycles = 0;
 

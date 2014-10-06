@@ -23,8 +23,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 
@@ -32,9 +34,9 @@
 #include "options.h"
 #include "sreg.h"
 
-#ifndef LOG_DUMP
-#error no function herein is needed without LOG_DUMP
-#endif // LOG_DUMP
+#ifndef AVRTEST_LOG
+#error no function herein is needed without AVRTEST_LOG
+#endif // AVRTEST_LOG
 
 const char s_SREG[] = "CZNVSHTI";
 
@@ -42,25 +44,31 @@ const char s_SREG[] = "CZNVSHTI";
 #define IN_AVRTEST
 #include "avrtest.h"
 
-static char log_data[256];
-char *cur_log_pos = log_data;
-static int log_during_perf;
-static unsigned log_count, log_count_val;
+#define LEN_PERF_TAG_STRING  50
+#define LEN_PERF_TAG_FMT    200
+#define LEN_PERF_LABEL      100
+#define LEN_LOG_STRING      500
+#define LEN_LOG_XFMT        500
 
-typedef struct
-{
-  int on, will_be_on, pc, pc2, id, calls, n_dumps, sp;
-  dword tick;
-  unsigned cmd[4];
-} perf_t;
+#define NUM_PERFS 8
+#define NUM_PERF_CMDS 8
+
+#include "logging.h"
+
+static alog_t alog;
 static perf_t perf;
+static perfs_t perfs[NUM_PERFS];
 
 void
-log_add_data (const char *data)
+log_append (const char *fmt, ...)
 {
-  int len = strlen (data);
-  memcpy (cur_log_pos, data, len);
-  cur_log_pos += len;
+  if (alog.unused)
+    return;
+
+  va_list args;
+  va_start (args, fmt);
+  alog.pos += vsprintf (alog.pos, fmt, args);
+  va_end (args);
 }
 
 static INLINE int
@@ -80,11 +88,14 @@ mask_to_bit (int val)
     }
 }
 
+
+// Patch the instruction mnemonic to be more familiar
+// and more specific about bits
 static void
-log_put_bit (const decoded_op *op, char *buf)
+log_patch_mnemo (const decoded_op *op, char *buf)
 {
   int id, mask, style = 0;
-  
+
   switch (id = op->data_index)
     {
     default:
@@ -103,15 +114,15 @@ log_put_bit (const decoded_op *op, char *buf)
       style = 3;
       break;
     }
-  
+
   int val = mask_to_bit (mask);
-  
+
   switch (style)
     {
     case 1:
       // CBI.* --> CBI.4 etc.
       buf[-1] = "01234567"[val];
-        return;
+      return;
     case 2:
       {
         const char *s = NULL;
@@ -129,7 +140,7 @@ log_put_bit (const decoded_op *op, char *buf)
         buf[-2] = s[0];
         buf[-1] = s[1];
         return;
-        }
+      }
     case 3:
       // SE* --> SEI  etc.
       // CL* --> CLI  etc.
@@ -138,76 +149,73 @@ log_put_bit (const decoded_op *op, char *buf)
     }
 }
 
-static char buf[32];
-
 void
 log_add_instr (const decoded_op *op)
 {
-  byte id = op->data_index;
-  const char *instr = opcode_func_array[id].hreadable;
-  if (arch.pc_3bytes)
-    sprintf (buf, "%06x: %-7s ", cpu_PC * 2, instr);
-  else
-    sprintf (buf, "%04x: %-7s ", cpu_PC * 2, instr);
-    
-  log_put_bit (op, buf + 6 + 2*arch.pc_3bytes + strlen (instr));
-  log_add_data (buf);
-}
+  char mnemo_[16];
+  alog.id = op->data_index;
+  const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
 
-void
-log_add_immed (int value)
-{
-  sprintf (buf, "(###)->%02x ", value);
-  log_add_data (buf);
+  // OUT and ST* might turn on logging: always log them to alog.data[].
+  alog.maybe_OUT = (alog.id == ID_OUT || mnemo[1] == 'T');
+
+  int maybe_used = alog.maybe_log || alog.maybe_OUT;
+
+  if ((alog.unused = !maybe_used))
+    return;
+
+  strcpy (mnemo_, mnemo);
+  log_patch_mnemo (op, mnemo_ + strlen (mnemo));
+
+  fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
+  log_append (fmt, cpu_PC * 2, mnemo_);
 }
 
 
 void
 log_add_flag_read (int mask, int value)
 {
+  if (alog.unused)
+    return;
+
   int bit = mask_to_bit (mask);
-
-  if (bit < 0 || bit > 7)
-    leave (EXIT_STATUS_FATAL, "not a power of 2: %02x", mask);
-
-  sprintf (buf, " %c->%c", s_SREG[bit], '0' + !!value);
-  log_add_data (buf);
+  log_append (" %c->%c", s_SREG[bit], '0' + !!value);
 }
-
 
 void
 log_add_data_mov (const char *format, int addr, int value)
 {
-  char ad[16], *adname = ad;
+  if (alog.unused)
+    return;
+
+  char name[16];
+  const char *s_name = name;
 
   if (addr_SREG == addr)
     {
+      char *s = name;
       for (const char *f = s_SREG; *f; f++, value >>= 1)
         if (value & 1)
-          *adname++ = *f;
-      *adname++ = '\0';
-      sprintf (buf, format, ad);
-      log_add_data (buf);
+          *s++ = *f;
+      *s++ = '\0';
+      log_append (format, s_name);
       return;
     }
 
-  if (addr_EIND == addr && arch.has_eind) adname = "EIND";
-  else if (addr_SPL == addr)              adname = "SPL";
-  else if (addr_SPH == addr)              adname = "SPH";
-  else if (addr_RAMPZ == addr)            adname = "RAMPZ";
-  else
-    sprintf (adname, addr < 256 ? "%02x" : "%04x", addr);
+  for (const magic_t *p = named_port; ; p++)
+    {
+      if (addr == p->addr)
+        s_name = p->name;
+      else if (p->name == NULL)
+        sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
+      else
+        continue;
+      break;
+    }
 
-  sprintf (buf, format, adname, value);
-  log_add_data (buf);
+  log_append (format, s_name, value);
 }
 
-void
-log_add_reg_mov (const char *format, int regno, int value)
-{
-  sprintf (buf, format, regno, value);
-  log_add_data (buf);
-}
 
 static void
 putchar_escaped (char c)
@@ -225,6 +233,7 @@ putchar_escaped (char c)
 }
 
 // set argc and argv[] from -args
+// LOG_PORT = LOG_GET_ARGS_CMD;
 static void
 do_put_args (byte x)
 {
@@ -245,17 +254,17 @@ do_put_args (byte x)
   // put strings to args.addr 
   int argc = args.argc - args.i;
   int a = args.addr;
+  byte* b = log_cpu_address (args.addr, 0);
   for (int i = args.i; i < args.argc; i++)
     {
       const char *arg = i == args.i ? program : args.argv[i];
       int len = 1 + strlen (arg);
       qprintf ("*** (%04x) <-- *argv[%d] = \"", a, i - args.i);
+      strcpy ((char*) b, arg);
+      a += len;
+      b += len;
       for (int j = 0; j < len; j++)
-        {
-          char c = arg[j];
-          putchar_escaped (c);
-          log_data_write_byte (a++, c, 0);
-        }
+        putchar_escaped (arg[j]);
       qprintf ("\"\n");
     }
 
@@ -284,11 +293,188 @@ do_put_args (byte x)
 }
 
 
-NOINLINE void
-do_log_cmd (int x)
+// IEEE 754 single
+static avr_float_t
+decode_avr_float (unsigned val)
 {
-#define SET_LOGGING(F, P, C) \
-  do { options.do_log = (F); log_during_perf = (P); log_count = (C); } while(0)
+  // float =  s  bbbbbbbb mmmmmmmmmmmmmmmmmmmmmmm
+  //         31
+  // s = sign (1)
+  // b = biased exponent
+  // m = mantissa
+
+  int one;
+  const int DIG_MANT = 23;
+  const int DIG_EXP  = 8;
+  const int EXP_BIAS = 127;
+  avr_float_t af;
+
+  int r = (1 << DIG_EXP) -1;
+  unsigned mant = af.mant = val & ((1 << DIG_MANT) -1);
+  val >>= DIG_MANT;
+  af.exp_biased = val & r;
+  af.exp = af.exp_biased - EXP_BIAS;
+
+  val >>= DIG_EXP;
+  af.sign_bit = val & 1;
+
+  // Denorm?
+  if (af.exp_biased == 0)
+    af.fclass = FT_DENORM;
+  else if (af.exp_biased < r)
+    af.fclass = FT_NORM;
+  else if (mant == 0)
+    af.fclass = FT_INF;
+  else
+    af.fclass = FT_NAN;
+
+  switch (af.fclass)
+    {
+    case FT_NORM:
+    case FT_DENORM:
+      one = af.fclass == FT_NORM;
+      af.mant1 = mant | (one << DIG_MANT);
+      af.x = ldexp ((double) af.mant1, af.exp - DIG_MANT);
+      af.x = copysign (af.x, af.sign_bit ? -1.0 : 1.0);
+      break;
+    case FT_NAN:
+      af.x = nan ("");
+      break;
+    case FT_INF:
+      af.x = af.sign_bit ? -HUGE_VAL : HUGE_VAL;
+      break;
+    }
+
+  return af;
+}
+
+// Copy a string from AVR target to the host, but not more than
+// LEN_MAX characters.
+static char*
+read_string (char *p, unsigned addr, int flash_p, size_t len_max)
+{
+  char c;
+  size_t n = 0;
+  byte *p_avr = log_cpu_address (addr, flash_p);
+
+  while (++n < len_max && (c = *p_avr++))
+    if (c != '\r')
+      *p++ = c;
+
+  *p = '\0';
+  return p;
+}
+
+// Read a value as unsigned from TICKS_PORT.  Bytesize (1..4) and
+// signedness are determined by respective layout[].
+// If the value is signed a cast to signed will do the conversion.
+static unsigned
+get_raw_value (const layout_t *lay)
+{
+  byte *p = log_cpu_address (addr_TICKS_PORT, 0);
+  unsigned val = 0;
+
+  if (lay->signed_p && (0x80 & p[lay->size - 1]))
+    val = -1U;
+
+  for (int n = lay->size; n;)
+    val = (val << 8) | p[--n];
+
+  return val;
+}
+
+static void
+do_log_dump (int what)
+{
+  static int fmt_once = 0;
+  static char xfmt[LEN_LOG_XFMT];
+  static char string[LEN_LOG_STRING];
+  const layout_t *lay = & layout[what];
+
+  unsigned val = get_raw_value (lay);
+  const char *fmt = fmt_once ? xfmt : lay->fmt;
+
+  if (fmt_once == 1)
+    fmt_once = 0;
+
+  switch (what)
+    {
+    default:
+      printf (fmt, val);
+      break;
+
+    case LOG_SET_FMT_ONCE_CMD:
+    case LOG_SET_PFMT_ONCE_CMD:
+      fmt_once = 1;
+      read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
+      break;
+
+    case LOG_SET_FMT_CMD:
+    case LOG_SET_PFMT_CMD:
+      fmt_once = -1;
+      read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
+      break;
+
+    case LOG_TAG_FMT_CMD:
+    case LOG_TAG_PFMT_CMD:
+      perf.pending_LOG_TAG_FMT = 1;
+      read_string (perfs[0].tag.fmt, val, lay->in_rom,
+                   sizeof (perfs[0].tag.fmt));
+      break;
+
+    case LOG_PSTR_CMD:
+    case LOG_STR_CMD:
+      read_string (string, val, lay->in_rom, sizeof (string));
+      printf (fmt, string);
+      break;
+
+    case LOG_FLOAT_CMD:
+      {
+        avr_float_t af = decode_avr_float (val);
+        printf (fmt, af.x);
+      }
+      break;
+    }
+}
+
+static int
+print_tag (const perf_tag_t *t, const char *no_tag, const char *tag_prefix)
+{
+  printf ("%s", tag_prefix);
+
+  if (t->cmd < 0)
+    return printf (no_tag);
+
+  const char *fmt = *t->fmt ? t->fmt : layout[t->cmd].fmt;
+
+  if (t->cmd == LOG_STR_CMD)
+    return printf (fmt, t->string);
+  else if (t->cmd == LOG_FLOAT_CMD)
+    return printf (fmt, t->dval);
+  else
+    return printf (fmt, t->val);
+}
+
+static int
+print_tags (const minmax_t *mm, const char *text)
+{
+  int pos;
+  printf ("%s", text);
+  if (mm->r_min == mm->r_max)
+    return printf ("         -all-same-                      /\n");
+
+  printf ("%9d %9d", mm->r_min, mm->r_max);
+  pos = print_tag (& mm->tag_min, " -no-tag- ", "    ");
+  printf ("%*s", pos >= 20 ? 0 : 20 - pos, " / ");
+  print_tag (& mm->tag_max, " -no-tag- ", " ");
+  return printf ("\n");
+}
+
+NOINLINE void
+do_log_port_cmd (int x)
+{
+#define SET_LOGGING(F, P, C)                                            \
+  do { options.do_log=(F); alog.perf_only=(P); alog.countdown=(C); } while(0)
 
   if (args.request)
     {
@@ -302,32 +488,86 @@ do_log_cmd (int x)
       // Do perf-meter stuff only in avrtest*_log in order
       // to avoid impact on execution speed.
       perf.cmd[PERF_CMD(x)] = PERF_N (x) ? 1 << PERF_N (x) : PERF_ALL;
-      perf.will_be_on = 0 != perf.cmd[PERF_START];
+      perf.will_be_on = perf.cmd[PERF_START];
+      break;
+
+      // LOG_TAG_FMT sent the address of the format string, then
+      // LOG_TAG_PERF to use that format on a specific perf-meter
+    case LOG_TAG_PERF:
+      {
+        perfs_t *p = & perfs[PERF_N (x)];
+        int cmd = 0, tag_cmd = PERF_TAG_CMD (x);
+
+        switch (tag_cmd)
+          {
+          case PERF_TAG_STR:   cmd = LOG_STR_CMD;  break;
+          case PERF_TAG_U16:   cmd = LOG_U16_CMD;  break;
+          case PERF_TAG_U32:   cmd = LOG_U32_CMD;  break;
+          case PERF_TAG_FLOAT: cmd = LOG_FLOAT_CMD; break;
+          case PERF_LABEL:    cmd = LOG_STR_CMD;  break;
+          case PERF_PLABEL:   cmd = LOG_PSTR_CMD; break;
+          }
+
+        const layout_t *lay = & layout[cmd];
+        unsigned raw = get_raw_value (lay);
+
+        if (PERF_LABEL == tag_cmd
+            || PERF_PLABEL == tag_cmd)
+          {
+            if (raw)
+              read_string (p->label, raw, lay->in_rom, sizeof (p->label));
+            else
+              * p->label = '\0';
+            break;
+          }
+
+        perf_tag_t *t = & p->tag_for_start;
+
+        t->cmd = cmd;
+        t->val = raw;
+
+        if (cmd == LOG_STR_CMD)
+          read_string (t->string, t->val, 0, sizeof (t->string));
+        else if (cmd == LOG_FLOAT_CMD)
+          t->dval = decode_avr_float (t->val).x;
+
+        if (perf.pending_LOG_TAG_FMT)
+          strcpy (t->fmt, perfs[0].tag.fmt);
+        else
+          * t->fmt = '\0';
+        perf.pending_LOG_TAG_FMT = 0;
+      }
+      break; // LOG_TAG_PERF
+
+    case LOG_DUMP:
+      // Dumping values to host's stdout.
+      do_log_dump (LOG_NUM (x));
       break;
 
     case LOG_SET:
+      // Turning logging on / off
       switch (LOG_NUM (x))
         {
-        case LOG_GET_ARGS_NUM:
+        case LOG_GET_ARGS_CMD:
           args.request = 2;
           qprintf ("*** transfer %s-args\n", options.do_args ? "" : "-no");
           break;
-        case LOG_START_NUM:
-          qprintf ("*** start log\n");
+        case LOG_ON_CMD:
+          qprintf ("*** log On\n");
           SET_LOGGING (1, 0, 0);
           break;
-        case LOG_STOP_NUM:
-          qprintf ("*** stop log\n");
+        case LOG_OFF_CMD:
+          qprintf ("*** log Off\n");
           SET_LOGGING (0, 0, 0);
           break;
-        case LOG_PERF_NUM:
+        case LOG_PERF_CMD:
           qprintf ("*** performance log\n");
           SET_LOGGING (0, 1, 0);
           break;
         default:
-          log_count_val = LOG_NUM (x);
-          qprintf ("*** start log %u\n", log_count_val);
-          SET_LOGGING (1, 0, 1 + log_count_val);
+          alog.count_val = LOG_NUM (x);
+          qprintf ("*** start log %u\n", alog.count_val);
+          SET_LOGGING (1, 0, 1 + alog.count_val);
           break;
         } // LOG_NUM
       break; // LOG_SET
@@ -335,33 +575,23 @@ do_log_cmd (int x)
 #undef SET_LOGGING
 }
 
-typedef struct
-{
-  // Extremal values and where they occurred (code word address)
-  long min, min_at, at_start;
-  long max, max_at, at_end;
-} minmax_t;
-
-typedef struct
-{
-  int n, on, valid;
-  unsigned ticks; double ticks_ev2;
-  unsigned insns; double insns_ev2;
-  unsigned pc_start, pc_end;
-
-  // Values for current Start/Stop round
-  minmax_t pc, tick, insn;
-  // Extremal values vor stack pointer and call depth
-  minmax_t sp, calls;
-} perfs_t;
-
-static perfs_t perfs[16];
 
 static INLINE void
-minmax_update (minmax_t *mm, long x)
+minmax_update (minmax_t *mm, long x, const perfs_t *p)
 {
-  if (x < mm->min)  mm->min = x, mm->min_at = perf.pc;
-  if (x > mm->max)  mm->max = x, mm->max_at = perf.pc;
+  if (x < mm->min && p->tag.cmd >= 0) mm->tag_min = p->tag;
+  if (x > mm->max && p->tag.cmd >= 0) mm->tag_max = p->tag;
+  if (x < mm->min) { mm->min = x; mm->min_at = perf.pc; mm->r_min = p->n; }
+  if (x > mm->max) { mm->max = x; mm->max_at = perf.pc; mm->r_max = p->n; }
+}
+
+static INLINE void
+minmax_update_double (minmax_t *mm, double x, const perfs_t *p)
+{
+  if (x < mm->dmin && p->tag.cmd >= 0) mm->tag_min = p->tag;
+  if (x > mm->dmax && p->tag.cmd >= 0) mm->tag_max = p->tag;
+  if (x < mm->dmin) { mm->dmin = x; mm->min_at = perf.pc; mm->r_min = p->n; }
+  if (x > mm->dmax) { mm->dmax = x; mm->max_at = perf.pc; mm->r_max = p->n; }
 }
 
 static INLINE void
@@ -370,7 +600,252 @@ minmax_init (minmax_t *mm, long at_start)
   mm->min = LONG_MAX;
   mm->max = LONG_MIN;
   mm->at_start = at_start;
+  mm->tag_min.cmd = mm->tag_max.cmd = -1;
+  mm->dmin = HUGE_VAL;
+  mm->dmax = -HUGE_VAL;
+  mm->ev2 = 0.0;
 }
+
+static int
+perf_verbose_start (perfs_t *p, int i, int mode)
+{
+  qprintf ("\n--- ");
+
+  if (!p->valid)
+    {
+      if (PERF_START == mode)
+        qprintf ("Start T%d (round 1", i);
+    }
+  else if (PERF_START == mode)
+    {
+      if (PERF_STAT == p->valid)
+        qprintf ("Start T%d ignored: T%d in Stat mode (%d values",
+                 i, i, p->n);
+      else if (p->on)
+        qprintf ("Start T%d ignored: T%d already started (round %d",
+                 i, i, p->n);
+      else
+        qprintf ("reStart T%d (round %d", i, 1 + p->n);
+    }
+  else if (PERF_START == p->valid)
+    qprintf ("Stat T%d ignored: T%d is in Start/Stop mode (%s "
+             "round %d", i, i, p->on ? "in" : "after", p->n);
+
+  if (!options.do_quiet && mode == PERF_START)
+    {
+      perf_tag_t *t = & p->tag_for_start;
+      print_tag (t->cmd >= 0 ? t : & p->tag, "", ", ");
+      qprintf (")\n");
+    }
+
+  return (!p->valid
+          || (mode >= PERF_STAT && p->valid == PERF_STAT)
+          || (mode == PERF_START && p->valid == PERF_START && !p->on));
+}
+
+static void
+perf_stat (perfs_t *p, int i, int stat)
+{
+  if (p->tag_for_start.cmd >= 0)
+    p->tag = p->tag_for_start;
+  else
+    p->tag.cmd = -1;
+  p->tag_for_start.cmd = -1;
+
+  if (!p->valid)
+    {
+      // First value
+      p->valid = PERF_STAT;
+      p->on = p->n = 0;
+      p->val_ev = 0.0;
+      minmax_init (& p->val, 0);
+    }
+
+  double dval;
+  signed sraw = get_raw_value (& layout[LOG_S32_CMD]);
+  unsigned uraw = (unsigned) sraw & 0xffffffff;
+  if (PERF_STAT_U32 == stat)       dval = (double) uraw;
+  else if (PERF_STAT_S32 == stat)  dval = (double) sraw;
+  else                             dval = decode_avr_float (uraw).x;
+
+  p->n++;
+  minmax_update_double (& p->val, dval, p);
+  p->val.ev2 += dval * dval;
+  p->val_ev += dval;
+
+  if (!options.do_quiet)
+    {
+      qprintf ("Stat T%d (value %d = %e", i, p->n, dval);
+      print_tag (& p->tag, "", ", ");
+      qprintf (")\n");
+    }
+}
+
+// LOG_PORT = PERF_START (i)
+static void
+perf_start (perfs_t *p, int i)
+{
+  {
+    if (p->tag_for_start.cmd >= 0)
+      p->tag = p->tag_for_start;
+    else
+      p->tag.cmd = -1;
+    p->tag_for_start.cmd = -1;
+  }
+
+  if (!p->valid)
+    {
+      // First round begins
+      p->valid = PERF_START;
+      p->n = 0;
+      p->insns = p->ticks = 0;
+      minmax_init (& p->insn,  instr_count);
+      minmax_init (& p->tick,  program_cycles);
+      minmax_init (& p->calls, perf.calls);
+      minmax_init (& p->sp,    perf.sp);
+      minmax_init (& p->pc,    p->pc_start = cpu_PC);
+    }
+
+  // (Re)start
+  p->on = 1;
+  p->n++;
+  p->insn.at_start = instr_count;
+  p->tick.at_start = program_cycles;
+}
+
+
+// LOG_PORT = PERF_STOP (i)
+static void
+perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
+{
+  if (!dump)
+    {
+      int ret = 1;
+      if (!p->valid)
+        qprintf ("\n--- Stop T%d ignored: -unused-\n", i);
+      else if (p->valid == PERF_START && !p->on)
+        qprintf ("\n--- Stop T%d ignored: T%d already stopped (after "
+                 "round %d)\n", i, i, p->n);
+      else if (p->valid == PERF_STAT)
+        qprintf ("\n--- Stop T%d ignored: T%d used for Stat (%d Values)\n",
+                 i, i, p->n);
+      else
+        ret = 0;
+
+      if (ret)
+        return;
+    }
+
+  if (p->valid == PERF_START && p->on)
+    {
+      p->on = 0;
+      p->pc.at_end = p->pc_end = perf.pc2;
+      p->insn.at_end = instr_count -1;
+      p->tick.at_end = perf.tick;
+      p->calls.at_end = perf.calls;
+      p->sp.at_end = sp;
+      long ticks = p->tick.at_end - p->tick.at_start;
+      int insns = p->insn.at_end - p->insn.at_start;
+      p->tick.ev2 += (double) ticks * ticks;
+      p->insn.ev2 += (double) insns * insns;
+      p->ticks += ticks;
+      p->insns += insns;
+      minmax_update (& p->insn, insns, p);
+      minmax_update (& p->tick, ticks, p);
+
+      qprintf ("%sStop T%d (round %d",
+               dumps == PERF_ALL ? "  " : "\n--- ", i, p->n);
+      if (!options.do_quiet)
+        print_tag (& p->tag, "", ", ");
+
+      qprintf (", %04lx--%04lx, %ld Ticks)\n",
+               2 * p->pc.at_start, 2 * p->pc.at_end, ticks);
+    }
+}
+
+
+// LOG_PORT = PERF_DUMP (i)
+static void
+perf_dump (perfs_t *p, int i, int dumps)
+{
+  if (!p->valid)
+    {
+      if (dumps != PERF_ALL)
+        printf (" Timer T%d \"%s\": -unused-\n\n", i, p->label);
+      return;
+    }
+
+  long c = p->calls.at_start;
+  long s = p->sp.at_start;
+  if (p->valid == PERF_START)
+    printf (" Timer T%d \"%s\" (%d round%s):  %04x--%04x\n"
+            "              Instructions        Ticks\n"
+            "    Total:      %7u"  "         %7u\n",
+            i, p->label, p->n, p->n == 1 ? "" : "s",
+            2 * p->pc_start, 2 * p->pc_end, p->insns, p->ticks);
+  else
+    printf (" Stat  T%d \"%s\" (%d Value%s)\n",
+            i, p->label, p->n, p->n == 1 ? "" : "s");
+
+  double e_x2, e_x;
+
+  if (p->valid == PERF_START)
+    {
+      if (p->n > 1)
+        {
+          // Var(X) = E(X^2) - E^2(X)
+          e_x2 = p->tick.ev2 / p->n; e_x = (double) p->ticks / p->n;
+          double tick_sigma = sqrt (e_x2 - e_x*e_x);
+          e_x2 = p->insn.ev2 / p->n; e_x = (double) p->insns / p->n;
+          double insn_sigma = sqrt (e_x2 - e_x*e_x);
+
+          printf ("    Mean:       %7d"  "         %7d\n"
+                  "    Stand.Dev:  %7.1f""         %7.1f\n"
+                  "    Min:        %7ld" "         %7ld\n"
+                  "    Max:        %7ld" "         %7ld\n",
+                  p->insns / p->n, p->ticks / p->n, insn_sigma, tick_sigma,
+                  p->insn.min, p->tick.min, p->insn.max, p->tick.max);
+        }
+
+      printf ("    Calls (abs) in [%4ld,%4ld] was:%4ld now:%4ld\n"
+              "    Calls (rel) in [%4ld,%4ld] was:%4ld now:%4ld\n"
+              "    Stack (abs) in [%04lx,%04lx] was:%04lx now:%04lx\n"
+              "    Stack (rel) in [%4ld,%4ld] was:%4ld now:%4ld\n",
+              p->calls.min,   p->calls.max,     c, p->calls.at_end,
+              p->calls.min-c, p->calls.max-c, c-c, p->calls.at_end-c,
+              p->sp.max,      p->sp.min,        s, p->sp.at_end,
+              s-p->sp.max,    s-p->sp.min,    s-s, s-p->sp.at_end);
+      if (p->n > 1)
+        {
+          printf ("\n           Min round Max round    "
+                  "Min tag           /   Max tag\n");
+          print_tags (& p->calls, "    Calls  ");
+          print_tags (& p->sp,    "    Stack  ");
+          print_tags (& p->insn,  "    Instr. ");
+          print_tags (& p->tick,  "    Ticks  ");
+        }
+    }
+  else /* PERF_STAT */
+    {
+      e_x2 = p->val.ev2 / p->n;
+      e_x =  p->val_ev  / p->n;
+      double val_sigma = sqrt (e_x2 - e_x*e_x);
+      printf ("    Mean:       %e     round    tag\n"
+              "    Stand.Dev:  %e\n", e_x, val_sigma);
+      printf ("    Min:        %e  %8d", p->val.dmin, p->val.r_min);
+      print_tag (& p->val.tag_min, " -no-tag-", "    ");
+      printf ("\n"
+              "    Max:        %e  %8d", p->val.dmax, p->val.r_max);
+      print_tag (& p->val.tag_max, " -no-tag-", "    ");
+      printf ("\n");
+    }
+
+  printf ("\n");
+
+  p->valid = 0;
+  * p->label = '\0';
+}
+
 
 static void
 perf_instruction (int id)
@@ -387,7 +862,21 @@ perf_instruction (int id)
       if (perf.id != ID_PUSH)
         perf.calls--;
       break;
+    case ID_STS:
+      alog.stat.sts++;
+      break;
+    case ID_LDS:
+      alog.stat.lds++;
+      break;
+    case ID_SBRC: case ID_SBRS: case ID_SBIC: case ID_SBIS: case ID_CPSE:
+      alog.stat.skip++;
+      break;
     }
+  if (id >= ID_LDD_Y && id <= ID_LD_Z_incr)
+    alog.stat.load++;
+  if (id >= ID_STD_Y && id <= ID_ST_Z_incr)
+    alog.stat.store++;
+
   perf.id = id;
   perf.will_be_on = 0;
 
@@ -395,12 +884,16 @@ perf_instruction (int id)
 
   int dumps  = perf.cmd[PERF_DUMP];
   int starts = perf.cmd[PERF_START];
-  int means  = perf.cmd[PERF_MEAN];
   int stops  = perf.cmd[PERF_STOP];
+  int stats_u32   = perf.cmd[PERF_STAT_U32];
+  int stats_s32   = perf.cmd[PERF_STAT_S32];
+  int stats_float = perf.cmd[PERF_STAT_FLOAT];
+  int stats = stats_u32 | stats_s32 | stats_float;
 
   int sp = log_data_read_SP();
+  int cmd = starts || stops || dumps || stats;
 
-  if (!perf.on && !starts && !stops && !dumps && !means)
+  if (!perf.on && !cmd)
     goto done;
 
   perf.on = 0;
@@ -408,132 +901,39 @@ perf_instruction (int id)
   if (dumps)
     printf ("\n--- Dump # %d:\n", ++perf.n_dumps);
 
-  for (int i = 1; i <= 15; i++)
+  for (int i = 1; i < NUM_PERFS; i++)
     {
       perfs_t *p = &perfs[i];
-      int start = starts & (1 << i) ? PERF_START : 0;
-      int mean  = means  & (1 << i) ? PERF_MEAN : 0;
-      int stop  = stops  & (1 << i);
-      int dump  = dumps  & (1 << i);
-      int sm = start | mean;
+      int start = (starts & (1 << i)) ? PERF_START : 0;
+      int stop  = stops & (1 << i);
+      int dump  = dumps & (1 << i);
+      int stat_u32   = (stats_u32   & (1 << i)) ? PERF_STAT_U32 : 0;
+      int stat_s32   = (stats_s32   & (1 << i)) ? PERF_STAT_S32 : 0;
+      int stat_float = (stats_float & (1 << i)) ? PERF_STAT_FLOAT : 0;
+      int stat_val = stat_u32 | stat_s32 | stat_float;
 
-      if (stop && !dump && !p->on)
-        {
-          if (p->valid)
-            qprintf ("\n--- Stop T%d %signored: T%d already stopped (after "
-                    "round %d)\n", i, sm == PERF_MEAN ? "Mean " : "", i, p->n);
-          else
-            qprintf ("\n--- Stop T%d ignored: -unused-\n", i);
-        }
-      if ((stop | dump) && p->on)
-        {
-          p->on = 0;
-          p->pc.at_end = p->pc_end = perf.pc2;
-          p->insn.at_end = instr_count -1;
-          p->tick.at_end = perf.tick;
-          p->calls.at_end = perf.calls;
-          p->sp.at_end = sp;
-          int ticks = p->tick.at_end - p->tick.at_start;
-          int insns = p->insn.at_end - p->insn.at_start;
-          p->ticks_ev2 += (double) ticks * ticks;
-          p->insns_ev2 += (double) insns * insns;
-          p->ticks += ticks;
-          p->insns += insns;
-          minmax_update (& p->insn, insns);
-          minmax_update (& p->tick, ticks);
+      if (stop | dump)
+        perf_stop (p, i, dumps, dump, sp);
 
-          qprintf ("%sStop T%d %s(round %d,   %04lx--%04lx, %ld Ticks)\n",
-                  dumps == PERF_ALL ? "  " : "\n--- ", i,
-                  p->valid == PERF_MEAN ? "Mean " : "", p->n,
-                  2*p->pc.at_start, 2*p->pc.at_end,
-                  p->tick.at_end - p->tick.at_start);
-        }
-
-      if (dump && !p->valid && dumps != PERF_ALL)
-        printf (" Timer T%d: -unused-\n\n", i);
-      if (dump && p->valid)
-        {
-          long c = p->calls.at_start;
-          long s = p->sp.at_start;
-          printf (" Timer T%d (%d round%s):  %04x--%04x\n"
-                  "    Total:      %6u Instructions  %6u Ticks\n", i, p->n,
-                  p->n == 1 ? "" : "s", 2*p->pc_start, 2*p->pc_end,
-                  p->insns, p->ticks);
-          if (p->valid == PERF_MEAN)
-            {
-              // Var(X) = E(X^2) - E^2(X)
-              double e_x2, e_x;
-              e_x2 = p->ticks_ev2 / p->n; e_x = (double) p->ticks / p->n;
-              double tick_sigma = sqrt (e_x2 - e_x*e_x);
-              e_x2 = p->insns_ev2 / p->n; e_x = (double) p->insns / p->n;
-              double insn_sigma = sqrt (e_x2 - e_x*e_x);
-              printf ("    Mean:       %6d Instructions  %6d Ticks\n"
-                      "    Stand.Dev:  %6.1f Instructions  %6.1f Ticks\n"
-                      "    Min:        %6ld Instructions  %6ld Ticks\n"
-                      "    Max:        %6ld Instructions  %6ld Ticks\n",
-                      p->insns / p->n, p->ticks / p->n,
-                      insn_sigma, tick_sigma,
-                      p->insn.min, p->tick.min,
-                      p->insn.max, p->tick.max); 
-            }
-          printf ("    Calls (abs) in [% 3ld,% 3ld] was:% 4ld now:% 4ld"
-                  "    Stack (abs) in [%04lx,%04lx] was:%04lx now:%04lx\n"
-                  "    Calls (rel) in [% 3ld,% 3ld] was:% 4ld now:% 4ld"
-                  "    Stack (rel) in [% 4ld,% 4ld] was:% 4ld now:% 4ld\n\n",
-                  p->calls.min,   p->calls.max,     c, p->calls.at_end,
-                  p->sp.max,      p->sp.min,        s, p->sp.at_end,
-                  p->calls.min-c, p->calls.max-c, c-c, p->calls.at_end-c,
-                  s-p->sp.max,    s-p->sp.min,    s-s, s-p->sp.at_end);
-          p->valid = 0;
-        }
+      if (dump)
+        perf_dump (p, i, dumps);
 
       if (p->on)
         {
-          minmax_update (& p->sp, sp);
-          minmax_update (& p->calls, perf.calls);
+          minmax_update (& p->sp, sp, p);
+          minmax_update (& p->calls, perf.calls, p);
         }
 
-      const char *s_start = start ? "Start T" : "start Mean T";
-      const char *s_mode  = p->valid == PERF_START ? "Start" : "Mean";
-      
-      if (sm)
-        {
-          if (!p->valid)
-            qprintf ("\n--- %s%d (round 1)\n", s_start, i);
-          else if (p->on && sm == p->valid)
-            qprintf ("\n--- %s%d ignored: T%d already started (round %d)\n",
-                    s_start, i, i, p->n);
-          else if (!p->on && sm == p->valid)
-            qprintf ("\n--- re%s%d (round %d)\n", s_start, i, 1 + p->n);
-          else
-            qprintf ("\n--- %s%d ignored: T%d is in %s/Stop mode (%s "
-                    "round %d)\n", s_start, i, i, s_mode,
-                    p->on ? "started and in" : "stopped and after", p->n);
-          if (!p->on && sm == p->valid)
-            {
-              p->on = 1;
-              p->n ++;
-              p->insn.at_start = instr_count;
-              p->tick.at_start = program_cycles;
-            }
-          if (!p->valid)
-            {
-              p->valid = sm;
-              p->n = p->on = 1;
-              p->insns = p->ticks = 0;
-              p->insns_ev2 = p->ticks_ev2 = 0.0;
-              minmax_init (& p->insn,  instr_count);
-              minmax_init (& p->tick,  program_cycles);
-              minmax_init (& p->calls, perf.calls);
-              minmax_init (& p->sp,    perf.sp);
-              minmax_init (& p->pc,    p->pc_start = cpu_PC);
-            }
-        }
+      if (start && perf_verbose_start (p, i, start))
+        perf_start (p, i);
+      else if (stat_val && perf_verbose_start (p, i, stat_val))
+        perf_stat (p, i, stat_val);
+
       perf.on |= p->on;
     }
 
-  perf.cmd[0] = perf.cmd[1] = perf.cmd[2] = perf.cmd[3] = 0;
-done:;
+  memset (perf.cmd, 0, sizeof (perf.cmd));
+ done:;
   // Store for the next call of ours.  Needed because log_dump_line()
   // must run after the instruction has performed and we might need
   // the values from before the instruction.
@@ -543,18 +943,64 @@ done:;
   perf.tick = program_cycles;
 }
 
+
+void
+log_init (void)
+{
+  alog.pos = alog.data;
+  alog.maybe_log = 1;
+
+  for (int i = 1; i < NUM_PERFS; i++)
+    perfs[i].tag_for_start.cmd = -1;
+}
+
+
 void
 log_dump_line (int id)
 {
-  if (id && log_count && --log_count == 0)
+  if (id && alog.countdown && --alog.countdown == 0)
     {
       options.do_log = 0;
-      qprintf ("*** done log %u", log_count_val);
+      qprintf ("*** done log %u", alog.count_val);
     }
-  *cur_log_pos = '\0';
-  if (options.do_log
-      || (log_during_perf && (perf.on || perf.will_be_on)))
-    puts (log_data);
-  cur_log_pos = log_data;
+
+  int log_this = options.do_log
+    || (alog.perf_only
+        && (perf.on || perf.will_be_on));
+  if (log_this || (log_this != alog.log_this))
+    {
+      alog.maybe_log = 1;
+      puts (alog.data);
+      if (id && log_this && alog.unused){
+        leave (EXIT_STATUS_FATAL, "problem in log_dump_line");
+      }
+    }
+  else
+    alog.maybe_log = 0;
+
+  alog.log_this = log_this;
+
+  alog.stat.logged += log_this == 1;
+  alog.stat.not_logged += log_this == 0;
+  alog.stat.guess_good += log_this != alog.unused;
+  alog.stat.guess_bad  += log_this == alog.unused;
+
+  alog.pos = alog.data;
+  *alog.pos = '\0';
   perf_instruction (id);
+}
+
+void
+log_stat_guesses (void)
+{
+  const __typeof (alog.stat) *s = &alog.stat;
+  unsigned n_insns = s->logged + s->not_logged;
+  printf ("   %u Instr.:  log: %u, no log: %u, STS: %.3f%%, LDS: %.3f%%"
+          ", Skips: %.3f%%, Loads: %.3f%%, Stores: %.3f%%\n"
+          "   Bad Guesses: %u (%.2f%% of all, %.2f%% of unlogged)\n",
+          n_insns, s->logged, s->not_logged,  100. * s->sts / n_insns,
+          100. * s->lds / n_insns, 100. * s->skip / n_insns,
+          100. * s->load / n_insns, 100. * s->store / n_insns,
+          s->guess_bad, 100. * s->guess_bad / n_insns,
+          s->not_logged ? 100. * s->guess_bad /  s->not_logged : 0.0);
 }

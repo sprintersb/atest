@@ -53,7 +53,7 @@ DEP_OPTIONS = 	options.def options.h Makefile
 DEPS_LOGGING =	$(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
 DEPS =		$(DEPS_LOGGING) flag-tables.c
 
-$(A_log:=.s)	: XDEF += -DLOG_DUMP
+$(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 
 $(A:=$(EXEEXT))     : XOBJ += options.o
@@ -66,8 +66,8 @@ $(A_log:=$(EXEEXT)) : logging.o
 options.o: options.c $(DEP_OPTIONS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging.o: logging.c $(DEPS_LOGGING)
-	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DLOG_DUMP
+logging.o: logging.c logging.h $(DEPS_LOGGING)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 $(A:=.s) : avrtest.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
@@ -93,7 +93,7 @@ exe: avrtest.exe avrtest-xmega.exe
 
 W=-mingw32
 
-$(A_log:=$(W).s)   : XDEF += -DLOG_DUMP
+$(A_log:=$(W).s)   : XDEF += -DAVRTEST_LOG
 $(A_xmega:=$(W).s) : XDEF += -DISA_XMEGA
 
 $(A:=.exe)     : XOBJ_W += options$(W).o
@@ -107,8 +107,8 @@ $(A_log:=.exe) : logging$(W).o
 options$(W).o: options.c $(DEP_OPTIONS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging$(W).o: logging.c $(DEPS_LOGGING)
-	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DLOG_DUMP
+logging$(W).o: logging.c logging.h $(DEPS_LOGGING)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 $(A:=$(W).s) : avrtest.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)

@@ -1,3 +1,40 @@
+2014-10-06  Georg-Johann Lay  <avr@gjlay.de>
+
+	Improve logging and support performance-meters.
+
+	* logging.h: New file.
+	* Makefile: Rename LOG_DUMP to AVRTEST_LOG.
+	(logging.o): Depend on logging.h.
+	* avrtest.c: Rename to LOG_DUMP to AVRTEST_LOG.
+	Use log_append instead of log_add_reg_mov, log_add_immed.
+	(leave) [-runtime]: Call log_stat_guesses.
+	(execute): Call log_init.
+	(named_port[]): New variable.
+	(log_cpu_address, byte log_data_read_byte): New functions.
+	(avrtest.h):New macros to support logging.
+	* logging.c: Rename LOG_DUMP to AVRTEST_LOG.
+	(stdarg.h, inttypes.h, logging.h): Include them.
+	(log_data, cur_log_pos, log_during_perf, log_count, log_count_val)
+	Move to...
+	(alog): ...this new variable.
+	(log_add_data): Replace by...
+	(log_append): ...this new function.
+	(log_put_bit): Rename to log_patch_mnemo.
+	(log_add_immed, log_add_reg_mov, buf): Remove
+	(log_add_data_mov): Use named_port to pretty print magic ports.
+	(decode_avr_float, read_string, get_raw_value, do_log_dump)
+	(log_init, log_stat_guesses): New functions.
+	(print_tag, print_tags, minmax_update_double, perf_verbose_start)
+	(perf_stat, perf_start, perf_stop, perf_dump): New functions.
+	(perf_instruction): Use them.
+	(do_log_cmd): Rename to do_log_port_cmd.  Handle LOG_TAG_PERF.
+	(log_dump_line, log_add_instr): Try to avoid writing alog.data[]
+	if logging that instruction won't be logged.
+	* testavr.h (magic_t): New type.
+	(log_init, log_append, log_stat_guesses, log_data_read_byte)
+	(log_cpu_address): New prototypes.
+	(log_add_bit, log_add_immed, log_add_reg_mov, do_log_cmd): Remove.
+
 2014-09-30  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avrtest.c (do_subtraction_8): Reduce register pressure.

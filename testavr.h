@@ -53,14 +53,7 @@ extern unsigned cpu_PC;
 extern dword max_instr_count;
 extern dword instr_count;
 extern dword program_cycles;
-extern const char *program_name;
 extern const int is_xmega;
-
-extern const int addr_SREG;
-extern const int addr_SPH;
-extern const int addr_SPL;
-extern const int addr_EIND;
-extern const int addr_RAMPZ;
 
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
@@ -79,10 +72,27 @@ enum
 extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
 
 extern int log_data_read_SP (void);
+extern byte log_data_read_byte (int, int);
 extern void log_put_word_reg (int, int, int);
 extern void log_data_write_byte (int, int, int);
 extern void log_data_write_word (int, int, int);
+extern byte* log_cpu_address (int, int);
 extern void qprintf (const char *fmt, ...);
+
+extern const int addr_SREG;
+extern const int addr_TICKS_PORT;
+
+typedef struct
+{
+  int addr;
+  int in, out;
+  // False if PUSH, RET etc. are not supposed to change
+  // this port.
+  int any_id;
+  const char *name;
+} magic_t;
+
+extern const magic_t named_port[];
 
 #define OP_FUNC_TYPE void FASTCALL
 
@@ -91,39 +101,39 @@ typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 typedef struct
 {
   opcode_func func;
-#ifdef LOG_DUMP
-  const char *hreadable;
+#ifdef AVRTEST_LOG
+  const char *mnemo;
 #endif
   short size;
   short cycles;
 } opcode_t;
 
 
-#ifndef LOG_DUMP
+#ifndef AVRTEST_LOG
 
 // empty placeholders to keep the rest of the code clean
 
+#define log_init(...)          (void) 0
+#define log_append(...)        (void) 0
 #define log_add_instr(...)     (void) 0
-#define log_add_bit(...)       (void) 0
-#define log_add_immed(...)     (void) 0
 #define log_add_data_mov(...)  (void) 0
-#define log_add_reg_mov(...)   (void) 0
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
-#define do_log_cmd(...)        (void) 0
+#define log_stat_guesses(...)  (void) 0
 
 #else
 
-extern void log_add_data (const char *data);
+extern void log_init (void);
+extern void log_append (const char *fmt, ...);
 extern void log_add_instr (const decoded_op *op);
-extern void log_add_immed (int value);
 extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
-extern void do_log_cmd (int x);
+extern void do_log_port_cmd (int x);
+extern void log_stat_guesses (void);
 
-#endif  // LOG_DUMP
+#endif  // AVRTEST_LOG
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
