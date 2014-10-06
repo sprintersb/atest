@@ -4,6 +4,9 @@
                           ============
 
 
+* Support entry point from ELF file.                       r152  2014-10-07
+
+
 * New magic LOG_PORT for avrtest_log:                      r150  2014-10-06
   (ignored by avrtest)  
 

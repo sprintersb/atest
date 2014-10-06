@@ -135,6 +135,7 @@ static unsigned int program_size;
 dword program_cycles;
 
 unsigned cpu_PC;
+unsigned program_entry_point;
 
 #ifdef ISA_XMEGA
 static byte cpu_reg[0x20];
@@ -247,11 +248,12 @@ leave (int status, const char *reason, ...)
               exit_status_text[exit_value ? EXIT_STATUS_ABORTED : status]);
       vprintf (reason, args);
       printf ("\n"
-              "     program: %s\n"
-              "exit address: %06x\n"
-              "total cycles: %u\n\n",
-              options.program_name ? options.program_name : "-not set-",
-              cpu_PC * 2, program_cycles);
+              "     program: %s\n",
+              options.program_name ? options.program_name : "-not set-");
+      if (program_entry_point != 0)
+        printf (" entry point: %06x\n", program_entry_point);
+      printf ("exit address: %06x\n"
+              "total cycles: %u\n\n", cpu_PC * 2, program_cycles);
 
       va_end (args);
       args_consumed = 1;
@@ -1736,6 +1738,16 @@ load_elf (FILE *f)
       || get_elf32_word (&ehdr.e_version) != EV_CURRENT
       || get_elf32_half (&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
     leave (EXIT_STATUS_ABORTED, "ELF file is not an AVR executable");
+
+  if (!options.do_entry_point)
+    {
+      unsigned pc = program_entry_point = get_elf32_word (&ehdr.e_entry);
+      cpu_PC = pc / 2;
+      if (pc >= MAX_FLASH_SIZE)
+        leave (EXIT_STATUS_ABORTED, "ELF entry-point 0x%x it too big", pc);
+      else if (pc % 2 != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF entry-point 0x%x is odd", pc);
+    }
 
   int nbr_phdr = get_elf32_half (&ehdr.e_phnum);
   if ((unsigned) nbr_phdr > sizeof (phdr) / sizeof (*phdr))
