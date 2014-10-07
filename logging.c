@@ -951,7 +951,7 @@ log_dump_line (int id)
   if (id && alog.countdown && --alog.countdown == 0)
     {
       options.do_log = 0;
-      qprintf ("*** done log %u", alog.count_val);
+      qprintf ("*** done log %u\n", alog.count_val);
     }
 
   int log_this = options.do_log
@@ -961,9 +961,8 @@ log_dump_line (int id)
     {
       alog.maybe_log = 1;
       puts (alog.data);
-      if (id && log_this && alog.unused){
+      if (id && log_this && alog.unused)
         leave (EXIT_STATUS_FATAL, "problem in log_dump_line");
-      }
     }
   else
     alog.maybe_log = 0;
