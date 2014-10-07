@@ -51,10 +51,12 @@ typedef struct
 
 extern unsigned cpu_PC;
 extern unsigned program_entry_point;
+extern unsigned program_size;
 extern dword max_instr_count;
 extern dword instr_count;
 extern dword program_cycles;
 extern const int is_xmega;
+extern const int io_base;
 
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
@@ -133,6 +135,9 @@ extern void log_dump_line (int id);
 extern void do_log_port_cmd (int x);
 
 #endif  // AVRTEST_LOG
+
+extern void load_to_flash (const char *filename, byte flash[], byte ram[]);
+extern void decode_flash (decoded_op[], const byte[]);
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
