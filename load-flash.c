@@ -182,6 +182,15 @@ typedef struct
 #define STT_SECTION 3              // Symbol associated to a section
 #define STT_FILE    4              // Symbol associated to a file
 
+// Section header flags
+#define SHF_WRITE   (1u << 0)      // Section can be written during execution
+#define SHF_ALLOC   (1u << 1)      // Section occupies memory on target
+#define SHF_EXEC    (1u << 2)      // Section contains executable code
+#define SHF_MERGE   (1u << 4)      // Section data can be merged
+#define SHF_STRINGS (1u << 5)      // Section contains 0-terminated strings
+
+#define SHN_LORESERVE 0xff00       // First reserved section header index
+
 static Elf32_Half
 get_elf32_half (const Elf32_Half *v)
 {
@@ -199,24 +208,27 @@ get_elf32_word (const Elf32_Word *v)
 static void
 load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 {
-  Elf32_Shdr shdr_sym, shdr_str;
+  Elf32_Shdr *shdr;
   Elf32_Word e_shoff = get_elf32_word (&ehdr->e_shoff);
   Elf32_Half e_shnum = get_elf32_half (&ehdr->e_shnum);
   Elf32_Half e_shentsize = get_elf32_half (&ehdr->e_shentsize);
 
+  // Read section headers
+  if (e_shentsize != sizeof (Elf32_Shdr))
+    leave (EXIT_STATUS_ABORTED, "ELF section headers invalid");
   if (fseek (f, e_shoff, SEEK_SET) != 0)
     leave (EXIT_STATUS_ABORTED, "ELF section header truncated");
+  shdr = (Elf32_Shdr*) calloc (e_shnum, sizeof (Elf32_Shdr));
+  if (fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
+    leave (EXIT_STATUS_ABORTED, "can't read ELF section headers");
 
-  for (int shnum = 0; shnum < e_shnum; shnum++)
+  for (int n = 0; n < e_shnum; n++)
     {
-      // Read section headers
-      if (fread (&shdr_sym, sizeof (Elf32_Shdr), 1, f) != 1)
-        leave (EXIT_STATUS_ABORTED, "can't read ELF section header");
-      Elf32_Word sh_type = get_elf32_word (&shdr_sym.sh_type);
-      Elf32_Word sh_link = get_elf32_word (&shdr_sym.sh_link);
-      Elf32_Off  sh_offset = get_elf32_word (&shdr_sym.sh_offset);
-      Elf32_Word sh_size = get_elf32_word (&shdr_sym.sh_size);
-      size_t sh_entsize = (size_t) get_elf32_word (&shdr_sym.sh_entsize);
+      Elf32_Word sh_type = get_elf32_word (&shdr[n].sh_type);
+      Elf32_Word sh_link = get_elf32_word (&shdr[n].sh_link);
+      Elf32_Off  sh_offset = get_elf32_word (&shdr[n].sh_offset);
+      Elf32_Word sh_size = get_elf32_word (&shdr[n].sh_size);
+      size_t sh_entsize = (size_t) get_elf32_word (&shdr[n].sh_entsize);
 
       // Currently ELF does not hold more than 1 symbol table
       if (sh_type != SHT_SYMTAB)
@@ -237,37 +249,49 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
         leave (EXIT_STATUS_ABORTED, "ELF symbol table truncated");
 
       // Read string table section header
-      if (fseek (f, e_shoff + sh_link * e_shentsize, SEEK_SET) != 0)
-        leave (EXIT_STATUS_ABORTED, "ELF section header %d truncated", sh_link);
-      if (fread (&shdr_str, sizeof (Elf32_Shdr), 1, f) != 1)
-        leave (EXIT_STATUS_ABORTED, "ELF string table header truncated");
-      sh_offset = get_elf32_word (&shdr_str.sh_offset);
-      sh_size   = get_elf32_word (&shdr_str.sh_size);
-      sh_type   = get_elf32_word (&shdr_str.sh_type);
+      if (sh_link >= e_shnum)
+        leave (EXIT_STATUS_ABORTED, "ELF section header truncated");
+      sh_type   = get_elf32_word (&shdr[sh_link].sh_type);
       if (sh_type != SHT_STRTAB)
         leave (EXIT_STATUS_ABORTED, "ELF string table header invalid");
 
       // Read string table
+      sh_offset = get_elf32_word (&shdr[sh_link].sh_offset);
+      sh_size   = get_elf32_word (&shdr[sh_link].sh_size);
       char *strtab = (char*) malloc (sh_size);
       if (fseek (f, sh_offset, SEEK_SET) != 0)
         leave (EXIT_STATUS_ABORTED, "ELF string table truncated");
       if (fread (strtab, sh_size, 1, f) != 1)
-        leave (EXIT_STATUS_ABORTED, "ELF string table truncated, offset "
-               "= 0x%x, size = 0x%x", sh_offset, (unsigned) sh_size);
+        leave (EXIT_STATUS_ABORTED, "ELF string table truncated");
 
+      // Iterate all symbols
       for (size_t n = 0; n < n_syms; n++)
         {
           int st_info = symtab[n].st_info;
           int type = ELF32_ST_TYPE (st_info);
           size_t name = (size_t) get_elf32_word (&symtab[n].st_name);
-          int value = get_elf32_word (&symtab[n].st_value);
+          int shndx = get_elf32_half (&symtab[n].st_shndx);
           if (name >= sh_size)
             leave (EXIT_STATUS_ABORTED, "ELF string table too short");
-          if (type == STT_FUNC)
-            set_function_symbol (value, &strtab[name]);
+
+          unsigned flags = 0;
+          if (type == STT_NOTYPE && shndx < SHN_LORESERVE)
+            {
+              if (shndx >= e_shnum)
+                leave (EXIT_STATUS_ABORTED, "ELF section header truncated");
+              sh_type = get_elf32_word (&shdr[shndx].sh_type);
+              if (sh_type == SHT_PROGBITS)
+                flags = get_elf32_word (&shdr[shndx].sh_flags);
+            }
+          if (type == STT_FUNC || (flags & SHF_EXEC))
+            {
+              int value = get_elf32_word (&symtab[n].st_value);
+              set_function_symbol (value, &strtab[name], type == STT_FUNC);
+            }
         }
 
       free (symtab);
+      free (shdr);
 
       // Currently ELF does not hold more than 1 symbol table
       break;

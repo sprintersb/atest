@@ -46,8 +46,19 @@ typedef struct
   // No log needed for the current instruction; dont' add stuff to .data[]
   // in order to speed up matters if logging is (temporarily) off.
   int unused;
+  // Call depth after the insn completes
+  int calls;
   // Change of call depth from the last instruction.
   int calls_changed;
+  // __prologue_saves__ / __epilogue_restores__
+  struct
+  {
+    // Word address of __prologue_saves__ / __epilogue_restores__ or 0
+    int pc;
+    // Function that is using __prologue_saves__ / __epilogue_restores__
+    const char *func;
+  } prologue, epilogue;
+  
   // Symbol stack for function names from ELF.
   const char *symbol_stack[LEN_SYMBOL_STACK];
 } alog_t;

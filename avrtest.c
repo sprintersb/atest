@@ -515,15 +515,9 @@ void log_data_write_word (int address, int value, int nraw)
     }
 }
 
-void set_function_symbol (int addr, const char *fname)
+void set_function_symbol (int addr, const char *fname, int is_func)
 {
-#ifdef AVRTEST_LOG
-  if (addr % 2 != 0)
-    leave (EXIT_STATUS_ABORTED, "'%s': odd symbol address 0x%x", addr, fname);
-  if (addr >= MAX_FLASH_SIZE)
-    leave (EXIT_STATUS_ABORTED, "'%s': odd symbol address 0x%x", addr, fname);
-  func_symbol[addr/2] = fname;
-#endif
+  log_set_func_symbol (addr, fname, is_func);
 }
 
 

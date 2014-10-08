@@ -40,7 +40,7 @@
 
 const char s_SREG[] = "CZNVSHTI";
 
-const char *func_symbol[MAX_FLASH_SIZE/2];
+static const char *func_symbol[MAX_FLASH_SIZE/2];
 
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
@@ -157,6 +157,22 @@ log_patch_mnemo (const decoded_op *op, char *buf)
 }
 
 
+void
+log_set_func_symbol (int addr, const char *name, int is_func)
+{
+  if (addr % 2 != 0)
+    leave (EXIT_STATUS_ABORTED, "'%s': odd symbol address 0x%x", name, addr);
+  if (addr >= MAX_FLASH_SIZE)
+    leave (EXIT_STATUS_ABORTED, "'%s': odd symbol address 0x%x", name, addr);
+  func_symbol[addr/2] = name;
+  
+  if (0 == strcmp ("__prologue_saves__", name))
+    alog.prologue.pc = addr/2;
+  if (0 == strcmp ("__epilogue_restores__", name))
+    alog.epilogue.pc = addr/2;
+}
+
+
 static inline
 const char *func_name (int i)
 {
@@ -184,17 +200,56 @@ set_call_depth (int id)
       break;
     }
 
-  int calls = perf.calls;
   perf.calls += call;
 
   if (!options.do_symbols)
     return;
 
-  const char *name = func_symbol[cpu_PC];
+  int calls = alog.calls = alog.calls + alog.calls_changed;
+  const char *name = func_symbol[cpu_PC], *old_name = NULL;
+  const char *prologue_saves = "__prologue_saves__";
 
-  if ((name || call == 1)
-      && perf.calls >= 0  && perf.calls < LEN_SYMBOL_STACK)
-    alog.symbol_stack[perf.calls] = name;
+  if (alog.prologue.func
+      // __prologue_saves__ ends with [E]IJMP
+      && (perf.id == ID_IJMP || perf.id == ID_EIJMP))
+    {
+      name = alog.prologue.func;
+      alog.prologue.func = NULL;
+      if (calls >= 0 && calls < LEN_SYMBOL_STACK)
+        old_name = prologue_saves;
+    }
+
+  // insn call_prologue_saves: %~jmp __prologue_saves__
+  // insn epilogue_restores:   %~jmp __epilogue_restores__
+  if (perf.id == ID_RJMP || perf.id == ID_JMP)
+    {
+      unsigned off;
+      static char buf[30];
+      // __prologue_saves__ has 18 PUSH entry points
+      if ((off = (unsigned) (cpu_PC - alog.prologue.pc)) < 18
+          && alog.prologue.pc)
+        {
+          sprintf (buf, "__prologue_saves__+%u", 2 * off);
+          alog.prologue.func = func_name (calls);
+          name = buf;
+        }
+      // __epilogue_restores__ has 18 LDD *, Y+q entry points
+      if ((off = (unsigned) (cpu_PC - alog.epilogue.pc)) < 18
+          && alog.epilogue.pc)
+        {
+          sprintf (buf, "__epilogue_restores__+%u", 2 * off);
+          alog.epilogue.func = func_name (calls);
+          name = buf;
+        }
+    }
+
+  if (name
+      && calls >= 0 && calls < LEN_SYMBOL_STACK)
+    {
+      if (!old_name)
+        old_name = alog.symbol_stack[calls];
+      alog.symbol_stack[calls] = name;
+    }
 
   if (name || alog.calls_changed)
     {
@@ -205,13 +260,27 @@ set_call_depth (int id)
       switch (alog.calls_changed)
         {
         case 0:
-          log_append ("::: [%d] %s \n", calls, s0);
+          if (!old_name || 0 == strcmp (old_name, s0))
+            log_append ("::: [%d] %s \n", calls, s0);
+          else if (old_name == prologue_saves)
+            log_append ("::: [%d] %s <-- %s \n", calls, s0, old_name);
+          else if (*s0 != '.' || *old_name != '.')
+            log_append ("::: [%d] %s --> %s \n", calls, old_name, s0);
           break;
+
         case 1:
           log_append ("::: [%d]-->[%d] %s --> %s \n", calls-1, calls, s_1, s0);
           break;
+
         case -1:
-          log_append ("::: [%d]<--[%d] %s <-- %s \n", calls, calls+1, s0, s1);
+          if (alog.epilogue.func)
+            {
+              log_append ("::: [%d]<--[%d] %s <-- %s <-- __epilogue_restores__ \n",
+              calls, calls+1, s0, alog.epilogue.func);
+              alog.epilogue.func = NULL;
+            }
+          else
+            log_append ("::: [%d]<--[%d] %s <-- %s \n", calls, calls+1, s0, s1);
           break;
 
         default:
@@ -226,10 +295,10 @@ set_call_depth (int id)
 void
 log_add_instr (const decoded_op *op)
 {
+  set_call_depth (alog.id = op->id);
+
   char mnemo_[16];
-  alog.id = op->id;
   const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
-  set_call_depth (alog.id);
 
   // OUT and ST* might turn on logging: always log them to alog.data[].
   alog.maybe_OUT = (alog.id == ID_OUT || mnemo[1] == 'T');
