@@ -57,6 +57,7 @@ extern dword instr_count;
 extern dword program_cycles;
 extern const int is_xmega;
 extern const int io_base;
+extern const char *func_symbol[MAX_FLASH_SIZE/2];
 
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
@@ -138,6 +139,7 @@ extern void do_log_port_cmd (int x);
 
 extern void load_to_flash (const char *filename, byte flash[], byte ram[]);
 extern void decode_flash (decoded_op[], const byte[]);
+extern void set_function_symbol (int, const char*);
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables

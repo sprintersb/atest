@@ -69,3 +69,6 @@ AVRTEST_OPT (q, 0, quiet)
 
 // Whether to report information about avrtest's run time
 AVRTEST_OPT (runtime, 0, runtime)
+
+// Whether to read and display symbols for functions
+AVRTEST_OPT (syms, 1, symbols)

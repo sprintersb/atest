@@ -40,6 +40,8 @@
 
 const char s_SREG[] = "CZNVSHTI";
 
+const char *func_symbol[MAX_FLASH_SIZE/2];
+
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
 #include "avrtest.h"
@@ -49,6 +51,7 @@ const char s_SREG[] = "CZNVSHTI";
 #define LEN_PERF_LABEL      100
 #define LEN_LOG_STRING      500
 #define LEN_LOG_XFMT        500
+#define LEN_SYMBOL_STACK    100
 
 #define NUM_PERFS 8
 #define NUM_PERF_CMDS 8
@@ -153,12 +156,80 @@ log_patch_mnemo (const decoded_op *op, char *buf)
     }
 }
 
+
+static inline
+const char *func_name (int i)
+{
+  return i >= 0 && i < LEN_SYMBOL_STACK && alog.symbol_stack[i]
+    ? alog.symbol_stack[i]
+    : "?";
+}
+
+
+static void
+set_call_depth (int id)
+{
+  int call = 0;
+
+  switch (id)
+    {
+    case ID_RCALL: case ID_ICALL: case ID_CALL: case ID_EICALL:
+      call = 1;
+      break;
+    case ID_RET:
+      // GCC might use push/push/ret for indirect jump,
+      // don't account these for call depth
+      if (perf.id != ID_PUSH)
+        call = -1;
+      break;
+    }
+
+  int calls = perf.calls;
+  perf.calls += call;
+
+  if (!options.do_symbols)
+    return;
+
+  const char *name = func_symbol[cpu_PC];
+
+  if ((name || call == 1)
+      && perf.calls >= 0  && perf.calls < LEN_SYMBOL_STACK)
+    alog.symbol_stack[perf.calls] = name;
+
+  if (name || alog.calls_changed)
+    {
+      const char *s0  = func_name (calls);
+      const char *s1  = func_name (calls + 1);
+      const char *s_1 = func_name (calls - 1);
+
+      switch (alog.calls_changed)
+        {
+        case 0:
+          log_append ("::: [%d] %s \n", calls, s0);
+          break;
+        case 1:
+          log_append ("::: [%d]-->[%d] %s --> %s \n", calls-1, calls, s_1, s0);
+          break;
+        case -1:
+          log_append ("::: [%d]<--[%d] %s <-- %s \n", calls, calls+1, s0, s1);
+          break;
+
+        default:
+          leave (EXIT_STATUS_FATAL, "problem in set_call_depth");
+        }
+    }
+
+  alog.calls_changed = call;
+}
+
+
 void
 log_add_instr (const decoded_op *op)
 {
   char mnemo_[16];
   alog.id = op->id;
   const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
+  set_call_depth (alog.id);
 
   // OUT and ST* might turn on logging: always log them to alog.data[].
   alog.maybe_OUT = (alog.id == ID_OUT || mnemo[1] == 'T');
@@ -853,20 +924,6 @@ perf_dump (perfs_t *p, int i, int dumps)
 static void
 perf_instruction (int id)
 {
-  // call depth
-  switch (id)
-    {
-    case ID_RCALL: case ID_ICALL: case ID_CALL: case ID_EICALL:
-      perf.calls++;
-      break;
-    case ID_RET:
-      // GCC might use push/push/ret for indirect jump,
-      // don't account these for call depth
-      if (perf.id != ID_PUSH)
-        perf.calls--;
-      break;
-    }
-
   perf.id = id;
   perf.will_be_on = 0;
 

@@ -39,7 +39,8 @@ static const char USAGE[] =
   "Options:\n"
   "  -args ...    Pass all following parameters as argc and argv to main.\n"
   "  -d           Initialize SRAM from .data (for ELF program)\n"
-  "  -e ENTRY     Byte address of program entry point (defaults to 0).\n"
+  "  -e ENTRY     Byte address of program entry point.  Default for ENTRY is\n"
+  "               the entry point from the ELF program and 0 for non-ELF.\n"
   "  -m MAXCOUNT  Execute at most MAXCOUNT instructions.\n"
   "  -q           Quiet operation.  Only print messages explicitly requested,\n"
   "               e.g. by LOG_U8(42).  Pass exit status from the program.\n"
@@ -54,6 +55,8 @@ static const char USAGE[] =
   "               for user input.\n"
   "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT will not print\n"
   "               to stdout.\n"
+  "  -no-syms     Don't display function names from ELF symbol table when\n"
+  "               logging.\n"
   "  -mmcu=ARCH   Select instruction set for ARCH\n"
   "    ARCH is one of:\n";
 

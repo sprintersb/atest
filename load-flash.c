@@ -86,33 +86,60 @@ typedef uint32_t Elf32_Off;
 #define EI_NIDENT 16
 typedef struct
 {
-  unsigned char e_ident[EI_NIDENT]; /* Magic number and other info */
-  Elf32_Half    e_type;                 /* Object file type */
-  Elf32_Half    e_machine;              /* Architecture */
-  Elf32_Word    e_version;              /* Object file version */
-  Elf32_Addr    e_entry;                /* Entry point virtual address */
-  Elf32_Off     e_phoff;                /* Program header table file offset */
-  Elf32_Off     e_shoff;                /* Section header table file offset */
-  Elf32_Word    e_flags;                /* Processor-specific flags */
-  Elf32_Half    e_ehsize;               /* ELF header size in bytes */
-  Elf32_Half    e_phentsize;            /* Program header table entry size */
-  Elf32_Half    e_phnum;                /* Program header table entry count */
-  Elf32_Half    e_shentsize;            /* Section header table entry size */
-  Elf32_Half    e_shnum;                /* Section header table entry count */
-  Elf32_Half    e_shstrndx;             /* Section header string table index */
+  unsigned char e_ident[EI_NIDENT];  // Magic number and other info
+  Elf32_Half    e_type;           // Object file type
+  Elf32_Half    e_machine;        // Architecture
+  Elf32_Word    e_version;        // Object file version
+  Elf32_Addr    e_entry;          // Entry point virtual address
+  Elf32_Off     e_phoff;          // Program header table file offset
+  Elf32_Off     e_shoff;          // Section header table file offset
+  Elf32_Word    e_flags;          // Processor-specific flags
+  Elf32_Half    e_ehsize;         // ELF header size in bytes
+  Elf32_Half    e_phentsize;      // Program header table entry size
+  Elf32_Half    e_phnum;          // Program header table entry count
+  Elf32_Half    e_shentsize;      // Section header table entry size
+  Elf32_Half    e_shnum;          // Section header table entry count
+  Elf32_Half    e_shstrndx;       // Section header string table index
 } Elf32_Ehdr;
 
 typedef struct
 {
-  Elf32_Word    p_type;                 /* Segment type */
-  Elf32_Off     p_offset;               /* Segment file offset */
-  Elf32_Addr    p_vaddr;                /* Segment virtual address */
-  Elf32_Addr    p_paddr;                /* Segment physical address */
-  Elf32_Word    p_filesz;               /* Segment size in file */
-  Elf32_Word    p_memsz;                /* Segment size in memory */
-  Elf32_Word    p_flags;                /* Segment flags */
-  Elf32_Word    p_align;                /* Segment alignment */
+  Elf32_Word    p_type;           // Segment type
+  Elf32_Off     p_offset;         // Segment file offset
+  Elf32_Addr    p_vaddr;          // Segment virtual address
+  Elf32_Addr    p_paddr;          // Segment physical address
+  Elf32_Word    p_filesz;         // Segment size in file
+  Elf32_Word    p_memsz;          // Segment size in memory
+  Elf32_Word    p_flags;          // Segment flags
+  Elf32_Word    p_align;          // Segment alignment
 } Elf32_Phdr;
+
+typedef struct
+{
+  Elf32_Word sh_name;              // Section name
+  Elf32_Word sh_type;              // Section type
+  Elf32_Word sh_flags;             // Section flags
+  Elf32_Addr sh_addr;              // Section address of 1st byte in memory
+  Elf32_Off  sh_offset;            // Byte offset from beginning of program
+  Elf32_Word sh_size;              // Section size in bytes
+  Elf32_Word sh_link;              // Section header index list
+  Elf32_Word sh_info;              // Extra section info
+  Elf32_Word sh_addralign;         // Section alignment
+  Elf32_Word sh_entsize;           // Size of members in table
+} Elf32_Shdr;
+
+
+// Symbol table entry
+typedef struct
+{
+  Elf32_Word   st_name;            // Index into string table
+  Elf32_Addr   st_value;           // Value of the symbol: address, abs, ...
+  Elf32_Word   st_size;            // Size (of object etc) or 0 for unknown
+  uint8_t      st_info;            // Symbol type and binding
+  uint8_t      st_other;           // Reserved (0)
+  Elf32_Half   st_shndx;           // Section header table index
+} Elf32_Sym;
+
 
 #define EI_CLASS 4
 #define ELFCLASS32 1
@@ -130,18 +157,121 @@ typedef struct
 
 #define DATA_VADDR 0x800000
 
+#define SHT_NULL      0            // Section header is inactive
+#define SHT_PROGBITS  1            // Holds information defined by the program
+#define SHT_SYMTAB    2            // Holds a symbol table
+#define SHT_STRTAB    3            // Holds a string table
+#define SHT_RELA      4            // Holds relocation entries with addends
+#define SHT_HASH      5            // Holds holds a hash table
+#define SHT_DYNAMIC   6            // Holds info for dynamic linking
+#define SHT_NOTE      7            // Holds information to mark the file
+#define SHT_NOBITS    8            // Like SHT_PROGBITS but occupies no size
+#define SHT_REL       9            // Holds relocation entries without addends
+#define SHT_SHLIB    10            // Reserved
+#define SHT_DYNSYM   11            // Minimal symbol table for dynamic linking
+
+#define ELF32_ST_BIND(sym) (0xf & ((sym) >> 4))
+#define STB_LOCAL   0              // Symbol binds local
+#define STB_GLOBAL  1              // Symbol binds global
+#define STB_WEAK    2              // Symbol binds global, low precedence
+
+#define ELF32_ST_TYPE(sym) (0xf & (sym))
+#define STT_NOTYPE  0              // Symbol's type not specified
+#define STT_OBJECT  1              // Symbol associated to an object
+#define STT_FUNC    2              // Symbol associated to a function
+#define STT_SECTION 3              // Symbol associated to a section
+#define STT_FILE    4              // Symbol associated to a file
+
 static Elf32_Half
-get_elf32_half (Elf32_Half *v)
+get_elf32_half (const Elf32_Half *v)
 {
-  unsigned char *p = (unsigned char*) v;
+  const unsigned char *p = (const unsigned char*) v;
   return p[0] | (p[1] << 8);
 }
 
 static Elf32_Word
-get_elf32_word (Elf32_Word *v)
+get_elf32_word (const Elf32_Word *v)
 {
-  unsigned char *p = (unsigned char*) v;
+  const unsigned char *p = (const unsigned char*) v;
   return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
+static void
+load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
+{
+  Elf32_Shdr shdr_sym, shdr_str;
+  Elf32_Word e_shoff = get_elf32_word (&ehdr->e_shoff);
+  Elf32_Half e_shnum = get_elf32_half (&ehdr->e_shnum);
+  Elf32_Half e_shentsize = get_elf32_half (&ehdr->e_shentsize);
+
+  if (fseek (f, e_shoff, SEEK_SET) != 0)
+    leave (EXIT_STATUS_ABORTED, "ELF section header truncated");
+
+  for (int shnum = 0; shnum < e_shnum; shnum++)
+    {
+      // Read section headers
+      if (fread (&shdr_sym, sizeof (Elf32_Shdr), 1, f) != 1)
+        leave (EXIT_STATUS_ABORTED, "can't read ELF section header");
+      Elf32_Word sh_type = get_elf32_word (&shdr_sym.sh_type);
+      Elf32_Word sh_link = get_elf32_word (&shdr_sym.sh_link);
+      Elf32_Off  sh_offset = get_elf32_word (&shdr_sym.sh_offset);
+      Elf32_Word sh_size = get_elf32_word (&shdr_sym.sh_size);
+      size_t sh_entsize = (size_t) get_elf32_word (&shdr_sym.sh_entsize);
+
+      // Currently ELF does not hold more than 1 symbol table
+      if (sh_type != SHT_SYMTAB)
+        continue;
+
+      if (sh_entsize != sizeof (Elf32_Sym))
+        leave (EXIT_STATUS_ABORTED, "ELF symbol table header invalid: "
+               "size %d != %d", (int) sh_entsize, (int) sizeof (Elf32_Sym));
+      if (sh_size % sh_entsize != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF symbol table size invalid");
+
+      // Read symbol table
+      size_t n_syms = sh_size / sh_entsize;
+      Elf32_Sym *symtab = (Elf32_Sym*) calloc (n_syms, sizeof (Elf32_Sym));
+      if (fseek (f, sh_offset, SEEK_SET) != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF symbol table truncated");
+      if (fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
+        leave (EXIT_STATUS_ABORTED, "ELF symbol table truncated");
+
+      // Read string table section header
+      if (fseek (f, e_shoff + sh_link * e_shentsize, SEEK_SET) != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF section header %d truncated", sh_link);
+      if (fread (&shdr_str, sizeof (Elf32_Shdr), 1, f) != 1)
+        leave (EXIT_STATUS_ABORTED, "ELF string table header truncated");
+      sh_offset = get_elf32_word (&shdr_str.sh_offset);
+      sh_size   = get_elf32_word (&shdr_str.sh_size);
+      sh_type   = get_elf32_word (&shdr_str.sh_type);
+      if (sh_type != SHT_STRTAB)
+        leave (EXIT_STATUS_ABORTED, "ELF string table header invalid");
+
+      // Read string table
+      char *strtab = (char*) malloc (sh_size);
+      if (fseek (f, sh_offset, SEEK_SET) != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF string table truncated");
+      if (fread (strtab, sh_size, 1, f) != 1)
+        leave (EXIT_STATUS_ABORTED, "ELF string table truncated, offset "
+               "= 0x%x, size = 0x%x", sh_offset, (unsigned) sh_size);
+
+      for (size_t n = 0; n < n_syms; n++)
+        {
+          int st_info = symtab[n].st_info;
+          int type = ELF32_ST_TYPE (st_info);
+          size_t name = (size_t) get_elf32_word (&symtab[n].st_name);
+          int value = get_elf32_word (&symtab[n].st_value);
+          if (name >= sh_size)
+            leave (EXIT_STATUS_ABORTED, "ELF string table too short");
+          if (type == STT_FUNC)
+            set_function_symbol (value, &strtab[name]);
+        }
+
+      free (symtab);
+
+      // Currently ELF does not hold more than 1 symbol table
+      break;
+    }
 }
 
 static void
@@ -215,6 +345,9 @@ load_elf (FILE *f, byte *flash, byte *ram)
       if ((unsigned) (addr + memsz) > program_size)
         program_size = addr + memsz;
     }
+
+  if (options.do_symbols)
+    load_symbol_string_table (f, &ehdr);
 }
 
 void
