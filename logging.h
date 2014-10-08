@@ -46,6 +46,10 @@ typedef struct
   // No log needed for the current instruction; dont' add stuff to .data[]
   // in order to speed up matters if logging is (temporarily) off.
   int unused;
+  // Change of call depth from the last instruction.
+  int calls_changed;
+  // Symbol stack for function names from ELF.
+  const char *symbol_stack[LEN_SYMBOL_STACK];
 } alog_t;
 
 typedef struct

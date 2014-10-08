@@ -171,9 +171,9 @@ AVR_INSN (ROL,         1, 1,    "ROL"    )
 AVR_INSN (TST,         1, 1,    "TST"    )
 
 // XMEGA must be at the end of this file
-#ifdef ISA_XMEGA
+AVR_INSN (xmega,       0, 0,    "???"    )
+
 AVR_INSN (XCH,         1, 1,    "XCH"    )
 AVR_INSN (LAS,         1, 1,    "LAS"    )
 AVR_INSN (LAC,         1, 1,    "LAC"    )
 AVR_INSN (LAT,         1, 1,    "LAT"    )
-#endif // ISA_XMEGA
