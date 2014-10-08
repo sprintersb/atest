@@ -942,6 +942,9 @@ log_init (void)
 
   for (int i = 1; i < NUM_PERFS; i++)
     perfs[i].tag_for_start.cmd = -1;
+
+  // Tell the program whether it's being executed by avrtest or avrtest_log.
+  *(log_cpu_address (MAX_RAM_SIZE-1, 0)) = 1;
 }
 
 

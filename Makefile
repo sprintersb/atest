@@ -49,15 +49,16 @@ EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 
 exit	: $(EXIT_O)
 
-DEP_OPTIONS = 	options.def options.h Makefile
-DEPS_LOGGING =	$(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
-DEPS =		$(DEPS_LOGGING) flag-tables.c
+DEP_OPTIONS	= options.def options.h Makefile
+DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
+DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-insn.def
+DEPS		= $(DEPS_LOGGING) flag-tables.c
 
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 
-$(A:=$(EXEEXT))     : XOBJ += options.o
-$(A:=$(EXEEXT))     : options.o
+$(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o
+$(A:=$(EXEEXT))     : options.o load-flash.o
 
 $(A_log:=$(EXEEXT)) : XOBJ += logging.o
 $(A_log:=$(EXEEXT)) : XLIB += -lm
@@ -68,6 +69,9 @@ options.o: options.c $(DEP_OPTIONS)
 
 logging.o: logging.c logging.h $(DEPS_LOGGING)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 $(A:=.s) : avrtest.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
