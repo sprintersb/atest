@@ -54,16 +54,17 @@ EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 
 exit	: $(EXIT_O)
 
-DEP_OPTIONS = 	options.def options.h Makefile
-DEPS_LOGGING =	$(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
-DEPS =		$(DEPS_LOGGING) flag-tables.c
+DEP_OPTIONS	= options.def options.h Makefile
+DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
+DEPS_LOAD_FLASH	= $(DEP_OPTIONS) testavr.h avr-insn.def
+DEPS		= $(DEPS_LOGGING) flag-tables.c
 
 # Indent with TAB for automake
 $(A_log_s): XDEF += -DAVRTEST_LOG
 $(A_xmega_s): XDEF += -DISA_XMEGA
 
-$(A_exe): XOBJ += options.o
-$(A_exe): options.o
+$(A_exe): XOBJ += options.o load-flash.o
+$(A_exe): options.o load-flash.o
 
 $(A_log_exe): XOBJ += logging.o
 $(A_log_exe): XLIB += -lm
@@ -74,6 +75,9 @@ options.o: options.c $(DEP_OPTIONS)
 
 logging.o: logging.c logging.h $(DEPS_LOGGING)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 $(A_s): avrtest.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)

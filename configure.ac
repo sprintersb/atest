@@ -52,6 +52,7 @@ AC_C_CONST
 # Checks for library functions.
 AC_CHECK_FUNCS([gettimeofday strtoul])
 AC_CHECK_FUNCS([memset sqrt strrchr])
+AC_FUNC_MALLOC
 
 # Checks special compiler features
 AC_LANG(C)
