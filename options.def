@@ -39,9 +39,6 @@
         Variable attached to that option.
 */
 
-// -args ... All command args after -args are passed to the target program
-AVRTEST_OPT (args, 0, args)
-
 // -m <MAX_CYCLES> Maximum number of instructions
 AVRTEST_OPT (m, 0, max_instr_count)
 
@@ -51,8 +48,12 @@ AVRTEST_OPT (d, 0, initialize_sram)
 // -e ENTRY Set program entry point (in bytes)
 AVRTEST_OPT (e, 0, entry_point)
 
-// Whether loggin is on and LOG_PORT is active
-AVRTEST_OPT (log, 1, log)
+// Whether just to print messages that are explicitly requested
+// Use return status
+AVRTEST_OPT (q, 0, quiet)
+
+// Whether to report information about avrtest's run time
+AVRTEST_OPT (runtime, 0, runtime)
 
 // Whether STDIN_PORT is active
 AVRTEST_OPT (stdin, 1, stdin)
@@ -60,15 +61,19 @@ AVRTEST_OPT (stdin, 1, stdin)
 // Whether STDOUT_PORT is active
 AVRTEST_OPT (stdout, 1, stdout)
 
+
+/* All of the following options are silently ignored by avrtest
+   and behave as if disabled, i.e. specified as -no-...  */
+
+// -args ... All command args after -args are passed to the target
+// program resp. ignored with -no-args ...
+AVRTEST_OPT (args, 0, args)
+
+// Whether loggin is on and LOG_PORT is active
+AVRTEST_OPT (log, 1, log)
+
 // Whether TICKS_PORT is active
 AVRTEST_OPT (ticks, 0, ticks)
-
-// Whether just to print messages that are explicitly requested
-// Use return status
-AVRTEST_OPT (q, 0, quiet)
-
-// Whether to report information about avrtest's run time
-AVRTEST_OPT (runtime, 0, runtime)
 
 // Whether to read and display symbols for functions
 AVRTEST_OPT (syms, 1, symbols)

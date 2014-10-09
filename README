@@ -175,9 +175,21 @@ Voila!
 With -q turned on avrtest will print no messages except the ones
 explicitly requested by:
   - -runtime
-  - LOG_U8 (X)  etc.
-  - PERF_DUMP (N)
-  - PERF_DUMP_ALL
+  - LOG_U8 (X), PERF_DUMP_ALL and similar logging commands, see below.
+
+
+The following exit stati will be returned with -q:
+  -  0  Everything went fine.
+  -  1  Target program called abort()  resp. wrote to ABORT_PORT.
+  -  x  Target program called exit (x) resp. wrote x to EXIT_PORT.
+
+  - 10  Program timeout as set by -m MAXCOUNT.
+  - 11  Executable could not be found / read, is too big or
+        its format is invalid etc.
+  - 12  Out of memory reading symbol table (avrtest_log only).
+  - 13  Wrong avrtest usage: Unknown options, etc.
+
+  - 42  Fatal error in avrtest.
 
 
 =============================================

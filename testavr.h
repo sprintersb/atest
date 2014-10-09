@@ -25,6 +25,7 @@
 #define TESTAVR_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 // ---------------------------------------------------------------------------
 //     configuration values (in bytes).
@@ -57,6 +58,7 @@ extern dword instr_count;
 extern dword program_cycles;
 extern const int is_xmega;
 extern const int io_base;
+extern const int is_avrtest_log;
 
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
@@ -68,7 +70,10 @@ enum
     EXIT_STATUS_EXIT,
     EXIT_STATUS_ABORTED,
     EXIT_STATUS_TIMEOUT,
+    // Something went badly wrong
     EXIT_STATUS_USAGE,
+    EXIT_STATUS_FILE,
+    EXIT_STATUS_MEMORY,
     EXIT_STATUS_FATAL
   };
 
@@ -81,6 +86,7 @@ extern void log_data_write_byte (int, int, int);
 extern void log_data_write_word (int, int, int);
 extern byte* log_cpu_address (int, int);
 extern void qprintf (const char *fmt, ...);
+extern void* get_mem (unsigned, size_t);
 
 extern const int addr_SREG;
 extern const int addr_TICKS_PORT;
