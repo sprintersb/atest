@@ -46,9 +46,9 @@ typedef uint32_t dword;
 typedef struct
 {
   byte id;
-  byte oper1;
-  word oper2;
-} decoded_op;
+  byte op1;
+  word op2;
+} decoded_t;
 
 extern unsigned cpu_PC;
 extern unsigned program_entry_point;
@@ -134,7 +134,7 @@ typedef struct
 
 extern void log_init (void);
 extern void log_append (const char *fmt, ...);
-extern void log_add_instr (const decoded_op *op);
+extern void log_add_instr (const decoded_t *op);
 extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
@@ -145,7 +145,7 @@ extern void log_set_func_symbol (int, const char*, int);
 #endif  // AVRTEST_LOG
 
 extern void load_to_flash (const char *filename, byte flash[], byte ram[]);
-extern void decode_flash (decoded_op[], const byte[]);
+extern void decode_flash (decoded_t[], const byte[]);
 extern void set_function_symbol (int, const char*, int);
 
 // ---------------------------------------------------------------------------

@@ -95,11 +95,11 @@ mask_to_bit (int val)
 // Patch the instruction mnemonic to be more familiar
 // and more specific about bits
 static void
-log_patch_mnemo (const decoded_op *op, char *buf)
+log_patch_mnemo (const decoded_t *d, char *buf)
 {
   int id, mask, style = 0;
 
-  switch (id = op->id)
+  switch (id = d->id)
     {
     default:
       return;
@@ -109,15 +109,15 @@ log_patch_mnemo (const decoded_op *op, char *buf)
     case ID_SBIC:  case ID_SBIC1:  case ID_SBIC2:
     case ID_SBRS:  case ID_SBRS1:  case ID_SBRS2:
     case ID_SBRC:  case ID_SBRC1:  case ID_SBRC2:
-      mask = op->oper2;
+      mask = d->op2;
       style = 1;
       break;
     case ID_BRBS:  case ID_BRBC:
-      mask = op->oper2;
+      mask = d->op2;
       style = 2;
       break;
     case ID_BSET: case ID_BCLR:
-      mask = op->oper1;
+      mask = d->op1;
       style = 3;
       break;
     }
@@ -183,10 +183,10 @@ const char *func_name (int i)
 
 
 static void
-set_call_depth (const decoded_op *op)
+set_call_depth (const decoded_t *d)
 {
   int call = 0;
-  int id = op->id;
+  int id = d->id;
 
   switch (id)
     {
@@ -195,7 +195,7 @@ set_call_depth (const decoded_op *op)
       // program might use that instruction just as well for an
       // ordinary call.  We cannot decide what's going on and take
       // the case that's more likely: Offset == 0 is allocating stack.
-      call = op->oper2 != 0;
+      call = d->op2 != 0;
       break;
     case ID_ICALL: case ID_CALL: case ID_EICALL:
       call = 1;
@@ -307,10 +307,10 @@ set_call_depth (const decoded_op *op)
 
 
 void
-log_add_instr (const decoded_op *op)
+log_add_instr (const decoded_t *d)
 {
-  set_call_depth (op);
-  alog.id = op->id;
+  set_call_depth (d);
+  alog.id = d->id;
 
   char mnemo_[16];
   const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
@@ -324,7 +324,7 @@ log_add_instr (const decoded_op *op)
     return;
 
   strcpy (mnemo_, mnemo);
-  log_patch_mnemo (op, mnemo_ + strlen (mnemo));
+  log_patch_mnemo (d, mnemo_ + strlen (mnemo));
   fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
   log_append (fmt, cpu_PC * 2, mnemo_);
 }

@@ -467,7 +467,7 @@ static const byte avr_op_74_index[1 + 0x7ff] = {
 
 
 static int
-decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
+decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
 {
   unsigned h;
   byte index;
@@ -486,12 +486,12 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 
   if ((index = avr_op_6_index[opcode1 >> 10]))
     {
-      op->oper2 = (opcode1 & 0x0F) | ((opcode1 >> 5) & 0x0010);
-      op->oper1 = (opcode1 >> 4) & 0x1F;
-      if (ID_ADD == index && op->oper1 == op->oper2)  return ID_LSL;
-      if (ID_ADC == index && op->oper1 == op->oper2)  return ID_ROL;
-      if (ID_EOR == index && op->oper1 == op->oper2)  return ID_CLR;
-      if (ID_AND == index && op->oper1 == op->oper2)  return ID_TST;
+      d->op2 = (opcode1 & 0x0F) | ((opcode1 >> 5) & 0x0010);
+      d->op1 = (opcode1 >> 4) & 0x1F;
+      if (ID_ADD == index && d->op1 == d->op2)  return ID_LSL;
+      if (ID_ADC == index && d->op1 == d->op2)  return ID_ROL;
+      if (ID_EOR == index && d->op1 == d->op2)  return ID_CLR;
+      if (ID_AND == index && d->op1 == d->op2)  return ID_TST;
       return index;
     }
 
@@ -501,15 +501,15 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   if ((decode ^ 0x9000) <= 0x7ff
       && ((index = avr_op_74_index[decode ^ 0x9000])))
     {
-      // oper2 only used with LDS, STS
-      op->oper2 = opcode2;
-      op->oper1 = (opcode1 >> 4) & 0x1F;
+      // op2 only used with LDS, STS
+      d->op2 = opcode2;
+      d->op1 = (opcode1 >> 4) & 0x1F;
       return index;
     }
 
   // opcodes with a register (Rd) and a constant data (K) as operands
-  op->oper1 = ((opcode1 >> 4) & 0xF) | 0x10;
-  op->oper2 = (opcode1 & 0x0F) | ((opcode1 >> 4) & 0x00F0);
+  d->op1 = ((opcode1 >> 4) & 0xF) | 0x10;
+  d->op2 = (opcode1 & 0x0F) | ((opcode1 >> 4) & 0x00F0);
 
   decode = opcode1 & ~(mask_Rd_4 | mask_K_8);
   switch (decode) {
@@ -522,8 +522,8 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   }
 
   // opcodes with a register (Rd) and a register bit number (b) as operands
-  op->oper1 = (opcode1 >> 4) & 0x1F;
-  op->oper2 = 1 << (opcode1 & 0x0007);
+  d->op1 = (opcode1 >> 4) & 0x1F;
+  d->op2 = 1 << (opcode1 & 0x0007);
   decode = opcode1 & ~(mask_Rd_5 | mask_reg_bit);
   switch (decode) {
   case 0xF800: return ID_BLD;   // 1111 100d dddd 0bbb | BLD
@@ -534,7 +534,7 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 
   /* opcodes with a relative 7-bit address (k) and a register bit number (b)
      as operands */
-  op->oper1 = (opcode1 >> 3) & 0x7F;
+  d->op1 = (opcode1 >> 3) & 0x7F;
   decode = opcode1 & ~(mask_k_7 | mask_reg_bit);
   switch (decode) {
   case 0xF400: return ID_BRBC;   // 1111 01kk kkkk kbbb | BRBC
@@ -546,10 +546,10 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 
   if ((opcode1 & 0xd000) == 0x8000)
     {
-      op->oper1 = (opcode1 >> 4) & 0x1F;
-      op->oper2 = ((opcode1 & 0x7)
-                   | ((opcode1 >> 7) & 0x18)
-                   | ((opcode1 >> 8) & 0x20));
+      d->op1 = (opcode1 >> 4) & 0x1F;
+      d->op2 = ((opcode1 & 0x7)
+                | ((opcode1 >> 7) & 0x18)
+                | ((opcode1 >> 8) & 0x20));
       decode = opcode1 & ~(mask_Rd_5 | mask_q_displ);
       switch (decode) {
       case 0x8008: return ID_LDD_Y;   // 10q0 qq0d dddd 1qqq | LDD
@@ -560,8 +560,8 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
     }
 
   // opcodes with a absolute 22-bit address (k) operand
-  op->oper1 = (opcode1 & 1) | ((opcode1 >> 3) & 0x3E);
-  op->oper2 = opcode2;
+  d->op1 = (opcode1 & 1) | ((opcode1 >> 3) & 0x3E);
+  d->op2 = opcode2;
   decode = opcode1 & ~(mask_k_22);
   switch (decode) {
   case 0x940E: return ID_CALL;        // 1001 010k kkkk 111k | CALL
@@ -569,7 +569,7 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   }
 
   // opcode1 with a sreg bit select (s) operand
-  op->oper1 = 1 << ((opcode1 >> 4) & 0x07);
+  d->op1 = 1 << ((opcode1 >> 4) & 0x07);
   decode = opcode1 & ~(mask_sreg_bit);
   switch (decode) {
   // BCLR takes care of CL{C,Z,N,V,S,H,T,I}
@@ -579,8 +579,8 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   }
 
   // opcodes with a 6-bit constant (K) and a register (Rd) as operands
-  op->oper1 = ((opcode1 >> 3) & 0x06) + 24;
-  op->oper2 = (opcode1 & 0xF) | ((opcode1 >> 2) & 0x30);
+  d->op1 = ((opcode1 >> 3) & 0x06) + 24;
+  d->op2 = (opcode1 & 0xF) | ((opcode1 >> 2) & 0x30);
   decode = opcode1 & ~(mask_K_6 | mask_Rd_2);
   switch (decode) {
   case 0x9600: return ID_ADIW;        // 1001 0110 KKdd KKKK | ADIW
@@ -588,8 +588,8 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   }
 
   // opcodes with a 5-bit IO Addr (A) and register bit number (b) as operands
-  op->oper1 = ((opcode1 >> 3) & 0x1F) + io_base;
-  op->oper2 = 1 << (opcode1 & 0x0007);
+  d->op1 = ((opcode1 >> 3) & 0x1F) + io_base;
+  d->op2 = 1 << (opcode1 & 0x0007);
   decode = opcode1 & ~(mask_A_5 | mask_reg_bit);
   switch (decode) {
   case 0x9800: return ID_CBI;         // 1001 1000 AAAA Abbb | CBI
@@ -599,8 +599,8 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   }
 
   // opcodes with a 6-bit IO Addr (A) and register (Rd) as operands
-  op->oper1 = ((opcode1 >> 4) & 0x1F);
-  op->oper2 = ((opcode1 & 0x0F) | ((opcode1 >> 5) & 0x30)) + io_base;
+  d->op1 = ((opcode1 >> 4) & 0x1F);
+  d->op2 = ((opcode1 & 0x0F) | ((opcode1 >> 5) & 0x30)) + io_base;
   decode = opcode1 & ~(mask_A_6 | mask_Rd_5);
   switch (decode) {
   case 0xB000: return ID_IN;          // 1011 0AAd dddd AAAA | IN
@@ -611,7 +611,7 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   decode = opcode1 & ~(mask_k_12);
   h = opcode1 & 0x800;
   h = (opcode1 & 0x7FF) | -h;
-  op->oper2 = h;
+  d->op2 = h;
   switch (decode) {
   case 0xD000: return ID_RCALL;   // 1101 kkkk kkkk kkkk | RCALL
   case 0xC000: return ID_RJMP;    // 1100 kkkk kkkk kkkk | RJMP
@@ -621,18 +621,18 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   decode = opcode1 & ~(mask_Rd_4 | mask_Rr_4);
   switch (decode) {
   case 0x0100:
-    op->oper1 = ((opcode1 >> 4) & 0x0F) << 1;
-    op->oper2 = (opcode1 & 0x0F) << 1;
+    d->op1 = ((opcode1 >> 4) & 0x0F) << 1;
+    d->op2 = (opcode1 & 0x0F) << 1;
     return ID_MOVW;        // 0000 0001 dddd rrrr | MOVW
   case 0x0200:
-    op->oper1 = ((opcode1 >> 4) & 0x0F) | 0x10;
-    op->oper2 = (opcode1 & 0x0F) | 0x10;
+    d->op1 = ((opcode1 >> 4) & 0x0F) | 0x10;
+    d->op2 = (opcode1 & 0x0F) | 0x10;
     return ID_MULS;        // 0000 0010 dddd rrrr | MULS
   }
 
   // opcodes with two 3-bit register (Rd and Rr) operands
-  op->oper1 = ((opcode1 >> 4) & 0x07) | 0x10;
-  op->oper2 = (opcode1 & 0x07) | 0x10;
+  d->op1 = ((opcode1 >> 4) & 0x07) | 0x10;
+  d->op2 = (opcode1 & 0x07) | 0x10;
   decode = opcode1 & ~(mask_Rd_3 | mask_Rr_3);
   switch (decode) {
   case 0x0300: return ID_MULSU;   // 0000 0011 0ddd 0rrr | MULSU
@@ -641,20 +641,19 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   case 0x0388: return ID_FMULSU;  // 0000 0011 1ddd 1rrr | FMULSU
   }
 
-  op->oper2 = opcode1;
+  d->op2 = opcode1;
   return ID_ILLEGAL;
 }
 
 void
-decode_flash (decoded_op decoded[], const byte flash[])
+decode_flash (decoded_t d[], const byte flash[])
 {
   word opcode1 = flash[0] | (flash[1] << 8);
   
   for (unsigned i = 0; i < program_size; i += 2)
     {
       word opcode2 = flash[i + 2] | (flash[i + 3] << 8);
-      decoded[i / 2].id
-        = decode_opcode (&decoded[i / 2], opcode1, opcode2);
+      d[i / 2].id = decode_opcode (&d[i / 2], opcode1, opcode2);
       opcode1 = opcode2;
     }
 }
