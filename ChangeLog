@@ -1,3 +1,39 @@
+2014-10-09  Georg-Johann Lay  <avr@gjlay.de>
+
+	Display function symbols from ELF when logging.
+	New option -no-syms to switch that off.
+
+	* options.def (-[no-]syms): New option.
+	* testavr.h (program_size, io_base, log_set_func_symbol)
+	(load_to_flash, decode_flash, set_function_symbol): New protos.
+	* avr-insn.def (xmega): New pseudo insn.
+	(XCH, LAS, LAC, LAT): Don't depend on ISA_XMEGA.
+	* logging.c (func_symbol[]): New static array.
+	(LEN_SYMBOL_STACK): New macro.
+	(log_set_func_symbol, func_name): New functions.
+	(perf_instruction): Factor out code to track call depth to...
+	(set_call_depth): ...this new function.
+	(log_add_instr): Use it.
+	(log_init): Set RAM[MAX_RAM_SIZE-1] to 1.
+	(log_dump_line): Typo.
+	* avrtest.c (io_base): New const.
+	(program_size): Make global.
+	(set_function_symbol): New function.
+	(xmega_atomic, func_XCH/LAC/LAS/LAT): Don't depend on ISA_XMEGA.
+	Abort if !is_xmega.
+	(main): Adjust calls to load_to_flash and decode_flash.
+	(Elf32_Half, Elf32_Word, Elf32_Addr, uint32_t Elf32_Off)
+	(Elf32_Ehdr ,Elf32_Phdr, get_elf32_half, get_elf32_word)
+	(avr_op_16_index, avr_op_6_index, avr_op_74_index)
+	(load_elf, load_to_flash, decoder_operand_masks,)
+	(decoder_operand_masks,decode_opcode, decode_flash):
+	Move to...
+	* load-flash.c: ...this new file.
+	* Makefile (DEPS_LOAD_FLASH): New.
+	(XOBJ): Add load-flash.o.
+	(avrtest*.o): Depend on load-flash.o.
+	(load-flash.o): New rule.
+
 2014-10-07  Georg-Johann Lay  <avr@gjlay.de>
 
 	Support entry point from ELF.
