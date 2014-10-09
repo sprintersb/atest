@@ -4,7 +4,12 @@
                           ============
 
 
-* Support entry point from ELF file.                       r152  2014-10-07
+* Show function names from ELF symbol table when logging.  r153  2014-10-09
+
+  - -no-syms       New option to switch that off.
+
+
+* Use entry point from ELF file.                           r152  2014-10-07
 
 
 * New magic LOG_PORT for avrtest_log:                      r150  2014-10-06
@@ -18,7 +23,6 @@
 
 * New options for avrtest_log:                             r144  2014-09-30
   (ignored by avrtest)  
-
 
   - -no-log        Don't log instructions as they are simulated.
 
