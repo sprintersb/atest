@@ -167,9 +167,9 @@ log_set_func_symbol (int addr, const char *name, int is_func)
   func_symbol[addr/2] = name;
   
   if (0 == strcmp ("__prologue_saves__", name))
-    alog.prologue.pc = addr/2;
+    alog.prologue_save.pc = addr/2;
   if (0 == strcmp ("__epilogue_restores__", name))
-    alog.epilogue.pc = addr/2;
+    alog.epilogue_restore.pc = addr/2;
 }
 
 
@@ -207,42 +207,46 @@ set_call_depth (int id)
 
   int calls = alog.calls = alog.calls + alog.calls_changed;
   const char *name = func_symbol[cpu_PC], *old_name = NULL;
-  const char *prologue_saves = "__prologue_saves__";
 
-  if (alog.prologue.func
+  // Special handling for __prologue_saves__ and __epilogue_restores__
+  // from libgcc.
+  const char *const prologue_saves = "__prologue_saves__";
+
+  if (alog.prologue_save.func
       // __prologue_saves__ ends with [E]IJMP
       && (perf.id == ID_IJMP || perf.id == ID_EIJMP))
     {
-      name = alog.prologue.func;
-      alog.prologue.func = NULL;
+      name = alog.prologue_save.func;
+      alog.prologue_save.func = NULL;
       if (calls >= 0 && calls < LEN_SYMBOL_STACK)
         old_name = prologue_saves;
     }
 
   // insn call_prologue_saves: %~jmp __prologue_saves__
   // insn epilogue_restores:   %~jmp __epilogue_restores__
-  if (perf.id == ID_RJMP || perf.id == ID_JMP)
+  if (alog.id == ID_RJMP || alog.id == ID_JMP)
     {
       unsigned off;
       static char buf[30];
       // __prologue_saves__ has 18 PUSH entry points
-      if ((off = (unsigned) (cpu_PC - alog.prologue.pc)) < 18
-          && alog.prologue.pc)
+      if ((off = (unsigned) (cpu_PC - alog.prologue_save.pc)) < 18
+          && alog.prologue_save.pc)
         {
-          sprintf (buf, "__prologue_saves__+%u", 2 * off);
-          alog.prologue.func = func_name (calls);
+          sprintf (buf, "__prologue_saves__ + 2*%u", off);
+          alog.prologue_save.func = func_name (calls);
           name = buf;
         }
       // __epilogue_restores__ has 18 LDD *, Y+q entry points
-      if ((off = (unsigned) (cpu_PC - alog.epilogue.pc)) < 18
-          && alog.epilogue.pc)
+      if ((off = (unsigned) (cpu_PC - alog.epilogue_restore.pc)) < 18
+          && alog.epilogue_restore.pc)
         {
-          sprintf (buf, "__epilogue_restores__+%u", 2 * off);
-          alog.epilogue.func = func_name (calls);
+          sprintf (buf, "__epilogue_restores__ + 2*%u", off);
+          alog.epilogue_restore.func = func_name (calls);
           name = buf;
         }
     }
 
+  // Update symbol stack according to call stack
   if (name
       && calls >= 0 && calls < LEN_SYMBOL_STACK)
     {
@@ -273,14 +277,12 @@ set_call_depth (int id)
           break;
 
         case -1:
-          if (alog.epilogue.func)
-            {
-              log_append ("::: [%d]<--[%d] %s <-- %s <-- __epilogue_restores__ \n",
-              calls, calls+1, s0, alog.epilogue.func);
-              alog.epilogue.func = NULL;
-            }
+          if (alog.epilogue_restore.func)
+            log_append ("::: [%d]<--[%d] %s <-- %s <-- __epilogue_restores__"
+                        "\n", calls, calls+1, s0, alog.epilogue_restore.func);
           else
             log_append ("::: [%d]<--[%d] %s <-- %s \n", calls, calls+1, s0, s1);
+          alog.epilogue_restore.func = NULL;
           break;
 
         default:
@@ -295,7 +297,8 @@ set_call_depth (int id)
 void
 log_add_instr (const decoded_op *op)
 {
-  set_call_depth (alog.id = op->id);
+  set_call_depth (op->id);
+  alog.id = op->id;
 
   char mnemo_[16];
   const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
@@ -786,6 +789,7 @@ perf_verbose_start (perfs_t *p, int i, int mode)
           || (mode == PERF_START && p->valid == PERF_START && !p->on));
 }
 
+// LOG_PORT = PERF_STAT_XXX (i, x)
 static void
 perf_stat (perfs_t *p, int i, int stat)
 {

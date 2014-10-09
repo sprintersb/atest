@@ -33,45 +33,29 @@
 
 enum decoder_operand_masks
   {
-    /** 2 bit register id  ( R24, R26, R28, R30 ) */
-    mask_Rd_2     = 0x0030,
-    /** 3 bit register id  ( R16 - R23 ) */
-    mask_Rd_3     = 0x0070,
-    /** 4 bit register id  ( R16 - R31 ) */
-    mask_Rd_4     = 0x00f0,
-    /** 5 bit register id  ( R00 - R31 ) */
-    mask_Rd_5     = 0x01f0,
+    mask_Rd_2     = 0x0030,    // 2 bit register id (R24, R26, R28, R30)
+    mask_Rd_3     = 0x0070,    // 3 bit register id (R16--R23)
+    mask_Rd_4     = 0x00f0,    // 4 bit register id (R16--R31)
+    mask_Rd_5     = 0x01f0,    // 5 bit register id (R00--R31)
 
-    /** 3 bit register id  ( R16 - R23 ) */
-    mask_Rr_3     = 0x0007,
-    /** 4 bit register id  ( R16 - R31 ) */
-    mask_Rr_4     = 0x000f,
-    /** 5 bit register id  ( R00 - R31 ) */
-    mask_Rr_5     = 0x020f,
+    mask_Rr_3     = 0x0007,    // 3 bit register id (R16--R23)
+    mask_Rr_4     = 0x000f,    // 4 bit register id (R16--R31)
+    mask_Rr_5     = 0x020f,    // 5 bit register id (R00--R31)
 
-    /** for 8 bit constant */
-    mask_K_8      = 0x0F0F,
-    /** for 6 bit constant */
-    mask_K_6      = 0x00CF,
+    mask_K_8      = 0x0F0F,    // for 8 bit constant
+    mask_K_6      = 0x00CF,    // for 6 bit constant
 
-    /** for 7 bit relative address */
-    mask_k_7      = 0x03F8,
-    /** for 12 bit relative address */
-    mask_k_12     = 0x0FFF,
-    /** for 22 bit absolute address */
-    mask_k_22     = 0x01F1,
+    mask_k_7      = 0x03F8,    // for  7 bit relative address
+    mask_k_12     = 0x0FFF,    // for 12 bit relative address
+    mask_k_22     = 0x01F1,    // for 22 bit absolute address
 
-    /** register bit select */
-    mask_reg_bit  = 0x0007,
-    /** status register bit select */
-    mask_sreg_bit = 0x0070,
-    /** address displacement (q) */
-    mask_q_displ  = 0x2C07,
 
-    /** 5 bit register id  ( R00 - R31 ) */
-    mask_A_5      = 0x00F8,
-    /** 6 bit IO port id */
-    mask_A_6      = 0x060F
+    mask_reg_bit  = 0x0007,    // register bit select
+    mask_sreg_bit = 0x0070,    // status register bit select
+    mask_q_displ  = 0x2C07,    // address displacement (q)
+
+    mask_A_5      = 0x00F8,    // 5 bit register id (R00--R31)
+    mask_A_6      = 0x060F     // 6 bit IO port id
   };
 
 
@@ -86,58 +70,58 @@ typedef uint32_t Elf32_Off;
 #define EI_NIDENT 16
 typedef struct
 {
-  unsigned char e_ident[EI_NIDENT];  // Magic number and other info
-  Elf32_Half    e_type;           // Object file type
-  Elf32_Half    e_machine;        // Architecture
-  Elf32_Word    e_version;        // Object file version
-  Elf32_Addr    e_entry;          // Entry point virtual address
-  Elf32_Off     e_phoff;          // Program header table file offset
-  Elf32_Off     e_shoff;          // Section header table file offset
-  Elf32_Word    e_flags;          // Processor-specific flags
-  Elf32_Half    e_ehsize;         // ELF header size in bytes
-  Elf32_Half    e_phentsize;      // Program header table entry size
-  Elf32_Half    e_phnum;          // Program header table entry count
-  Elf32_Half    e_shentsize;      // Section header table entry size
-  Elf32_Half    e_shnum;          // Section header table entry count
-  Elf32_Half    e_shstrndx;       // Section header string table index
+  uint8_t e_ident[EI_NIDENT];  // Magic number and other info
+  Elf32_Half  e_type;          // Object file type
+  Elf32_Half  e_machine;       // Architecture
+  Elf32_Word  e_version;       // Object file version
+  Elf32_Addr  e_entry;         // Entry point virtual address
+  Elf32_Off   e_phoff;         // Program header table file offset
+  Elf32_Off   e_shoff;         // Section header table file offset
+  Elf32_Word  e_flags;         // Processor-specific flags
+  Elf32_Half  e_ehsize;        // ELF header size in bytes
+  Elf32_Half  e_phentsize;     // Program header table entry size
+  Elf32_Half  e_phnum;         // Program header table entry count
+  Elf32_Half  e_shentsize;     // Section header table entry size
+  Elf32_Half  e_shnum;         // Section header table entry count
+  Elf32_Half  e_shstrndx;      // Section header string table index
 } Elf32_Ehdr;
 
 typedef struct
 {
-  Elf32_Word    p_type;           // Segment type
-  Elf32_Off     p_offset;         // Segment file offset
-  Elf32_Addr    p_vaddr;          // Segment virtual address
-  Elf32_Addr    p_paddr;          // Segment physical address
-  Elf32_Word    p_filesz;         // Segment size in file
-  Elf32_Word    p_memsz;          // Segment size in memory
-  Elf32_Word    p_flags;          // Segment flags
-  Elf32_Word    p_align;          // Segment alignment
+  Elf32_Word  p_type;          // Segment type
+  Elf32_Off   p_offset;        // Segment file offset
+  Elf32_Addr  p_vaddr;         // Segment virtual address
+  Elf32_Addr  p_paddr;         // Segment physical address
+  Elf32_Word  p_filesz;        // Segment size in file
+  Elf32_Word  p_memsz;         // Segment size in memory
+  Elf32_Word  p_flags;         // Segment flags
+  Elf32_Word  p_align;         // Segment alignment
 } Elf32_Phdr;
 
 typedef struct
 {
-  Elf32_Word sh_name;              // Section name
-  Elf32_Word sh_type;              // Section type
-  Elf32_Word sh_flags;             // Section flags
-  Elf32_Addr sh_addr;              // Section address of 1st byte in memory
-  Elf32_Off  sh_offset;            // Byte offset from beginning of program
-  Elf32_Word sh_size;              // Section size in bytes
-  Elf32_Word sh_link;              // Section header index list
-  Elf32_Word sh_info;              // Extra section info
-  Elf32_Word sh_addralign;         // Section alignment
-  Elf32_Word sh_entsize;           // Size of members in table
+  Elf32_Word sh_name;          // Section name
+  Elf32_Word sh_type;          // Section type
+  Elf32_Word sh_flags;         // Section flags
+  Elf32_Addr sh_addr;          // Section address of 1st byte in memory
+  Elf32_Off  sh_offset;        // Byte offset from beginning of program
+  Elf32_Word sh_size;          // Section size in bytes
+  Elf32_Word sh_link;          // Section header index list
+  Elf32_Word sh_info;          // Extra section info
+  Elf32_Word sh_addralign;     // Section alignment
+  Elf32_Word sh_entsize;       // Size of members in table
 } Elf32_Shdr;
 
 
 // Symbol table entry
 typedef struct
 {
-  Elf32_Word   st_name;            // Index into string table
-  Elf32_Addr   st_value;           // Value of the symbol: address, abs, ...
-  Elf32_Word   st_size;            // Size (of object etc) or 0 for unknown
-  uint8_t      st_info;            // Symbol type and binding
-  uint8_t      st_other;           // Reserved (0)
-  Elf32_Half   st_shndx;           // Section header table index
+  Elf32_Word   st_name;        // Index into string table
+  Elf32_Addr   st_value;       // Value of the symbol: address, abs, ...
+  Elf32_Word   st_size;        // Size (of object etc) or 0 for unknown
+  uint8_t      st_info;        // Symbol type and binding
+  uint8_t      st_other;       // Reserved (0)
+  Elf32_Half   st_shndx;       // Section header table index
 } Elf32_Sym;
 
 
@@ -157,39 +141,44 @@ typedef struct
 
 #define DATA_VADDR 0x800000
 
-#define SHT_NULL      0            // Section header is inactive
-#define SHT_PROGBITS  1            // Holds information defined by the program
-#define SHT_SYMTAB    2            // Holds a symbol table
-#define SHT_STRTAB    3            // Holds a string table
-#define SHT_RELA      4            // Holds relocation entries with addends
-#define SHT_HASH      5            // Holds holds a hash table
-#define SHT_DYNAMIC   6            // Holds info for dynamic linking
-#define SHT_NOTE      7            // Holds information to mark the file
-#define SHT_NOBITS    8            // Like SHT_PROGBITS but occupies no size
-#define SHT_REL       9            // Holds relocation entries without addends
-#define SHT_SHLIB    10            // Reserved
-#define SHT_DYNSYM   11            // Minimal symbol table for dynamic linking
-
-#define ELF32_ST_BIND(sym) (0xf & ((sym) >> 4))
-#define STB_LOCAL   0              // Symbol binds local
-#define STB_GLOBAL  1              // Symbol binds global
-#define STB_WEAK    2              // Symbol binds global, low precedence
-
-#define ELF32_ST_TYPE(sym) (0xf & (sym))
-#define STT_NOTYPE  0              // Symbol's type not specified
-#define STT_OBJECT  1              // Symbol associated to an object
-#define STT_FUNC    2              // Symbol associated to a function
-#define STT_SECTION 3              // Symbol associated to a section
-#define STT_FILE    4              // Symbol associated to a file
+// Section header type
+#define SHT_NULL      0        // Section header is inactive
+#define SHT_PROGBITS  1        // Holds information defined by the program
+#define SHT_SYMTAB    2        // Holds a symbol table
+#define SHT_STRTAB    3        // Holds a string table
+#define SHT_RELA      4        // Holds relocation entries with addends
+#define SHT_HASH      5        // Holds holds a hash table
+#define SHT_DYNAMIC   6        // Holds info for dynamic linking
+#define SHT_NOTE      7        // Holds information to mark the file
+#define SHT_NOBITS    8        // Like SHT_PROGBITS but occupies no size
+#define SHT_REL       9        // Holds relocation entries without addends
+#define SHT_SHLIB    10        // Reserved
+#define SHT_DYNSYM   11        // Minimal symbol table for dynamic linking
 
 // Section header flags
-#define SHF_WRITE   (1u << 0)      // Section can be written during execution
-#define SHF_ALLOC   (1u << 1)      // Section occupies memory on target
-#define SHF_EXEC    (1u << 2)      // Section contains executable code
-#define SHF_MERGE   (1u << 4)      // Section data can be merged
-#define SHF_STRINGS (1u << 5)      // Section contains 0-terminated strings
+#define SHF_WRITE   (1u << 0)  // Section can be written during execution
+#define SHF_ALLOC   (1u << 1)  // Section occupies memory on target
+#define SHF_EXEC    (1u << 2)  // Section contains executable code
+#define SHF_MERGE   (1u << 4)  // Section data can be merged
+#define SHF_STRINGS (1u << 5)  // Section contains 0-terminated strings
 
-#define SHN_LORESERVE 0xff00       // First reserved section header index
+// Special values for Elf32_Sym.st_shndx
+#define SHN_LORESERVE 0xff00   // First reserved section header index
+
+// Symbol table bindings
+#define ELF32_ST_BIND(sym) (0xf & ((sym) >> 4))
+#define STB_LOCAL   0          // Symbol binds local
+#define STB_GLOBAL  1          // Symbol binds global
+#define STB_WEAK    2          // Symbol binds global, low precedence
+
+// Symbol table types
+#define ELF32_ST_TYPE(sym) (0xf & (sym))
+#define STT_NOTYPE  0          // Symbol's type not specified
+#define STT_OBJECT  1          // Symbol associated to an object
+#define STT_FUNC    2          // Symbol associated to a function
+#define STT_SECTION 3          // Symbol associated to a section
+#define STT_FILE    4          // Symbol associated to a file
+
 
 static Elf32_Half
 get_elf32_half (const Elf32_Half *v)
@@ -225,7 +214,6 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
     {
       Elf32_Word sh_type = get_elf32_word (&shdr[n].sh_type);
 
-      // Currently ELF does not hold more than 1 symbol table
       if (sh_type != SHT_SYMTAB)
         continue;
 
@@ -236,7 +224,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 
       if (sh_entsize != sizeof (Elf32_Sym)
           || sh_size % sh_entsize != 0)
-        leave (EXIT_STATUS_ABORTED, "ELF symbol header invalid");
+        leave (EXIT_STATUS_ABORTED, "ELF symbol section header invalid");
 
       // Read symbol table
       size_t n_syms = sh_size / sh_entsize;
@@ -286,6 +274,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
             }
         }
 
+      // Release data no more needed.  Retain strtab[].
       free (symtab);
       free (shdr);
 

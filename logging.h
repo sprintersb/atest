@@ -57,7 +57,7 @@ typedef struct
     int pc;
     // Function that is using __prologue_saves__ / __epilogue_restores__
     const char *func;
-  } prologue, epilogue;
+  } prologue_save, epilogue_restore;
   
   // Symbol stack for function names from ELF.
   const char *symbol_stack[LEN_SYMBOL_STACK];
