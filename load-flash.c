@@ -216,42 +216,39 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
   // Read section headers
   if (e_shentsize != sizeof (Elf32_Shdr))
     leave (EXIT_STATUS_ABORTED, "ELF section headers invalid");
-  if (fseek (f, e_shoff, SEEK_SET) != 0)
-    leave (EXIT_STATUS_ABORTED, "ELF section header truncated");
   shdr = (Elf32_Shdr*) calloc (e_shnum, sizeof (Elf32_Shdr));
-  if (fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
-    leave (EXIT_STATUS_ABORTED, "can't read ELF section headers");
+  if (fseek (f, e_shoff, SEEK_SET) != 0
+      || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
+    leave (EXIT_STATUS_ABORTED, "ELF section headers truncated");
 
   for (int n = 0; n < e_shnum; n++)
     {
       Elf32_Word sh_type = get_elf32_word (&shdr[n].sh_type);
-      Elf32_Word sh_link = get_elf32_word (&shdr[n].sh_link);
-      Elf32_Off  sh_offset = get_elf32_word (&shdr[n].sh_offset);
-      Elf32_Word sh_size = get_elf32_word (&shdr[n].sh_size);
-      size_t sh_entsize = (size_t) get_elf32_word (&shdr[n].sh_entsize);
 
       // Currently ELF does not hold more than 1 symbol table
       if (sh_type != SHT_SYMTAB)
         continue;
 
-      if (sh_entsize != sizeof (Elf32_Sym))
-        leave (EXIT_STATUS_ABORTED, "ELF symbol table header invalid: "
-               "size %d != %d", (int) sh_entsize, (int) sizeof (Elf32_Sym));
-      if (sh_size % sh_entsize != 0)
-        leave (EXIT_STATUS_ABORTED, "ELF symbol table size invalid");
+      Elf32_Word sh_link = get_elf32_word (&shdr[n].sh_link);
+      Elf32_Word sh_size = get_elf32_word (&shdr[n].sh_size);
+      Elf32_Off sh_offset = get_elf32_word (&shdr[n].sh_offset);
+      size_t sh_entsize = (size_t) get_elf32_word (&shdr[n].sh_entsize);
+
+      if (sh_entsize != sizeof (Elf32_Sym)
+          || sh_size % sh_entsize != 0)
+        leave (EXIT_STATUS_ABORTED, "ELF symbol header invalid");
 
       // Read symbol table
       size_t n_syms = sh_size / sh_entsize;
       Elf32_Sym *symtab = (Elf32_Sym*) calloc (n_syms, sizeof (Elf32_Sym));
-      if (fseek (f, sh_offset, SEEK_SET) != 0)
-        leave (EXIT_STATUS_ABORTED, "ELF symbol table truncated");
-      if (fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
+      if (fseek (f, sh_offset, SEEK_SET) != 0
+          || fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
         leave (EXIT_STATUS_ABORTED, "ELF symbol table truncated");
 
       // Read string table section header
       if (sh_link >= e_shnum)
         leave (EXIT_STATUS_ABORTED, "ELF section header truncated");
-      sh_type   = get_elf32_word (&shdr[sh_link].sh_type);
+      sh_type = get_elf32_word (&shdr[sh_link].sh_type);
       if (sh_type != SHT_STRTAB)
         leave (EXIT_STATUS_ABORTED, "ELF string table header invalid");
 
@@ -259,18 +256,17 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
       sh_offset = get_elf32_word (&shdr[sh_link].sh_offset);
       sh_size   = get_elf32_word (&shdr[sh_link].sh_size);
       char *strtab = (char*) malloc (sh_size);
-      if (fseek (f, sh_offset, SEEK_SET) != 0)
-        leave (EXIT_STATUS_ABORTED, "ELF string table truncated");
-      if (fread (strtab, sh_size, 1, f) != 1)
+      if (fseek (f, sh_offset, SEEK_SET) != 0
+          || fread (strtab, sh_size, 1, f) != 1)
         leave (EXIT_STATUS_ABORTED, "ELF string table truncated");
 
       // Iterate all symbols
       for (size_t n = 0; n < n_syms; n++)
         {
-          int st_info = symtab[n].st_info;
-          int type = ELF32_ST_TYPE (st_info);
-          size_t name = (size_t) get_elf32_word (&symtab[n].st_name);
-          int shndx = get_elf32_half (&symtab[n].st_shndx);
+          const Elf32_Sym *sym = symtab + n;
+          int type = ELF32_ST_TYPE (sym->st_info);
+          size_t name = (size_t) get_elf32_word (&sym->st_name);
+          int shndx = get_elf32_half (&sym->st_shndx);
           if (name >= sh_size)
             leave (EXIT_STATUS_ABORTED, "ELF string table too short");
 
@@ -285,7 +281,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
             }
           if (type == STT_FUNC || (flags & SHF_EXEC))
             {
-              int value = get_elf32_word (&symtab[n].st_value);
+              int value = get_elf32_word (&sym->st_value);
               set_function_symbol (value, &strtab[name], type == STT_FUNC);
             }
         }
