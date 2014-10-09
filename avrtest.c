@@ -64,7 +64,7 @@ const int io_base = IOBASE;
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
 #include "avrtest.h"
-#include "flag-tables.c"
+#include "flag-tables.h"
 
 #define REGX    26
 #define REGY    28

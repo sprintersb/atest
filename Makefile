@@ -52,13 +52,13 @@ exit	: $(EXIT_O)
 DEP_OPTIONS	= options.def options.h Makefile
 DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
 DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-insn.def
-DEPS		= $(DEPS_LOGGING) flag-tables.c
+DEPS		= $(DEPS_LOGGING) flag-tables.h
 
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 
-$(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o
-$(A:=$(EXEEXT))     : options.o load-flash.o
+$(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o flag-tables.o
+$(A:=$(EXEEXT))     : options.o load-flash.o flag-tables.o
 
 $(A_log:=$(EXEEXT)) : XOBJ += logging.o
 $(A_log:=$(EXEEXT)) : XLIB += -lm
@@ -73,6 +73,9 @@ logging.o: logging.c logging.h $(DEPS_LOGGING)
 load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
+flag-tables.o: flag-tables.c Makefile
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
 $(A:=.s) : avrtest.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
 
@@ -85,7 +88,8 @@ $(EXE) : avrtest%$(EXEEXT) : avrtest%.s
 .PHONY: flag-tables
 
 flag-tables: gen-flag-tables$(BUILD_EXEEXT) Makefile
-	./$< > $@.c
+	./$< 0 > $@.c
+	./$< 1 > $@.h
 
 gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $< -o $@
@@ -100,8 +104,8 @@ W=-mingw32
 $(A_log:=$(W).s)   : XDEF += -DAVRTEST_LOG
 $(A_xmega:=$(W).s) : XDEF += -DISA_XMEGA
 
-$(A:=.exe)     : XOBJ_W += options$(W).o
-$(A:=.exe)     : options$(W).o
+$(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o
+$(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o
 
 $(A_log:=.exe) : XOBJ_W += logging$(W).o
 $(A_log:=.exe) : XLIB += -lm
@@ -113,6 +117,12 @@ options$(W).o: options.c $(DEP_OPTIONS)
 
 logging$(W).o: logging.c logging.h $(DEPS_LOGGING)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+load-flash$(W).o: load-flash.c $(DEPS_LOAD_FLASH)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+flag-tables$(W).o: flag-tables.c Makefile
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 $(A:=$(W).s) : avrtest.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
