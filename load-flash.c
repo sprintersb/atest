@@ -342,15 +342,15 @@ load_elf (FILE *f, byte *flash, byte *ram)
       if (fseek (f, get_elf32_word (&phdr[i].p_offset), SEEK_SET) != 0)
         leave (EXIT_STATUS_ABORTED, "ELF file truncated");
 
-      /* Read to Flash.  */
+      // Read to Flash
       if (fread (flash + addr, filesz, 1, f) != 1)
         leave (EXIT_STATUS_ABORTED, "ELF file truncated");
 
-      /* Also copy in SRAM.  */
+      // Also copy in SRAM
       if (options.do_initialize_sram && vaddr >= DATA_VADDR)
         memcpy (ram + vaddr - DATA_VADDR, flash + addr, filesz);
 
-      /* No need to clear memory.  */
+      // No need to clear memory
       if ((unsigned) (addr + memsz) > program_size)
         program_size = addr + memsz;
     }
@@ -394,74 +394,74 @@ load_to_flash (const char *filename, byte *flash, byte *ram)
 
 // Opcodes with no arguments except NOP       1001 010~ ~~~~ ~~~~ 
 static const byte avr_op_16_index[1 + 0x1ff] = {
-  [0x9519 ^ 0x9400] = ID_EICALL, /* 1001 0101 0001 1001 | EICALL */
-  [0x9419 ^ 0x9400] = ID_EIJMP,  /* 1001 0100 0001 1001 | EIJMP */
-  [0x95D8 ^ 0x9400] = ID_ELPM,   /* 1001 0101 1101 1000 | ELPM */
-  [0x95F8 ^ 0x9400] = ID_ESPM,   /* 1001 0101 1111 1000 | ESPM */
-  [0x9509 ^ 0x9400] = ID_ICALL,  /* 1001 0101 0000 1001 | ICALL */
-  [0x9409 ^ 0x9400] = ID_IJMP,   /* 1001 0100 0000 1001 | IJMP */
-  [0x95C8 ^ 0x9400] = ID_LPM,    /* 1001 0101 1100 1000 | LPM */
-  [0x9508 ^ 0x9400] = ID_RET,    /* 1001 0101 0000 1000 | RET */
-  [0x9518 ^ 0x9400] = ID_RETI,   /* 1001 0101 0001 1000 | RETI */
-  [0x9588 ^ 0x9400] = ID_SLEEP,  /* 1001 0101 1000 1000 | SLEEP */
-  [0x95E8 ^ 0x9400] = ID_SPM,    /* 1001 0101 1110 1000 | SPM */
-  [0x95A8 ^ 0x9400] = ID_WDR,    /* 1001 0101 1010 1000 | WDR */
+  [0x9519 ^ 0x9400] = ID_EICALL, // 1001 0101 0001 1001 | EICALL
+  [0x9419 ^ 0x9400] = ID_EIJMP,  // 1001 0100 0001 1001 | EIJMP
+  [0x95D8 ^ 0x9400] = ID_ELPM,   // 1001 0101 1101 1000 | ELPM
+  [0x95F8 ^ 0x9400] = ID_ESPM,   // 1001 0101 1111 1000 | ESPM
+  [0x9509 ^ 0x9400] = ID_ICALL,  // 1001 0101 0000 1001 | ICALL
+  [0x9409 ^ 0x9400] = ID_IJMP,   // 1001 0100 0000 1001 | IJMP
+  [0x95C8 ^ 0x9400] = ID_LPM,    // 1001 0101 1100 1000 | LPM
+  [0x9508 ^ 0x9400] = ID_RET,    // 1001 0101 0000 1000 | RET
+  [0x9518 ^ 0x9400] = ID_RETI,   // 1001 0101 0001 1000 | RETI
+  [0x9588 ^ 0x9400] = ID_SLEEP,  // 1001 0101 1000 1000 | SLEEP
+  [0x95E8 ^ 0x9400] = ID_SPM,    // 1001 0101 1110 1000 | SPM
+  [0x95A8 ^ 0x9400] = ID_WDR,    // 1001 0101 1010 1000 | WDR
 };
 
 // Opcodes unique with upper 6 bits           ~~~~ ~~rd dddd rrrr
 static const byte avr_op_6_index[1 << 6] = {
-  [0x1C00 >> 10] = ID_ADC,       /* 0001 11rd dddd rrrr | ADC, ROL */
-  [0x0C00 >> 10] = ID_ADD,       /* 0000 11rd dddd rrrr | ADD, LSL */
-  [0x2000 >> 10] = ID_AND,       /* 0010 00rd dddd rrrr | AND, TST */
-  [0x1400 >> 10] = ID_CP,        /* 0001 01rd dddd rrrr | CP */
-  [0x0400 >> 10] = ID_CPC,       /* 0000 01rd dddd rrrr | CPC */
-  [0x1000 >> 10] = ID_CPSE,      /* 0001 00rd dddd rrrr | CPSE */
-  [0x2400 >> 10] = ID_EOR,       /* 0010 01rd dddd rrrr | EOR, CLR */
-  [0x2C00 >> 10] = ID_MOV,       /* 0010 11rd dddd rrrr | MOV */
-  [0x9C00 >> 10] = ID_MUL,       /* 1001 11rd dddd rrrr | MUL */
-  [0x2800 >> 10] = ID_OR,        /* 0010 10rd dddd rrrr | OR */
-  [0x0800 >> 10] = ID_SBC,       /* 0000 10rd dddd rrrr | SBC */
-  [0x1800 >> 10] = ID_SUB,       /* 0001 10rd dddd rrrr | SUB */
+  [0x1C00 >> 10] = ID_ADC,       // 0001 11rd dddd rrrr | ADC, ROL
+  [0x0C00 >> 10] = ID_ADD,       // 0000 11rd dddd rrrr | ADD, LSL
+  [0x2000 >> 10] = ID_AND,       // 0010 00rd dddd rrrr | AND, TST
+  [0x1400 >> 10] = ID_CP,        // 0001 01rd dddd rrrr | CP
+  [0x0400 >> 10] = ID_CPC,       // 0000 01rd dddd rrrr | CPC
+  [0x1000 >> 10] = ID_CPSE,      // 0001 00rd dddd rrrr | CPSE
+  [0x2400 >> 10] = ID_EOR,       // 0010 01rd dddd rrrr | EOR, CLR
+  [0x2C00 >> 10] = ID_MOV,       // 0010 11rd dddd rrrr | MOV
+  [0x9C00 >> 10] = ID_MUL,       // 1001 11rd dddd rrrr | MUL
+  [0x2800 >> 10] = ID_OR,        // 0010 10rd dddd rrrr | OR
+  [0x0800 >> 10] = ID_SBC,       // 0000 10rd dddd rrrr | SBC
+  [0x1800 >> 10] = ID_SUB,       // 0001 10rd dddd rrrr | SUB
 };
 
 // Unique with upper 7, lower 4 bits              1001 0~~d dddd ~~~~
 static const byte avr_op_74_index[1 + 0x7ff] = {
-  [0x9405 ^ 0x9000] = ID_ASR,        /* 1001 010d dddd 0101 | ASR */
-  [0x9400 ^ 0x9000] = ID_COM,        /* 1001 010d dddd 0000 | COM */
-  [0x940A ^ 0x9000] = ID_DEC,        /* 1001 010d dddd 1010 | DEC */
-  [0x9006 ^ 0x9000] = ID_ELPM_Z,     /* 1001 000d dddd 0110 | ELPM */
-  [0x9007 ^ 0x9000] = ID_ELPM_Z_incr,/* 1001 000d dddd 0111 | ELPM */
-  [0x9403 ^ 0x9000] = ID_INC,        /* 1001 010d dddd 0011 | INC */
-  [0x9000 ^ 0x9000] = ID_LDS,        /* 1001 000d dddd 0000 | LDS */
-  [0x900C ^ 0x9000] = ID_LD_X,       /* 1001 000d dddd 1100 | LD */
-  [0x900E ^ 0x9000] = ID_LD_X_decr,  /* 1001 000d dddd 1110 | LD */
-  [0x900D ^ 0x9000] = ID_LD_X_incr,  /* 1001 000d dddd 1101 | LD */
-  [0x900A ^ 0x9000] = ID_LD_Y_decr,  /* 1001 000d dddd 1010 | LD */
-  [0x9009 ^ 0x9000] = ID_LD_Y_incr,  /* 1001 000d dddd 1001 | LD */
-  [0x9002 ^ 0x9000] = ID_LD_Z_decr,  /* 1001 000d dddd 0010 | LD */
-  [0x9001 ^ 0x9000] = ID_LD_Z_incr,  /* 1001 000d dddd 0001 | LD */
-  [0x9004 ^ 0x9000] = ID_LPM_Z,      /* 1001 000d dddd 0100 | LPM */
-  [0x9005 ^ 0x9000] = ID_LPM_Z_incr, /* 1001 000d dddd 0101 | LPM */
-  [0x9406 ^ 0x9000] = ID_LSR,        /* 1001 010d dddd 0110 | LSR */
-  [0x9401 ^ 0x9000] = ID_NEG,        /* 1001 010d dddd 0001 | NEG */
-  [0x900F ^ 0x9000] = ID_POP,        /* 1001 000d dddd 1111 | POP */
+  [0x9405 ^ 0x9000] = ID_ASR,        // 1001 010d dddd 0101 | ASR
+  [0x9400 ^ 0x9000] = ID_COM,        // 1001 010d dddd 0000 | COM
+  [0x940A ^ 0x9000] = ID_DEC,        // 1001 010d dddd 1010 | DEC
+  [0x9006 ^ 0x9000] = ID_ELPM_Z,     // 1001 000d dddd 0110 | ELPM
+  [0x9007 ^ 0x9000] = ID_ELPM_Z_incr,// 1001 000d dddd 0111 | ELPM
+  [0x9403 ^ 0x9000] = ID_INC,        // 1001 010d dddd 0011 | INC
+  [0x9000 ^ 0x9000] = ID_LDS,        // 1001 000d dddd 0000 | LDS
+  [0x900C ^ 0x9000] = ID_LD_X,       // 1001 000d dddd 1100 | LD
+  [0x900E ^ 0x9000] = ID_LD_X_decr,  // 1001 000d dddd 1110 | LD
+  [0x900D ^ 0x9000] = ID_LD_X_incr,  // 1001 000d dddd 1101 | LD
+  [0x900A ^ 0x9000] = ID_LD_Y_decr,  // 1001 000d dddd 1010 | LD
+  [0x9009 ^ 0x9000] = ID_LD_Y_incr,  // 1001 000d dddd 1001 | LD
+  [0x9002 ^ 0x9000] = ID_LD_Z_decr,  // 1001 000d dddd 0010 | LD
+  [0x9001 ^ 0x9000] = ID_LD_Z_incr,  // 1001 000d dddd 0001 | LD
+  [0x9004 ^ 0x9000] = ID_LPM_Z,      // 1001 000d dddd 0100 | LPM
+  [0x9005 ^ 0x9000] = ID_LPM_Z_incr, // 1001 000d dddd 0101 | LPM
+  [0x9406 ^ 0x9000] = ID_LSR,        // 1001 010d dddd 0110 | LSR
+  [0x9401 ^ 0x9000] = ID_NEG,        // 1001 010d dddd 0001 | NEG
+  [0x900F ^ 0x9000] = ID_POP,        // 1001 000d dddd 1111 | POP
 
-  [0x9204 ^ 0x9000] = ID_XCH,        /* 1001 001d dddd 0100 | XCH */
-  [0x9205 ^ 0x9000] = ID_LAS,        /* 1001 001d dddd 0101 | LAS */
-  [0x9206 ^ 0x9000] = ID_LAC,        /* 1001 001d dddd 0110 | LAC */
-  [0x9207 ^ 0x9000] = ID_LAT,        /* 1001 001d dddd 0111 | LAT */
+  [0x9204 ^ 0x9000] = ID_XCH,        // 1001 001d dddd 0100 | XCH
+  [0x9205 ^ 0x9000] = ID_LAS,        // 1001 001d dddd 0101 | LAS
+  [0x9206 ^ 0x9000] = ID_LAC,        // 1001 001d dddd 0110 | LAC
+  [0x9207 ^ 0x9000] = ID_LAT,        // 1001 001d dddd 0111 | LAT
 
-  [0x920F ^ 0x9000] = ID_PUSH,       /* 1001 001d dddd 1111 | PUSH */
-  [0x9407 ^ 0x9000] = ID_ROR,        /* 1001 010d dddd 0111 | ROR */
-  [0x9200 ^ 0x9000] = ID_STS,        /* 1001 001d dddd 0000 | STS */
-  [0x920C ^ 0x9000] = ID_ST_X,       /* 1001 001d dddd 1100 | ST */
-  [0x920E ^ 0x9000] = ID_ST_X_decr,  /* 1001 001d dddd 1110 | ST */
-  [0x920D ^ 0x9000] = ID_ST_X_incr,  /* 1001 001d dddd 1101 | ST */
-  [0x920A ^ 0x9000] = ID_ST_Y_decr,  /* 1001 001d dddd 1010 | ST */
-  [0x9209 ^ 0x9000] = ID_ST_Y_incr,  /* 1001 001d dddd 1001 | ST */
-  [0x9202 ^ 0x9000] = ID_ST_Z_decr,  /* 1001 001d dddd 0010 | ST */
-  [0x9201 ^ 0x9000] = ID_ST_Z_incr,  /* 1001 001d dddd 0001 | ST */
-  [0x9402 ^ 0x9000] = ID_SWAP,       /* 1001 010d dddd 0010 | SWAP */
+  [0x920F ^ 0x9000] = ID_PUSH,       // 1001 001d dddd 1111 | PUSH
+  [0x9407 ^ 0x9000] = ID_ROR,        // 1001 010d dddd 0111 | ROR
+  [0x9200 ^ 0x9000] = ID_STS,        // 1001 001d dddd 0000 | STS
+  [0x920C ^ 0x9000] = ID_ST_X,       // 1001 001d dddd 1100 | ST
+  [0x920E ^ 0x9000] = ID_ST_X_decr,  // 1001 001d dddd 1110 | ST
+  [0x920D ^ 0x9000] = ID_ST_X_incr,  // 1001 001d dddd 1101 | ST
+  [0x920A ^ 0x9000] = ID_ST_Y_decr,  // 1001 001d dddd 1010 | ST
+  [0x9209 ^ 0x9000] = ID_ST_Y_incr,  // 1001 001d dddd 1001 | ST
+  [0x9202 ^ 0x9000] = ID_ST_Z_decr,  // 1001 001d dddd 0010 | ST
+  [0x9201 ^ 0x9000] = ID_ST_Z_incr,  // 1001 001d dddd 0001 | ST
+  [0x9402 ^ 0x9000] = ID_SWAP,       // 1001 010d dddd 0010 | SWAP
 };
 
 
@@ -473,7 +473,7 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   // opcodes with no operands
 
   if (0x0000 == opcode1)
-    return ID_NOP;                     /* 0000 0000 0000 0000 | NOP */
+    return ID_NOP;                     // 0000 0000 0000 0000 | NOP
 
   // All other opcodes with no operands are:        1001 010x xxxx xxxx
   if ((opcode1 ^ 0x9400) <= 0x1ff
@@ -505,29 +505,29 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
       return index;
     }
 
-  /* opcodes with a register (Rd) and a constant data (K) as operands */
+  // opcodes with a register (Rd) and a constant data (K) as operands
   op->oper1 = ((opcode1 >> 4) & 0xF) | 0x10;
   op->oper2 = (opcode1 & 0x0F) | ((opcode1 >> 4) & 0x00F0);
 
   decode = opcode1 & ~(mask_Rd_4 | mask_K_8);
   switch (decode) {
-  case 0x7000: return ID_ANDI; /* 0111 KKKK dddd KKKK | CBR or ANDI */
-  case 0x3000: return ID_CPI;  /* 0011 KKKK dddd KKKK | CPI */
-  case 0xE000: return ID_LDI;  /* 1110 KKKK dddd KKKK | LDI or SER */
-  case 0x6000: return ID_ORI;  /* 0110 KKKK dddd KKKK | SBR or ORI */
-  case 0x4000: return ID_SBCI; /* 0100 KKKK dddd KKKK | SBCI */
-  case 0x5000: return ID_SUBI; /* 0101 KKKK dddd KKKK | SUBI */
+  case 0x7000: return ID_ANDI; // 0111 KKKK dddd KKKK | CBR or ANDI
+  case 0x3000: return ID_CPI;  // 0011 KKKK dddd KKKK | CPI
+  case 0xE000: return ID_LDI;  // 1110 KKKK dddd KKKK | LDI or SER
+  case 0x6000: return ID_ORI;  // 0110 KKKK dddd KKKK | SBR or ORI
+  case 0x4000: return ID_SBCI; // 0100 KKKK dddd KKKK | SBCI
+  case 0x5000: return ID_SUBI; // 0101 KKKK dddd KKKK | SUBI
   }
 
-  /* opcodes with a register (Rd) and a register bit number (b) as operands */
+  // opcodes with a register (Rd) and a register bit number (b) as operands
   op->oper1 = (opcode1 >> 4) & 0x1F;
   op->oper2 = 1 << (opcode1 & 0x0007);
   decode = opcode1 & ~(mask_Rd_5 | mask_reg_bit);
   switch (decode) {
-  case 0xF800: return ID_BLD;   /* 1111 100d dddd 0bbb | BLD */
-  case 0xFA00: return ID_BST;   /* 1111 101d dddd 0bbb | BST */
-  case 0xFC00: return ID_SBRC;  /* 1111 110d dddd 0bbb | SBRC */
-  case 0xFE00: return ID_SBRS;  /* 1111 111d dddd 0bbb | SBRS */
+  case 0xF800: return ID_BLD;   // 1111 100d dddd 0bbb | BLD
+  case 0xFA00: return ID_BST;   // 1111 101d dddd 0bbb | BST
+  case 0xFC00: return ID_SBRC;  // 1111 110d dddd 0bbb | SBRC
+  case 0xFE00: return ID_SBRS;  // 1111 111d dddd 0bbb | SBRS
   }
 
   /* opcodes with a relative 7-bit address (k) and a register bit number (b)
@@ -535,8 +535,8 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   op->oper1 = (opcode1 >> 3) & 0x7F;
   decode = opcode1 & ~(mask_k_7 | mask_reg_bit);
   switch (decode) {
-  case 0xF400: return ID_BRBC;   /* 1111 01kk kkkk kbbb | BRBC */
-  case 0xF000: return ID_BRBS;   /* 1111 00kk kkkk kbbb | BRBS */
+  case 0xF400: return ID_BRBC;   // 1111 01kk kkkk kbbb | BRBC
+  case 0xF000: return ID_BRBS;   // 1111 00kk kkkk kbbb | BRBS
   }
 
   /* opcodes with a 6-bit address displacement (q) and a register (Rd)
@@ -550,91 +550,91 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
                    | ((opcode1 >> 8) & 0x20));
       decode = opcode1 & ~(mask_Rd_5 | mask_q_displ);
       switch (decode) {
-      case 0x8008: return ID_LDD_Y;   /* 10q0 qq0d dddd 1qqq | LDD */
-      case 0x8000: return ID_LDD_Z;   /* 10q0 qq0d dddd 0qqq | LDD */
-      case 0x8208: return ID_STD_Y;   /* 10q0 qq1d dddd 1qqq | STD */
-      case 0x8200: return ID_STD_Z;   /* 10q0 qq1d dddd 0qqq | STD */
+      case 0x8008: return ID_LDD_Y;   // 10q0 qq0d dddd 1qqq | LDD
+      case 0x8000: return ID_LDD_Z;   // 10q0 qq0d dddd 0qqq | LDD
+      case 0x8208: return ID_STD_Y;   // 10q0 qq1d dddd 1qqq | STD
+      case 0x8200: return ID_STD_Z;   // 10q0 qq1d dddd 0qqq | STD
       }
     }
 
-  /* opcodes with a absolute 22-bit address (k) operand */
+  // opcodes with a absolute 22-bit address (k) operand
   op->oper1 = (opcode1 & 1) | ((opcode1 >> 3) & 0x3E);
   op->oper2 = opcode2;
   decode = opcode1 & ~(mask_k_22);
   switch (decode) {
-  case 0x940E: return ID_CALL;        /* 1001 010k kkkk 111k | CALL */
-  case 0x940C: return ID_JMP;         /* 1001 010k kkkk 110k | JMP */
+  case 0x940E: return ID_CALL;        // 1001 010k kkkk 111k | CALL
+  case 0x940C: return ID_JMP;         // 1001 010k kkkk 110k | JMP
   }
 
-  /* opcode1 with a sreg bit select (s) operand */
+  // opcode1 with a sreg bit select (s) operand
   op->oper1 = 1 << ((opcode1 >> 4) & 0x07);
   decode = opcode1 & ~(mask_sreg_bit);
   switch (decode) {
-    /* BCLR takes care of CL{C,Z,N,V,S,H,T,I} */
-    /* BSET takes care of SE{C,Z,N,V,S,H,T,I} */
-  case 0x9488: return ID_BCLR;        /* 1001 0100 1sss 1000 | BCLR */
-  case 0x9408: return ID_BSET;        /* 1001 0100 0sss 1000 | BSET */
+  // BCLR takes care of CL{C,Z,N,V,S,H,T,I}
+  // BSET takes care of SE{C,Z,N,V,S,H,T,I}
+  case 0x9488: return ID_BCLR;        // 1001 0100 1sss 1000 | BCLR
+  case 0x9408: return ID_BSET;        // 1001 0100 0sss 1000 | BSET
   }
 
-  /* opcodes with a 6-bit constant (K) and a register (Rd) as operands */
+  // opcodes with a 6-bit constant (K) and a register (Rd) as operands
   op->oper1 = ((opcode1 >> 3) & 0x06) + 24;
   op->oper2 = (opcode1 & 0xF) | ((opcode1 >> 2) & 0x30);
   decode = opcode1 & ~(mask_K_6 | mask_Rd_2);
   switch (decode) {
-  case 0x9600: return ID_ADIW;        /* 1001 0110 KKdd KKKK | ADIW */
-  case 0x9700: return ID_SBIW;        /* 1001 0111 KKdd KKKK | SBIW */
+  case 0x9600: return ID_ADIW;        // 1001 0110 KKdd KKKK | ADIW
+  case 0x9700: return ID_SBIW;        // 1001 0111 KKdd KKKK | SBIW
   }
 
-  /* opcodes with a 5-bit IO Addr (A) and register bit number (b) as operands */
+  // opcodes with a 5-bit IO Addr (A) and register bit number (b) as operands
   op->oper1 = ((opcode1 >> 3) & 0x1F) + io_base;
   op->oper2 = 1 << (opcode1 & 0x0007);
   decode = opcode1 & ~(mask_A_5 | mask_reg_bit);
   switch (decode) {
-  case 0x9800: return ID_CBI;         /* 1001 1000 AAAA Abbb | CBI */
-  case 0x9A00: return ID_SBI;         /* 1001 1010 AAAA Abbb | SBI */
-  case 0x9900: return ID_SBIC;        /* 1001 1001 AAAA Abbb | SBIC */
-  case 0x9B00: return ID_SBIS;        /* 1001 1011 AAAA Abbb | SBIS */
+  case 0x9800: return ID_CBI;         // 1001 1000 AAAA Abbb | CBI
+  case 0x9A00: return ID_SBI;         // 1001 1010 AAAA Abbb | SBI
+  case 0x9900: return ID_SBIC;        // 1001 1001 AAAA Abbb | SBIC
+  case 0x9B00: return ID_SBIS;        // 1001 1011 AAAA Abbb | SBIS
   }
 
-  /* opcodes with a 6-bit IO Addr (A) and register (Rd) as operands */
+  // opcodes with a 6-bit IO Addr (A) and register (Rd) as operands
   op->oper1 = ((opcode1 >> 4) & 0x1F);
   op->oper2 = ((opcode1 & 0x0F) | ((opcode1 >> 5) & 0x30)) + io_base;
   decode = opcode1 & ~(mask_A_6 | mask_Rd_5);
   switch (decode) {
-  case 0xB000: return ID_IN;          /* 1011 0AAd dddd AAAA | IN */
-  case 0xB800: return ID_OUT;         /* 1011 1AAd dddd AAAA | OUT */
+  case 0xB000: return ID_IN;          // 1011 0AAd dddd AAAA | IN
+  case 0xB800: return ID_OUT;         // 1011 1AAd dddd AAAA | OUT
   }
 
-  /* opcodes with a relative 12-bit address (k) operand */
+  // opcodes with a relative 12-bit address (k) operand
   op->oper2 = opcode1 & 0xFFF;
   decode = opcode1 & ~(mask_k_12);
   switch (decode) {
-  case 0xD000: return ID_RCALL;   /* 1101 kkkk kkkk kkkk | RCALL */
-  case 0xC000: return ID_RJMP;    /* 1100 kkkk kkkk kkkk | RJMP */
+  case 0xD000: return ID_RCALL;   // 1101 kkkk kkkk kkkk | RCALL
+  case 0xC000: return ID_RJMP;    // 1100 kkkk kkkk kkkk | RJMP
   }
 
-  /* opcodes with two 4-bit register (Rd and Rr) operands */
+  // opcodes with two 4-bit register (Rd and Rr) operands
   decode = opcode1 & ~(mask_Rd_4 | mask_Rr_4);
   switch (decode) {
   case 0x0100:
     op->oper1 = ((opcode1 >> 4) & 0x0F) << 1;
     op->oper2 = (opcode1 & 0x0F) << 1;
-    return ID_MOVW;        /* 0000 0001 dddd rrrr | MOVW */
+    return ID_MOVW;        // 0000 0001 dddd rrrr | MOVW
   case 0x0200:
     op->oper1 = ((opcode1 >> 4) & 0x0F) | 0x10;
     op->oper2 = (opcode1 & 0x0F) | 0x10;
-    return ID_MULS;        /* 0000 0010 dddd rrrr | MULS */
+    return ID_MULS;        // 0000 0010 dddd rrrr | MULS
   }
 
-  /* opcodes with two 3-bit register (Rd and Rr) operands */
+  // opcodes with two 3-bit register (Rd and Rr) operands
   op->oper1 = ((opcode1 >> 4) & 0x07) | 0x10;
   op->oper2 = (opcode1 & 0x07) | 0x10;
   decode = opcode1 & ~(mask_Rd_3 | mask_Rr_3);
   switch (decode) {
-  case 0x0300: return ID_MULSU;   /* 0000 0011 0ddd 0rrr | MULSU */
-  case 0x0308: return ID_FMUL;    /* 0000 0011 0ddd 1rrr | FMUL */
-  case 0x0380: return ID_FMULS;   /* 0000 0011 1ddd 0rrr | FMULS */
-  case 0x0388: return ID_FMULSU;  /* 0000 0011 1ddd 1rrr | FMULSU */
+  case 0x0300: return ID_MULSU;   // 0000 0011 0ddd 0rrr | MULSU
+  case 0x0308: return ID_FMUL;    // 0000 0011 0ddd 1rrr | FMUL
+  case 0x0380: return ID_FMULS;   // 0000 0011 1ddd 0rrr | FMULS
+  case 0x0388: return ID_FMULSU;  // 0000 0011 1ddd 1rrr | FMULSU
   }
 
   op->oper2 = opcode1;
