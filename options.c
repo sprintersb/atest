@@ -36,7 +36,9 @@ static const char USAGE[] =
   "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-q]\n"
   "                 [-runtime] [-ticks] [-no-log] [-no-stdin] [-no-stdout]\n"
   "                 program [-args [...]]\n"
+  "         avrtest --help\n"
   "Options:\n"
+  "  -h           Show this help and exit.\n"
   "  -args ...    Pass all following parameters as argc and argv to main.\n"
   "  -d           Initialize SRAM from .data (for ELF program)\n"
   "  -e ENTRY     Byte address of program entry point.  Default for ENTRY is\n"
@@ -92,21 +94,29 @@ static void
 usage (const char *fmt, ...)
 {
   static char reason[300];
-  
-  options.do_quiet = 0;
 
-  printf (USAGE);
+  if (!fmt)
+    options.do_quiet = 0;
+
+  qprintf (USAGE);
   for (const arch_t *d = arch_desc; d->name; d++)
     if (is_xmega == d->is_xmega)
-      printf (" %s", d->name);
+      qprintf (" %s", d->name);
+
+  if (!fmt)
+    {
+      qprintf ("\n");
+      exit (EXIT_SUCCESS);
+    }
 
   va_list args;
   va_start (args, fmt);
   vsnprintf (reason, sizeof (reason)-1, fmt, args);
   va_end (args);
 
-  printf ("\n");
-  leave (EXIT_STATUS_USAGE, "command line error: %s", reason);
+  qprintf ("\n");
+  leave (EXIT_STATUS_USAGE, "command line error: %s%s", reason,
+         options.do_quiet ? ", use -h for help" : "");
 }
 
 static option_t option_desc[] =
@@ -146,6 +156,14 @@ parse_args (int argc, char *argv[])
 {
   options.self = argv[0];
   arch = arch_desc[is_xmega];
+
+  for (int i = 1; i < argc; i++)
+    if (0 == strcmp (argv[i], "?")
+        || 0 == strcmp (argv[i], "-?")
+        || 0 == strcmp (argv[i], "/?")
+        || 0 == strcmp (argv[i], "-h")
+        || 0 == strcmp (argv[i], "--help"))
+      usage (NULL);
 
   for (int i = 1; i < argc; i++)
     {

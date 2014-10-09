@@ -46,6 +46,12 @@ const int is_xmega = 1;
 const int is_xmega = 0;
 #endif
 
+#ifdef AVRTEST_LOG
+const int is_avrtest_log = 1;
+#else
+const int is_avrtest_log = 0;
+#endif
+
 const int io_base = IOBASE;
 
 #define SREG    (0x3F + IOBASE)
@@ -69,11 +75,15 @@ const int io_base = IOBASE;
 
 static const char *exit_status_text[] =
   {
+    // "EXIT" and "ABORTED" are keywords scanned by board descriptions.
     [EXIT_STATUS_EXIT]    = "EXIT",
     [EXIT_STATUS_ABORTED] = "ABORTED",
     [EXIT_STATUS_TIMEOUT] = "TIMEOUT",
-    [EXIT_STATUS_FATAL]   = "FATAL ERROR",
-    [EXIT_STATUS_USAGE]   = "ABORTED"
+    
+    [EXIT_STATUS_USAGE]   = "ABORTED",
+    [EXIT_STATUS_FILE]    = "ABORTED",
+    [EXIT_STATUS_MEMORY]  = "ABORTED",
+    [EXIT_STATUS_FATAL]   = "FATAL ABORTED"
   };
 
 // ---------------------------------------------------------------------------
@@ -151,13 +161,14 @@ leave (int status, const char *reason, ...)
 {
   int args_consumed = 0;
   static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
+  int failing = status >= EXIT_STATUS_USAGE;
 
   // make sure we print the last log line before leaving
   log_dump_line (0);
 
   qprintf ("\n");
 
-  if (options.do_runtime)
+  if (options.do_runtime && !failing)
     {
       struct timeval t_end;
       unsigned long r_sec, e_sec, d_sec, l_sec, r_us, e_us, d_us, l_us;
@@ -222,8 +233,21 @@ leave (int status, const char *reason, ...)
       {
       case EXIT_STATUS_EXIT:     exit (exit_value);
       case EXIT_STATUS_ABORTED:  exit (EXIT_FAILURE);
-      case EXIT_STATUS_TIMEOUT:  exit (EXIT_FAILURE);
-      case EXIT_STATUS_USAGE:    exit (EXIT_FAILURE);
+      case EXIT_STATUS_TIMEOUT:  exit (10);
+      case EXIT_STATUS_FILE:     exit (11);
+      case EXIT_STATUS_MEMORY:   exit (12);
+      case EXIT_STATUS_USAGE:
+        {
+          FILE *out = stdout;
+          va_list args;
+          va_start (args, reason);
+          fprintf (out, "\n%s: ", options.self);
+          vfprintf (out, reason, args);
+          fprintf (out, "\n");
+          va_end (args);
+          fflush (out);
+        }
+        exit (13);
       default:
         status = EXIT_STATUS_FATAL;
       }
@@ -242,10 +266,10 @@ leave (int status, const char *reason, ...)
 
           va_end (args);
         }
-      abort();
+      exit (42);
     }
 
-  exit (0);
+  exit (failing ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 // ----------------------------------------------------------------------------
@@ -518,6 +542,22 @@ void log_data_write_word (int address, int value, int nraw)
 void set_function_symbol (int addr, const char *fname, int is_func)
 {
   log_set_func_symbol (addr, fname, is_func);
+}
+
+// Memory allocation that never fails (returns NULL).
+
+void* get_mem (unsigned n, size_t size)
+{
+#ifdef AVRTEST_LOG
+  void *p = calloc (n, size);
+  if (p == NULL)
+    leave (EXIT_STATUS_MEMORY, "out of memory allocating %u bytes",
+           (unsigned) (n * size));
+  return p;
+#else
+  leave (EXIT_STATUS_FATAL, "alloc_mem must be unreachable");
+  return NULL;
+#endif
 }
 
 

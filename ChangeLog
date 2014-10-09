@@ -1,5 +1,30 @@
 2014-10-09  Georg-Johann Lay  <avr@gjlay.de>
 
+	More elaborate exit stati with quiet operation (-q).
+	Show usage with -h or --help.
+
+	* README (-q): Document exit stati.
+	* avrtest.c (exit_status_text): Initialize EXIT_STATUS_FILE,
+	EXIT_STATUS_MEMORY with "ABORTED".
+	(is_avrtest_log): New const.
+	(leave): Don't print runtime statistics if failing.
+	[options.do_quiet]: Return exit status 10, 11, 12, 13, 42 as
+	documented in README.
+	(get_mem): New function.
+	* load-flash.c (load_elf): Leave with EXIT_STATUS_FILE if something
+	is wrong with the executable file.
+	(load_symbol_string_table): Same.  And call it only if is_avrtest_log.
+	Use get_mem to allocate heap.
+	* options.c (USAGE): Document -h, --help.
+	(usage) [fmt=NULL]: Show usage for --help etc. and exit 0.
+	(parse_args): Silently support ?, -?, /?, -h, --help to show usage.
+	* options.def: Reorder.
+	* testavr.h: Include stdlib.h.
+	(is_avrtest_log, get_mem): New protos.
+	(EXIT_STATUS_FILE, EXIT_STATUS_MEMORY): New enum.
+
+2014-10-09  Georg-Johann Lay  <avr@gjlay.de>
+
 	Display function symbols from ELF when logging.
 	New option -no-syms to switch that off.
 
