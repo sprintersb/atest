@@ -183,13 +183,21 @@ const char *func_name (int i)
 
 
 static void
-set_call_depth (int id)
+set_call_depth (const decoded_op *op)
 {
   int call = 0;
+  int id = op->id;
 
   switch (id)
     {
-    case ID_RCALL: case ID_ICALL: case ID_CALL: case ID_EICALL:
+    case ID_RCALL:
+      // avr-gcc uses "rcall ." to allocate stack, but an assembler
+      // program might use that instruction just as well for an
+      // ordinary call.  We cannot decide what's going on and take
+      // the case that's more likely: Offset == 0 is allocating stack.
+      call = op->oper2 != 0;
+      break;
+    case ID_ICALL: case ID_CALL: case ID_EICALL:
       call = 1;
       break;
     case ID_RET:
@@ -247,12 +255,16 @@ set_call_depth (int id)
     }
 
   // Update symbol stack according to call stack
-  if (name
-      && calls >= 0 && calls < LEN_SYMBOL_STACK)
+  if (calls >= 0 && calls < LEN_SYMBOL_STACK)
     {
-      if (!old_name)
-        old_name = alog.symbol_stack[calls];
-      alog.symbol_stack[calls] = name;
+      if (name)
+        {
+          if (!old_name)
+            old_name = alog.symbol_stack[calls];
+          alog.symbol_stack[calls] = name;
+        }
+      else if (alog.calls_changed == 1)
+        alog.symbol_stack[calls] = "?";
     }
 
   if (name || alog.calls_changed)
@@ -297,7 +309,7 @@ set_call_depth (int id)
 void
 log_add_instr (const decoded_op *op)
 {
-  set_call_depth (op->id);
+  set_call_depth (op);
   alog.id = op->id;
 
   char mnemo_[16];

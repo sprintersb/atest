@@ -1,5 +1,13 @@
 2014-10-09  Georg-Johann Lay  <avr@gjlay.de>
 
+	Handle "RCALL ." and unknown function names.
+
+	* logging.c (log_add_instr): Pass decoded_op* to set_call_depth.
+	(set_call_depth): Adjust interface. Set unknown function names
+	to "?".  [ID_RCALL]: Handle offset = 0.
+
+2014-10-09  Georg-Johann Lay  <avr@gjlay.de>
+
 	More elaborate exit stati with quiet operation (-q).
 	Show usage with -h or --help.
 
