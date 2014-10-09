@@ -469,6 +469,7 @@ static const byte avr_op_74_index[1 + 0x7ff] = {
 static int
 decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
 {
+  unsigned h;
   byte index;
 
   // opcodes with no operands
@@ -607,8 +608,10 @@ decode_opcode (decoded_op *op, unsigned opcode1, unsigned opcode2)
   }
 
   // opcodes with a relative 12-bit address (k) operand
-  op->oper2 = opcode1 & 0xFFF;
   decode = opcode1 & ~(mask_k_12);
+  h = opcode1 & 0x800;
+  h = (opcode1 & 0x7FF) | -h;
+  op->oper2 = h;
   switch (decode) {
   case 0xD000: return ID_RCALL;   // 1101 kkkk kkkk kkkk | RCALL
   case 0xC000: return ID_RJMP;    // 1100 kkkk kkkk kkkk | RJMP

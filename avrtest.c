@@ -1068,8 +1068,8 @@ static OP_FUNC_TYPE func_SUB (int rd, int rr)
 /* 1001 010d dddd 0101 | ASR */
 static OP_FUNC_TYPE func_ASR (int rd, int rr)
 {
-  int value = get_reg (rd);
-  rotate_right (rd, value, (value & 0x80) << 1);
+  int value = (int8_t) get_reg (rd);
+  rotate_right (rd, value & 0x1ff, 0);
 }
 
 /* 1001 010d dddd 0000 | COM */
@@ -1190,12 +1190,18 @@ static OP_FUNC_TYPE func_POP (int rd, int rr)
   put_reg (rd, pop_byte());
 }
 
-static void
-xmega_atomic (int regno, int op)
+static INLINE void
+xmega_atomic (int regno, int op, const char *mnemo, int magic_p)
 {
+#ifndef ISA_XMEGA
+  leave (EXIT_STATUS_ABORTED, "illegal instruction %s", mnemo);
+#endif
+
   int mask = get_reg (regno);
   int address = get_word_reg (REGZ);
-  int val = data_read_magic_byte (address);
+  int val = (magic_p
+             ? data_read_magic_byte (address)
+             : data_read_byte (address));
 
   put_reg (regno, val);
 
@@ -1207,39 +1213,34 @@ xmega_atomic (int regno, int op)
     case ID_LAT: val ^=  mask; break;
     }
 
-  data_write_magic_byte (address, val);
+  if (magic_p)
+    data_write_magic_byte (address, val);
+  else
+    data_write_byte (address, val);
 }
 
 /* 1001 001d dddd 0100 | XCH */
 static OP_FUNC_TYPE func_XCH (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction XCH");
-  xmega_atomic (rd, ID_XCH);
+  xmega_atomic (rd, ID_XCH, "XCH", 1);
 }
 
 /* 1001 001d dddd 0101 | LAS */
 static OP_FUNC_TYPE func_LAS (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction LAS");
-  xmega_atomic (rd, ID_LAS);
+  xmega_atomic (rd, ID_LAS, "LAS", 0);
 }
 
 /* 1001 001d dddd 0110 | LAC */
 static OP_FUNC_TYPE func_LAC (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction LAC");
-  xmega_atomic (rd, ID_LAC);
+  xmega_atomic (rd, ID_LAC, "LAC", 0);
 }
 
 /* 1001 001d dddd 0111 | LAT */
 static OP_FUNC_TYPE func_LAT (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction LAT");
-  xmega_atomic (rd, ID_LAT);
+  xmega_atomic (rd, ID_LAT, "LAT", 0);
 }
 
 /* 1001 001d dddd 1111 | PUSH */
@@ -1584,11 +1585,7 @@ static OP_FUNC_TYPE func_OUT (int rd, int rr)
 /* 1100 kkkk kkkk kkkk | RJMP */
 static OP_FUNC_TYPE func_RJMP (int rd, int rr)
 {
-  int delta = rr;
-  //if (delta & 0x800) delta |= ~0xFFF;
-  unsigned neg = (delta & 0x800) << 1;
-  delta |= -neg;
-
+  int delta = (int16_t) rr;
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
     leave (EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
@@ -1598,11 +1595,7 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
 /* 1101 kkkk kkkk kkkk | RCALL */
 static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 {
-  int delta = rr;
-  // if (delta & 0x800) delta |= ~0xFFF;
-  unsigned neg = (delta & 0x800) << 1;
-  delta |= -neg;
-
+  int delta = (int16_t) rr;
   push_PC();
   cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
   add_program_cycles (arch.pc_3bytes);
