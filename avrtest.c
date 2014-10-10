@@ -1655,13 +1655,8 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 
 const opcode_t opcodes[] =
   {
-#ifdef AVRTEST_LOG
-#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)                    \
-    [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
-#else
 #define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)            \
     [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
-#endif // AVRTEST_LOG
 #include "avr-opcode.def"
 #undef AVR_OPCODE
   };

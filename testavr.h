@@ -110,9 +110,6 @@ typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 typedef struct
 {
   opcode_func func;
-#ifdef AVRTEST_LOG
-  const char *mnemo;
-#endif
   short size;
   short cycles;
 } opcode_t;

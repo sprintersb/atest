@@ -42,6 +42,14 @@ const char s_SREG[] = "CZNVSHTI";
 
 static const char *func_symbol[MAX_FLASH_SIZE/2];
 
+static const char* const mnemonic[] =
+  {
+#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)  \
+    [ID_ ## ID] = NAME,
+#include "avr-opcode.def"
+#undef AVR_OPCODE
+  };
+
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
 #include "avrtest.h"
@@ -313,7 +321,7 @@ log_add_instr (const decoded_t *d)
   alog.id = d->id;
 
   char mnemo_[16];
-  const char *fmt, *mnemo = opcodes[alog.id].mnemo;
+  const char *fmt, *mnemo = mnemonic[alog.id];
 
   // OUT and ST* might turn on logging: always log them to alog.data[].
   alog.maybe_OUT = (alog.id == ID_OUT || mnemo[1] == 'T');
