@@ -14,33 +14,31 @@ AC_DEFUN([atest_restore],
     )
 
 dnl
-dnl
-dnl
-dnl
-dnl
-dnl
-dnl atest_DEFINE_IF_ATTRIBUTE(MACRO, ATTRIBUTE, FALLBACK)
+dnl atest_DEFINE_IF_ATTRIBUTE(MACRO, ATTRIBUTE, FALLBACK, inline)
 dnl
 dnl If the compiler supports __attribute__((__$2__)) then
 dnl    #define $1 __attribute__((__$2__))
 dnl else
 dnl    #define $1 $3
 dnl
+dnl If inline make the test function inline
+dnl
+
 AC_DEFUN([atest_DEFINE_IF_ATTRIBUTE],
     [AC_MSG_CHECKING(for __attribute__((__$2__)))
     atest_ac_c_werror_flag=$ac_c_werror_flag
     ac_c_werror_flag=1
     AC_COMPILE_IFELSE(
-	[AC_LANG_PROGRAM([[void __attribute__((__$2__))
+	[AC_LANG_PROGRAM([[$4 void __attribute__((__$2__))
 			   barbar (void) { while (1); }]])],
     	[atest_cv_attribute_$2=yes], [atest_cv_attribute_$2=no])
    ac_c_werror_flag=$atest_ac_c_werror_flag
    if test x$atest_cv_attribute_$2 = xyes; then
       AC_DEFINE($1, [__attribute__((__$2__))],
-	[Define to '__attribute__((__$2__))' if your have it])
+	[Define to '__attribute__((__$2__))' if known to the compiler])
    else
       AC_DEFINE($1, [$3],
-	[Define to '__attribute__((__$2__))' if your have it])
+	[Define to '__attribute__((__$2__))' if known to the compiler])
    fi
    AC_MSG_RESULT($atest_cv_attribute_$2)
 ])

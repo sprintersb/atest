@@ -1,22 +1,22 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to '__attribute__((__always_inline__))' if known to the compiler */
-#undef ALWAYS_INLINE
+#define ALWAYS_INLINE __attribute__((__always_inline__))
 
 /* Define to '__attribute__((__cold__))' if known to the compiler */
-#undef COLD
-
-/* Define to 1 if your host system's float is little endian */
-#undef ENDIAN_FLOAT_LITTLE
+#define COLD /**/
 
 /* Define to 1 if your host system is little endian */
-#undef ENDIAN_LITTLE
+#define ENDIAN_LITTLE 1
+
+/* Define to 1 if your host system's float is little endian */
+#define ENDIAN_FLOAT LITTLE 1
 
 /* Define to '__attribute__((__fastcall__))' if known to the compiler */
-#undef FASTCALL
+#define FASTCALL __attribute__((__fastcall__))
 
 /* Define to 1 if you have the `gettimeofday' function. */
-#undef HAVE_GETTIMEOFDAY
+#define HAVE_GETTIMEOFDAY 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -58,7 +58,7 @@
 #undef HAVE_SYS_STAT_H
 
 /* Define to 1 if you have the <sys/time.h> header file. */
-#undef HAVE_SYS_TIME_H
+#define HAVE_SYS_TIME_H 1
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
@@ -70,13 +70,13 @@
 #undef HAVE__BOOL
 
 /* Define to '__attribute__((__hot__))' if known to the compiler */
-#undef HOT
+#define HOT /**/
 
 /* Define to '__attribute__((__noinline__))' if known to the compiler */
-#undef NOINLINE
+#define NOINLINE __attribute__((__noinline__))
 
 /* Define to '__attribute__((__noreturn__))' if known to the compiler */
-#undef NORETURN
+#define NORETURN __attribute__((__noreturn__))
 
 /* Name of package */
 #undef PACKAGE

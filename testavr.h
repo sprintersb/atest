@@ -24,6 +24,8 @@
 #ifndef TESTAVR_H
 #define TESTAVR_H
 
+#include <config.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>

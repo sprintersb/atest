@@ -809,7 +809,7 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
   unsigned hi8 = opcode1 >> 8;
   if (hi8 == (0x9400 >> 8))
     {
-      // opcode1 with a sreg bit select (s) operand
+      // opcode1 with a sreg bit select operand (s)
       d->op1 = 1 << ((opcode1 >> 4) & 0x07);
       decode = opcode1 & ~(mask_sreg_bit);
       switch (decode) {

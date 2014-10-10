@@ -43,25 +43,57 @@ AC_CHECK_HEADERS([stdint.h stdlib.h string.h limits.h sys/time.h])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_TYPE_SIZE_T
+AC_TYPE_INT8_T
+AC_TYPE_INT16_T
+AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
-AC_TYPE_UINT8_T
 AC_C_INLINE
 AC_C_CONST
 
 # Checks for library functions.
 AC_CHECK_FUNCS([gettimeofday strtoul])
 AC_CHECK_FUNCS([memset sqrt strrchr])
-AC_FUNC_MALLOC
+
+# autoconf is wrong with sqrt gcc:
+# AC_CHECK_FUNCS([sqrt])
+
+# Dont' use AC_FUNC_MALLOC as this will be detected not correctly
+# AC_FUNC_MALLOC
 
 # Checks special compiler features
 AC_LANG(C)
 
-atest_DEFINE_IF_ATTRIBUTE([ALWAYS_INLINE], [always_inline],)
-atest_DEFINE_IF_ATTRIBUTE([COLD], [cold],)
-atest_DEFINE_IF_ATTRIBUTE([FASTCALL], [fastcall],)
-atest_DEFINE_IF_ATTRIBUTE([NOINLINE], [noinline],)
-atest_DEFINE_IF_ATTRIBUTE([NORETURN], [noreturn],)
+atest_DEFINE_IF_ATTRIBUTE([ALWAYS_INLINE], [always_inline],,inline)
+atest_DEFINE_IF_ATTRIBUTE([HOT], [hot],,)
+atest_DEFINE_IF_ATTRIBUTE([COLD], [cold],,)
+atest_DEFINE_IF_ATTRIBUTE([FASTCALL], [fastcall],,)
+atest_DEFINE_IF_ATTRIBUTE([NOINLINE], [noinline],,)
+atest_DEFINE_IF_ATTRIBUTE([NORETURN], [noreturn],,)
+
+
+AC_MSG_CHECKING(whether the host system is little endian)
+AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([[
+	int a[__BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__?1:-1];]])],
+    	[atest_cv_end_little=yes], [atest_cv_end_little=unknown])
+if test x$atest_cv_end_little = xyes; then
+   AC_DEFINE(ENDIAN_LITTLE, ,
+   [Define to 1 if your host system is little endian])
+fi
+AC_MSG_RESULT($atest_cv_end_little)
+
+
+AC_MSG_CHECKING(whether the host system's float is little endian)
+AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([[
+	int a[__FLOAT_WORD_ORDER__==__ORDER_LITTLE_ENDIAN__?1:-1];]])],
+    	[atest_cv_end_little_f=yes], [atest_cv_end_little_f=unknown])
+if test x$atest_cv_end_little_f = xyes; then
+   AC_DEFINE(ENDIAN_FLOAT_LITTLE, ,
+   [Define to 1 if your host system's float is little endian])
+fi
+AC_MSG_RESULT($atest_cv_end_little_f)
 
 #AC_CONFIG_FILES(foo-config.h:foo-config.h.in,)
 
@@ -75,9 +107,6 @@ CFLAGS_FOR_BUILD=${CFLAGS_FOR_BUILD- -O}
 AC_PROG_CC_FOR_BUILD([[// code]], CC_FOR_BUILD_OK, dummy)
 
 AC_SUBST(CC_FOR_BUILD)
-
-atest_DEFINE_IF_ATTRIBUTE([fubar], [cold],)
-atest_DEFINE_IF_ATTRIBUTE([barfu], [hot],)
 
 #####################
 

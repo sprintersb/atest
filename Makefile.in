@@ -51,9 +51,9 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@BUILD_XMEGA_TRUE@am__append_1 = $(patsubst *%, avrtest-xmega%, * *_log)
-@BUILD_XMEGA_TRUE@am__append_2 = $(patsubst *%, avrtest-xmega%, *_log)
-@BUILD_XMEGA_TRUE@am__append_3 = $(patsubst *%, avrtest-xmega%, * *_log)
+@BUILD_XMEGA_TRUE@am__append_1 = avrtest-xmega avrtest-xmega_log
+@BUILD_XMEGA_TRUE@am__append_2 = avrtest-xmega_log
+@BUILD_XMEGA_TRUE@am__append_3 = $(A_xmega)
 @BUILD_EXIT_O_TRUE@am__append_4 = atmega8 atmega168 atmega128 atmega103 atmega2560
 @BUILD_EXIT_O_TRUE@@BUILD_XMEGA_TRUE@am__append_5 = atxmega128a3 atxmega128a1
 subdir = .
@@ -202,14 +202,14 @@ top_srcdir = @top_srcdir@
 WARN = -W -Wall -Wno-unused-parameter -pedantic \
 	  # -Wstrict-prototypes -Wmissing-prototypes
 
-CFLAGS_FOR_HOST = -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
+CFLAGS_FOR_HOST = -O3 -fomit-frame-pointer -std=c99 -dp -I. $(WARN) $(CFLAGS)
 
 # compile for AVR at build
 CFLAGS_FOR_AVR = -Os 
 SUFFIXES = 
-A = $(patsubst *%, avrtest%, * *_log) $(am__append_1)
-A_log = $(patsubst *%, avrtest%, *_log) $(am__append_2)
-A_xmega = $(am__append_3)
+A_xmega = $(am__append_1)
+A_log = avrtest_log $(am__append_2)
+A = avrtest avrtest_log $(am__append_3)
 A_s = $(A:=.s)
 A_log_s = $(A_log:=.s)
 A_xmega_s = $(A_xmega:=.s)
@@ -218,10 +218,11 @@ A_log_exe = $(A_log:=$(EXEEXT))
 EXE = $(A_exe)
 EXIT_MCUS = $(am__append_4) $(am__append_5)
 EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
-DEP_OPTIONS = options.def options.h Makefile
-DEPS_LOGGING = $(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
-DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-insn.def
-DEPS = $(DEPS_LOGGING) flag-tables.c
+DEP_OPTIONS = options.def options.h config.h Makefile
+DEPS_LOGGING = $(DEP_OPTIONS) testavr.h avr-opcode.def sreg.h avrtest.h
+DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-opcode.def
+DEPS = $(DEPS_LOGGING) flag-tables.h
+XDEF = -DHAVE_CONFIG_H
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -562,6 +563,8 @@ uninstall-am:
 	mostlyclean-generic pdf pdf-am ps ps-am uninstall uninstall-am
 
 
+.PHONY: $(srcdir)/config.h.in
+
 all : all-host all-avr
 
 all-avrtest: $(A:=$(EXEEXT))
@@ -578,8 +581,8 @@ exit	: $(EXIT_O)
 $(A_log_s): XDEF += -DAVRTEST_LOG
 $(A_xmega_s): XDEF += -DISA_XMEGA
 
-$(A_exe): XOBJ += options.o load-flash.o
-$(A_exe): options.o load-flash.o
+$(A_exe): XOBJ += options.o load-flash.o flag-tables.o
+$(A_exe): options.o load-flash.o flag-tables.o
 
 $(A_log_exe): XOBJ += logging.o
 $(A_log_exe): XLIB += -lm
@@ -591,7 +594,10 @@ options.o: options.c $(DEP_OPTIONS)
 logging.o: logging.c logging.h $(DEPS_LOGGING)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
+load-flash.o: load-flash.c #$(DEPS_LOAD_FLASH)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+flag-tables.o: flag-tables.c Makefile
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 $(A_s): avrtest.c $(DEPS)
@@ -606,7 +612,8 @@ $(EXE) : avrtest%$(EXEEXT) : avrtest%.s
 .PHONY: flag-tables
 
 flag-tables: gen-flag-tables$(BUILD_EXEEXT) Makefile
-	./$< > $@.c
+	./$< 0 > $@.c
+	./$< 1 > $@.h
 
 gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $< -o $@
@@ -619,7 +626,8 @@ $(EXIT_O): exit-%.o :dejagnuboards/exit.c avrtest.h Makefile
 .PHONY: all all-host all-avr clean clean-exit exe exit all-avrtest
 
 clean: clean-exit
-	$(RM) -f $(A:=.s) $(EXE) logging.o options.o
+	$(RM) -f $(A:=.s) $(EXE)
+	$(RM) -f logging.o options.o flag-tables.o load-flash.o
 #	rm -f $(wildcard *.o *.i *.s)
 #	rm -f $(EXE)
 #	rm -f $(A:=.s) $(A:=.i) $(A:=.o)
@@ -627,7 +635,7 @@ clean: clean-exit
 #	rm -f gen-flag-tables
 
 clean-exit:
-	$(RM) -f $(EXIT_O)
+	$(RM) -f $(EXIT_O) exit.s exit.i
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
