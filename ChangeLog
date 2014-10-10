@@ -1,3 +1,34 @@
+2014-10-10  Georg-Johann Lay  <avr@gjlay.de>
+
+	Refactoring and minor tweaks.
+
+	* avr-insn.def: Move to...
+	* avr-opcode.def: ...here.  And rename AVR_INSN to AVR_OPCODE.
+	* load-flash.c (decode_opcode):  Filter opcodes.
+	[ID_RJMP, ID_RCALL]: Pre-compute jump offset (op2).
+	* testavr.h (decoded_op): Rename to decoded_t.
+	Rename .oper1/2 to .op1/2.
+	(opcode_func_array): Rename to opcodes.
+	(opcode_t.mnemo): Move to...
+	* logging.c (mnemonic): ...this new array.
+	* gen-flag-tables.c (main): Make output depend on argv[1].
+	(TB_NOTHING, TB_EXTERN, TB_STATIC, TB_GOBAL): New.
+	(table_start, table_end, table_add): Depend code generation on them.
+	* flag-tables.c: Regenerate.
+	* flag-tables.h: New generated file.
+	* Makefile (avr-insn.def): Rename to: avr-opcode.def.
+	(flag-tables.o): New rule to build it.
+	(XOBJ): Add flag-tables.o.
+	(avrtest*.o): Depend on flag-tables.o.
+	(flag-tables): Also generate flag-tables.h.
+	* avrtest.c (flag-tables.h): #include instead of flag-tables.c.
+	(func_ASR): Minor tweak.
+	(func_RCALL, func_RJMP): Use pre-computed jump offset.
+	(xmega_atomic): Add magic_p and mnemo arguments.
+	[ISA_XMEGA]: Abort.
+	(func_XCH/LAC/LAS/LAT): Less magic, pass mnemo, don't depend
+	on is_xmega.
+
 2014-10-09  Georg-Johann Lay  <avr@gjlay.de>
 
 	Handle "RCALL ." and unknown function names.

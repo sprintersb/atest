@@ -46,9 +46,9 @@ typedef uint32_t dword;
 typedef struct
 {
   byte id;
-  byte oper1;
-  word oper2;
-} decoded_op;
+  byte op1;
+  word op2;
+} decoded_t;
 
 extern unsigned cpu_PC;
 extern unsigned program_entry_point;
@@ -110,9 +110,6 @@ typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 typedef struct
 {
   opcode_func func;
-#ifdef AVRTEST_LOG
-  const char *mnemo;
-#endif
   short size;
   short cycles;
 } opcode_t;
@@ -134,7 +131,7 @@ typedef struct
 
 extern void log_init (void);
 extern void log_append (const char *fmt, ...);
-extern void log_add_instr (const decoded_op *op);
+extern void log_add_instr (const decoded_t *op);
 extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
@@ -145,20 +142,20 @@ extern void log_set_func_symbol (int, const char*, int);
 #endif  // AVRTEST_LOG
 
 extern void load_to_flash (const char *filename, byte flash[], byte ram[]);
-extern void decode_flash (decoded_op[], const byte[]);
+extern void decode_flash (decoded_t[], const byte[]);
 extern void set_function_symbol (int, const char*, int);
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
 
-extern const opcode_t opcode_func_array[];
+extern const opcode_t opcodes[];
 
 enum
   {
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)    \
+#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)    \
     ID_ ## ID,
-#include "avr-insn.def"
-#undef AVR_INSN
+#include "avr-opcode.def"
+#undef AVR_OPCODE
   };
 
 #endif // TESTAVR_H

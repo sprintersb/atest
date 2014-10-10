@@ -64,7 +64,7 @@ const int io_base = IOBASE;
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
 #include "avrtest.h"
-#include "flag-tables.c"
+#include "flag-tables.h"
 
 #define REGX    26
 #define REGY    28
@@ -118,7 +118,7 @@ static byte cpu_data[MAX_RAM_SIZE];
 
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
-static decoded_op decoded_flash[MAX_FLASH_SIZE/2];
+static decoded_t decoded_flash[MAX_FLASH_SIZE/2];
 
 static struct timeval t_start, t_decode, t_execute, t_load;
 
@@ -783,11 +783,11 @@ skip_instruction_on_condition (int condition, int size)
     {
       if (size == 0)
         {
-          decoded_op *op = & decoded_flash[cpu_PC];
-          size = opcode_func_array[op->id].size;
+          decoded_t *d = & decoded_flash[cpu_PC];
+          size = opcodes[d->id].size;
           // Patch ID_CPSE to ID_CPSE1 resp. ID_CPSE2 so we don't need
           // to look up size in the remainder.
-          (op-size)->id += size;
+          (d - size)->id += size;
         }
       cpu_PC = (cpu_PC + size) & PC_VALID_MASK;
       add_program_cycles (size);
@@ -1068,8 +1068,8 @@ static OP_FUNC_TYPE func_SUB (int rd, int rr)
 /* 1001 010d dddd 0101 | ASR */
 static OP_FUNC_TYPE func_ASR (int rd, int rr)
 {
-  int value = get_reg (rd);
-  rotate_right (rd, value, (value & 0x80) << 1);
+  int value = (int8_t) get_reg (rd);
+  rotate_right (rd, value & 0x1ff, 0);
 }
 
 /* 1001 010d dddd 0000 | COM */
@@ -1190,12 +1190,18 @@ static OP_FUNC_TYPE func_POP (int rd, int rr)
   put_reg (rd, pop_byte());
 }
 
-static void
-xmega_atomic (int regno, int op)
+static INLINE void
+xmega_atomic (int regno, int op, const char *mnemo, int magic_p)
 {
+#ifndef ISA_XMEGA
+  leave (EXIT_STATUS_ABORTED, "illegal instruction %s", mnemo);
+#endif
+
   int mask = get_reg (regno);
   int address = get_word_reg (REGZ);
-  int val = data_read_magic_byte (address);
+  int val = (magic_p
+             ? data_read_magic_byte (address)
+             : data_read_byte (address));
 
   put_reg (regno, val);
 
@@ -1207,39 +1213,34 @@ xmega_atomic (int regno, int op)
     case ID_LAT: val ^=  mask; break;
     }
 
-  data_write_magic_byte (address, val);
+  if (magic_p)
+    data_write_magic_byte (address, val);
+  else
+    data_write_byte (address, val);
 }
 
 /* 1001 001d dddd 0100 | XCH */
 static OP_FUNC_TYPE func_XCH (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction XCH");
-  xmega_atomic (rd, ID_XCH);
+  xmega_atomic (rd, ID_XCH, "XCH", 1);
 }
 
 /* 1001 001d dddd 0101 | LAS */
 static OP_FUNC_TYPE func_LAS (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction LAS");
-  xmega_atomic (rd, ID_LAS);
+  xmega_atomic (rd, ID_LAS, "LAS", 0);
 }
 
 /* 1001 001d dddd 0110 | LAC */
 static OP_FUNC_TYPE func_LAC (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction LAC");
-  xmega_atomic (rd, ID_LAC);
+  xmega_atomic (rd, ID_LAC, "LAC", 0);
 }
 
 /* 1001 001d dddd 0111 | LAT */
 static OP_FUNC_TYPE func_LAT (int rd, int rr)
 {
-  if (!is_xmega)
-    leave (EXIT_STATUS_ABORTED, "illegal instruction LAT");
-  xmega_atomic (rd, ID_LAT);
+  xmega_atomic (rd, ID_LAT, "LAT", 0);
 }
 
 /* 1001 001d dddd 1111 | PUSH */
@@ -1584,11 +1585,7 @@ static OP_FUNC_TYPE func_OUT (int rd, int rr)
 /* 1100 kkkk kkkk kkkk | RJMP */
 static OP_FUNC_TYPE func_RJMP (int rd, int rr)
 {
-  int delta = rr;
-  //if (delta & 0x800) delta |= ~0xFFF;
-  unsigned neg = (delta & 0x800) << 1;
-  delta |= -neg;
-
+  int delta = (int16_t) rr;
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
     leave (EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
@@ -1598,11 +1595,7 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
 /* 1101 kkkk kkkk kkkk | RCALL */
 static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 {
-  int delta = rr;
-  // if (delta & 0x800) delta |= ~0xFFF;
-  unsigned neg = (delta & 0x800) << 1;
-  delta |= -neg;
-
+  int delta = (int16_t) rr;
   push_PC();
   cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
   add_program_cycles (arch.pc_3bytes);
@@ -1660,17 +1653,12 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 // ----------------------------------------------------------------------------
 // flash pre-decoding functions
 
-const opcode_t opcode_func_array[] =
+const opcode_t opcodes[] =
   {
-#ifdef AVRTEST_LOG
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                    \
-    [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
-#else
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
+#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)            \
     [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
-#endif // AVRTEST_LOG
-#include "avr-insn.def"
-#undef AVR_INSN
+#include "avr-opcode.def"
+#undef AVR_OPCODE
   };
 
 // ----------------------------------------------------------------------------
@@ -1693,20 +1681,20 @@ static INLINE void
 do_step (void)
 {
   // fetch decoded instruction
-  decoded_op dop = decoded_flash[cpu_PC];
-  byte id = dop.id;
+  decoded_t d = decoded_flash[cpu_PC];
+  byte id = d.id;
   if (!id)
     bad_PC (cpu_PC);
 
   // execute instruction
-  const opcode_t *data = &opcode_func_array[id];
-  log_add_instr (&dop);
-  cpu_PC += data->size;
-  add_program_cycles (data->cycles);
-  int op1 = dop.oper1;
-  int op2 = dop.oper2;
+  const opcode_t *insn = &opcodes[id];
+  log_add_instr (&d);
+  cpu_PC += insn->size;
+  add_program_cycles (insn->cycles);
+  int op1 = d.op1;
+  int op2 = d.op2;
   if (id >= ID_LAST_FAST)
-    data->func (op1, op2);
+    insn->func (op1, op2);
   else
     do_fast (id, op1, op2);
   log_dump_line (id);
