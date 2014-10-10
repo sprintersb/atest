@@ -614,16 +614,15 @@ push_byte (int value)
   // register area
   if (sp < 0x40 + IOBASE)
     leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
-  data_write_byte (sp, value);
-  data_write_word (SPL, sp - 1);
+  data_write_byte (sp--, value);
+  data_write_word (SPL, sp);
 }
 
 static int
 pop_byte(void)
 {
   int sp = data_read_word (SPL);
-  sp++;
-  data_write_word (SPL, sp);
+  data_write_word (SPL, ++sp);
   return data_read_byte (sp);
 }
 
@@ -635,15 +634,10 @@ push_PC (void)
   // register area
   if (sp < 0x40 + IOBASE)
     leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
-  data_write_byte (sp, cpu_PC);
-  sp--;
-  data_write_byte (sp, cpu_PC >> 8);
-  sp--;
+  data_write_byte (sp--, cpu_PC);
+  data_write_byte (sp--, cpu_PC >> 8);
   if (arch.pc_3bytes)
-    {
-      data_write_byte (sp, cpu_PC >> 16);
-      sp--;
-    }
+    data_write_byte (sp--, cpu_PC >> 16);
   data_write_word (SPL, sp);
 }
 
@@ -661,21 +655,16 @@ pop_PC (void)
   int sp = data_read_word (SPL);
   if (arch.pc_3bytes)
     {
-      sp++;
-      pc = data_read_byte (sp) << 16;
+      pc = data_read_byte (++sp) << 16;
       if (pc >= MAX_FLASH_SIZE / 2)
         {
-          sp++;
-          pc |= data_read_byte (sp) << 8;
-          sp++;
-          pc |= data_read_byte (sp);
+          pc |= data_read_byte (++sp) << 8;
+          pc |= data_read_byte (++sp);
           bad_PC (pc);
         }
     }
-  sp++;
-  pc |= data_read_byte (sp) << 8;
-  sp++;
-  pc |= data_read_byte (sp);
+  pc |= data_read_byte (++sp) << 8;
+  pc |= data_read_byte (++sp);
   data_write_word (SPL, sp);
   cpu_PC = pc;
 }
@@ -801,10 +790,7 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
   log_add_flag_read (rr, flag);
   if ((flag != 0) == flag_value)
     {
-      int delta = rd;
-      // if (delta & 0x40) delta |= ~0x7F;
-      unsigned neg = (delta & 0x40) << 1;
-      delta |= -neg;
+      int8_t delta = rd;
       cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
       add_program_cycles (1);
     }

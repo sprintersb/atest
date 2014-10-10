@@ -507,9 +507,8 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
     }
 
   // opcodes with a register (Rd) and a constant data (K) as operands
-
   unsigned hi4 = opcode1 >> 12;
-  if (hi4 == 0xe || (hi4 >= 0x3 && hi4 <= 0x7))
+  if (0x40f8 & (1 << hi4)) // 0100 0000 1111 1000
     {
       d->op1 = ((opcode1 >> 4) & 0xF) | 0x10;
       d->op2 = (opcode1 & 0x0F) | ((opcode1 >> 4) & 0x00F0);
@@ -543,13 +542,13 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
     {
       /* opcodes with a relative 7-bit address (k) and a register bit
          number (b) as operands */
-      d->op1 = (opcode1 >> 3) & 0x7F;
-      d->op2 = 1 << (opcode1 & 0x0007);
-      decode = opcode1 & ~(mask_k_7 | mask_reg_bit);
-      switch (decode) {
-      case 0xF400: return ID_BRBC;   // 1111 01kk kkkk kbbb | BRBC
-      case 0xF000: return ID_BRBS;   // 1111 00kk kkkk kbbb | BRBS
-      }
+      d->op2 = 1 << (opcode1 & 0x7);  // bit mask
+      unsigned h = (opcode1 >> 3) & 0x7F;
+      d->op1 = h & (1 << 6);          // sign
+      d->op1 = h | -d->op1;           // jump offset
+      return opcode1 & (1 << 10)
+        ? ID_BRBC                     // 1111 01kk kkkk kbbb | BRBC
+        : ID_BRBS;                    // 1111 00kk kkkk kbbb | BRBS
     }
 
   if ((opcode1 & 0xd000) == 0x8000)
