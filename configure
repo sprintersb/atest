@@ -594,6 +594,7 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+LIBOBJS
 BUILD_XMEGA_FALSE
 BUILD_XMEGA_TRUE
 BUILD_EXIT_O_FALSE
@@ -605,7 +606,6 @@ CFLAGS_FOR_BUILD
 BUILD_OBJEXT
 BUILD_EXEEXT
 CPP_FOR_BUILD
-LIBOBJS
 EGREP
 GREP
 CPP
@@ -1721,6 +1721,77 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; test "x$as_lineno_stack" = x && { as_lineno=; unset as_lineno;}
 
 } # ac_fn_c_check_type
+
+# ac_fn_c_find_intX_t LINENO BITS VAR
+# -----------------------------------
+# Finds a signed integer type with width BITS, setting cache variable VAR
+# accordingly.
+ac_fn_c_find_intX_t ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for int$2_t" >&5
+$as_echo_n "checking for int$2_t... " >&6; }
+if { as_var=$3; eval "test \"\${$as_var+set}\" = set"; }; then :
+  $as_echo_n "(cached) " >&6
+else
+  eval "$3=no"
+     for ac_type in int$2_t 'int' 'long int' \
+	 'long long int' 'short int' 'signed char'; do
+       cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$ac_includes_default
+int
+main ()
+{
+static int test_array [1 - 2 * !(0 < ($ac_type) (((($ac_type) 1 << ($2 - 2)) - 1) * 2 + 1))];
+test_array [0] = 0
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$ac_includes_default
+int
+main ()
+{
+static int test_array [1 - 2 * !(($ac_type) (((($ac_type) 1 << ($2 - 2)) - 1) * 2 + 1)
+		 < ($ac_type) (((($ac_type) 1 << ($2 - 2)) - 1) * 2 + 2))];
+test_array [0] = 0
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  case $ac_type in #(
+  int$2_t) :
+    eval "$3=yes" ;; #(
+  *) :
+    eval "$3=\$ac_type" ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+       eval as_val=\$$3
+   if test "x$as_val" = x""no; then :
+
+else
+  break
+fi
+     done
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; test "x$as_lineno_stack" = x && { as_lineno=; unset as_lineno;}
+
+} # ac_fn_c_find_intX_t
 
 # ac_fn_c_find_uintX_t LINENO BITS VAR
 # ------------------------------------
@@ -4545,6 +4616,42 @@ _ACEOF
 
 fi
 
+ac_fn_c_find_intX_t "$LINENO" "8" "ac_cv_c_int8_t"
+case $ac_cv_c_int8_t in #(
+  no|yes) ;; #(
+  *)
+
+cat >>confdefs.h <<_ACEOF
+#define int8_t $ac_cv_c_int8_t
+_ACEOF
+;;
+esac
+
+ac_fn_c_find_intX_t "$LINENO" "16" "ac_cv_c_int16_t"
+case $ac_cv_c_int16_t in #(
+  no|yes) ;; #(
+  *)
+
+cat >>confdefs.h <<_ACEOF
+#define int16_t $ac_cv_c_int16_t
+_ACEOF
+;;
+esac
+
+ac_fn_c_find_uintX_t "$LINENO" "8" "ac_cv_c_uint8_t"
+case $ac_cv_c_uint8_t in #(
+  no|yes) ;; #(
+  *)
+
+$as_echo "#define _UINT8_T 1" >>confdefs.h
+
+
+cat >>confdefs.h <<_ACEOF
+#define uint8_t $ac_cv_c_uint8_t
+_ACEOF
+;;
+  esac
+
 ac_fn_c_find_uintX_t "$LINENO" "16" "ac_cv_c_uint16_t"
 case $ac_cv_c_uint16_t in #(
   no|yes) ;; #(
@@ -4567,20 +4674,6 @@ $as_echo "#define _UINT32_T 1" >>confdefs.h
 
 cat >>confdefs.h <<_ACEOF
 #define uint32_t $ac_cv_c_uint32_t
-_ACEOF
-;;
-  esac
-
-ac_fn_c_find_uintX_t "$LINENO" "8" "ac_cv_c_uint8_t"
-case $ac_cv_c_uint8_t in #(
-  no|yes) ;; #(
-  *)
-
-$as_echo "#define _UINT8_T 1" >>confdefs.h
-
-
-cat >>confdefs.h <<_ACEOF
-#define uint8_t $ac_cv_c_uint8_t
 _ACEOF
 ;;
   esac
@@ -4735,73 +4828,12 @@ _ACEOF
 fi
 done
 
-for ac_header in stdlib.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "stdlib.h" "ac_cv_header_stdlib_h" "$ac_includes_default"
-if test "x$ac_cv_header_stdlib_h" = x""yes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_STDLIB_H 1
-_ACEOF
 
-fi
+# autoconf is wrong with sqrt gcc:
+# AC_CHECK_FUNCS([sqrt])
 
-done
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GNU libc compatible malloc" >&5
-$as_echo_n "checking for GNU libc compatible malloc... " >&6; }
-if test "${ac_cv_func_malloc_0_nonnull+set}" = set; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test "$cross_compiling" = yes; then :
-  ac_cv_func_malloc_0_nonnull=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#if defined STDC_HEADERS || defined HAVE_STDLIB_H
-# include <stdlib.h>
-#else
-char *malloc ();
-#endif
-
-int
-main ()
-{
-return ! malloc (0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_func_malloc_0_nonnull=yes
-else
-  ac_cv_func_malloc_0_nonnull=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_func_malloc_0_nonnull" >&5
-$as_echo "$ac_cv_func_malloc_0_nonnull" >&6; }
-if test $ac_cv_func_malloc_0_nonnull = yes; then :
-
-$as_echo "#define HAVE_MALLOC 1" >>confdefs.h
-
-else
-  $as_echo "#define HAVE_MALLOC 0" >>confdefs.h
-
-   case " $LIBOBJS " in
-  *" malloc.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS malloc.$ac_objext"
- ;;
-esac
-
-
-$as_echo "#define malloc rpl_malloc" >>confdefs.h
-
-fi
-
-
+# Dont' use AC_FUNC_MALLOC as this will be detected not correctly
+# AC_FUNC_MALLOC
 
 # Checks special compiler features
 ac_ext=c
@@ -4817,7 +4849,7 @@ $as_echo_n "checking for __attribute__((__always_inline__))... " >&6; }
     ac_c_werror_flag=1
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-void __attribute__((__always_inline__))
+inline void __attribute__((__always_inline__))
 			   barbar (void) { while (1); }
 int
 main ()
@@ -4846,13 +4878,48 @@ $as_echo "#define ALWAYS_INLINE /**/" >>confdefs.h
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_attribute_always_inline" >&5
 $as_echo "$atest_cv_attribute_always_inline" >&6; }
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for __attribute__((__hot__))" >&5
+$as_echo_n "checking for __attribute__((__hot__))... " >&6; }
+    atest_ac_c_werror_flag=$ac_c_werror_flag
+    ac_c_werror_flag=1
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ void __attribute__((__hot__))
+			   barbar (void) { while (1); }
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  atest_cv_attribute_hot=yes
+else
+  atest_cv_attribute_hot=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+   ac_c_werror_flag=$atest_ac_c_werror_flag
+   if test x$atest_cv_attribute_hot = xyes; then
+
+$as_echo "#define HOT __attribute__((__hot__))" >>confdefs.h
+
+   else
+
+$as_echo "#define HOT /**/" >>confdefs.h
+
+   fi
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_attribute_hot" >&5
+$as_echo "$atest_cv_attribute_hot" >&6; }
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for __attribute__((__cold__))" >&5
 $as_echo_n "checking for __attribute__((__cold__))... " >&6; }
     atest_ac_c_werror_flag=$ac_c_werror_flag
     ac_c_werror_flag=1
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-void __attribute__((__cold__))
+ void __attribute__((__cold__))
 			   barbar (void) { while (1); }
 int
 main ()
@@ -4887,7 +4954,7 @@ $as_echo_n "checking for __attribute__((__fastcall__))... " >&6; }
     ac_c_werror_flag=1
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-void __attribute__((__fastcall__))
+ void __attribute__((__fastcall__))
 			   barbar (void) { while (1); }
 int
 main ()
@@ -4922,7 +4989,7 @@ $as_echo_n "checking for __attribute__((__noinline__))... " >&6; }
     ac_c_werror_flag=1
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-void __attribute__((__noinline__))
+ void __attribute__((__noinline__))
 			   barbar (void) { while (1); }
 int
 main ()
@@ -4957,7 +5024,7 @@ $as_echo_n "checking for __attribute__((__noreturn__))... " >&6; }
     ac_c_werror_flag=1
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-void __attribute__((__noreturn__))
+ void __attribute__((__noreturn__))
 			   barbar (void) { while (1); }
 int
 main ()
@@ -4986,6 +5053,64 @@ $as_echo "#define NORETURN /**/" >>confdefs.h
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_attribute_noreturn" >&5
 $as_echo "$atest_cv_attribute_noreturn" >&6; }
 
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the host system is little endian" >&5
+$as_echo_n "checking whether the host system is little endian... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+	int a[__BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__?1:-1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  atest_cv_end_little=yes
+else
+  atest_cv_end_little=unknown
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+if test x$atest_cv_end_little = xyes; then
+
+$as_echo "#define ENDIAN_LITTLE /**/" >>confdefs.h
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_end_little" >&5
+$as_echo "$atest_cv_end_little" >&6; }
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the host system's float is little endian" >&5
+$as_echo_n "checking whether the host system's float is little endian... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+	int a[__FLOAT_WORD_ORDER__==__ORDER_LITTLE_ENDIAN__?1:-1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  atest_cv_end_little_f=yes
+else
+  atest_cv_end_little_f=unknown
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+if test x$atest_cv_end_little_f = xyes; then
+
+$as_echo "#define ENDIAN_FLOAT_LITTLE /**/" >>confdefs.h
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_end_little_f" >&5
+$as_echo "$atest_cv_end_little_f" >&6; }
 
 #AC_CONFIG_FILES(foo-config.h:foo-config.h.in,)
 
@@ -5325,77 +5450,6 @@ BUILD_EXEEXT=$ac_build_exeext
 BUILD_OBJEXT=$ac_build_objext
 
 
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for __attribute__((__cold__))" >&5
-$as_echo_n "checking for __attribute__((__cold__))... " >&6; }
-    atest_ac_c_werror_flag=$ac_c_werror_flag
-    ac_c_werror_flag=1
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-void __attribute__((__cold__))
-			   barbar (void) { while (1); }
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  atest_cv_attribute_cold=yes
-else
-  atest_cv_attribute_cold=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-   ac_c_werror_flag=$atest_ac_c_werror_flag
-   if test x$atest_cv_attribute_cold = xyes; then
-
-$as_echo "#define fubar __attribute__((__cold__))" >>confdefs.h
-
-   else
-
-$as_echo "#define fubar /**/" >>confdefs.h
-
-   fi
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_attribute_cold" >&5
-$as_echo "$atest_cv_attribute_cold" >&6; }
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for __attribute__((__hot__))" >&5
-$as_echo_n "checking for __attribute__((__hot__))... " >&6; }
-    atest_ac_c_werror_flag=$ac_c_werror_flag
-    ac_c_werror_flag=1
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-void __attribute__((__hot__))
-			   barbar (void) { while (1); }
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  atest_cv_attribute_hot=yes
-else
-  atest_cv_attribute_hot=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-   ac_c_werror_flag=$atest_ac_c_werror_flag
-   if test x$atest_cv_attribute_hot = xyes; then
-
-$as_echo "#define barfu __attribute__((__hot__))" >>confdefs.h
-
-   else
-
-$as_echo "#define barfu /**/" >>confdefs.h
-
-   fi
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $atest_cv_attribute_hot" >&5
-$as_echo "$atest_cv_attribute_hot" >&6; }
 
 
 #####################

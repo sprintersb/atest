@@ -24,6 +24,8 @@
 #ifndef TESTAVR_H
 #define TESTAVR_H
 
+#include <config.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -60,10 +62,7 @@ extern const int is_xmega;
 extern const int io_base;
 extern const int is_avrtest_log;
 
-#define INLINE inline __attribute__((always_inline))
-#define NOINLINE __attribute__((noinline))
-#define NORETURN __attribute__((noreturn))
-#define FASTCALL __attribute__((fastcall))
+#define INLINE inline ALWAYS_INLINE
 
 enum
   {

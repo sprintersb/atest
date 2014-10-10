@@ -1,22 +1,24 @@
 WARN	= -W -Wall -Wno-unused-parameter -pedantic \
 	  # -Wstrict-prototypes -Wmissing-prototypes
 
-CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
+CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp -I. $(WARN) $(CFLAGS)
 
 # compile for AVR at build
 
 CFLAGS_FOR_AVR	= -Os 
 
-SUFFIXES=
+SUFFIXES =
 
-A	= $(patsubst *%, avrtest%, * *_log)
-A_log	= $(patsubst *%, avrtest%, *_log)
+.PHONY: $(srcdir)/config.h.in
+
 A_xmega	=
+A_log	= avrtest_log
+A	= avrtest avrtest_log
 
 if BUILD_XMEGA
-A	+= $(patsubst *%, avrtest-xmega%, * *_log)
-A_log	+= $(patsubst *%, avrtest-xmega%, *_log)
-A_xmega	+= $(patsubst *%, avrtest-xmega%, * *_log)
+A_xmega	+= avrtest-xmega avrtest-xmega_log
+A_log	+= avrtest-xmega_log
+A	+= $(A_xmega)
 endif # BUILD_XMEGA
 
 A_s       = $(A:=.s)
@@ -54,17 +56,19 @@ EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 
 exit	: $(EXIT_O)
 
-DEP_OPTIONS	= options.def options.h Makefile
-DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
-DEPS_LOAD_FLASH	= $(DEP_OPTIONS) testavr.h avr-insn.def
-DEPS		= $(DEPS_LOGGING) flag-tables.c
+DEP_OPTIONS	= options.def options.h config.h Makefile
+DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-opcode.def sreg.h avrtest.h
+DEPS_LOAD_FLASH	= $(DEP_OPTIONS) testavr.h avr-opcode.def
+DEPS		= $(DEPS_LOGGING) flag-tables.h
+
+XDEF = -DHAVE_CONFIG_H
 
 # Indent with TAB for automake
 $(A_log_s): XDEF += -DAVRTEST_LOG
 $(A_xmega_s): XDEF += -DISA_XMEGA
 
-$(A_exe): XOBJ += options.o load-flash.o
-$(A_exe): options.o load-flash.o
+$(A_exe): XOBJ += options.o load-flash.o flag-tables.o
+$(A_exe): options.o load-flash.o flag-tables.o
 
 $(A_log_exe): XOBJ += logging.o
 $(A_log_exe): XLIB += -lm
@@ -76,7 +80,10 @@ options.o: options.c $(DEP_OPTIONS)
 logging.o: logging.c logging.h $(DEPS_LOGGING)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
+load-flash.o: load-flash.c #$(DEPS_LOAD_FLASH)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+flag-tables.o: flag-tables.c Makefile
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 $(A_s): avrtest.c $(DEPS)
@@ -91,7 +98,8 @@ $(EXE) : avrtest%$(EXEEXT) : avrtest%.s
 .PHONY: flag-tables
 
 flag-tables: gen-flag-tables$(BUILD_EXEEXT) Makefile
-	./$< > $@.c
+	./$< 0 > $@.c
+	./$< 1 > $@.h
 
 gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $< -o $@
@@ -105,7 +113,8 @@ $(EXIT_O): exit-%.o :dejagnuboards/exit.c avrtest.h Makefile
 .PHONY: all all-host all-avr clean clean-exit exe exit all-avrtest
 
 clean: clean-exit
-	$(RM) -f $(A:=.s) $(EXE) logging.o options.o
+	$(RM) -f $(A:=.s) $(EXE)
+	$(RM) -f logging.o options.o flag-tables.o load-flash.o
 #	rm -f $(wildcard *.o *.i *.s)
 #	rm -f $(EXE)
 #	rm -f $(A:=.s) $(A:=.i) $(A:=.o)
@@ -113,4 +122,4 @@ clean: clean-exit
 #	rm -f gen-flag-tables
 
 clean-exit:
-	$(RM) -f $(EXIT_O)
+	$(RM) -f $(EXIT_O) exit.s exit.i
