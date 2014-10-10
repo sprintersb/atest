@@ -1,6 +1,5 @@
 # Compile for host at build (cross if desired)
 CC	= gcc
-STRIP	= strip
 WARN	= -W -Wall -Wno-unused-parameter -pedantic \
 	  # -Wstrict-prototypes -Wmissing-prototypes
 
@@ -8,7 +7,6 @@ CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
 
 # compile for i386-mingw32 at *-linux-*
 WINCC	= i386-mingw32-gcc
-WINSTRIP= i386-mingw32-strip
 
 ifneq (,$(findstring Window,$(OS)))
 # For the host
@@ -81,7 +79,6 @@ $(A:=.s) : avrtest.c $(DEPS)
 
 $(EXE) : avrtest%$(EXEEXT) : avrtest%.s
 	$(CC) $< -o $@ $(XOBJ) $(XLIB)
-	$(STRIP) $@
 
 # Build some auto-generated files
 
@@ -130,7 +127,6 @@ $(A:=$(W).s) : avrtest.c $(DEPS)
 EXE_W = $(A:=.exe)
 $(EXE_W) : avrtest%.exe : avrtest%$(W).s
 	$(WINCC) $< -o $@ $(XOBJ_W) $(XLIB)
-	$(WINSTRIP) $@
 
 endif
 
