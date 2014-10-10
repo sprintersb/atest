@@ -190,6 +190,11 @@ const char *func_name (int i)
 }
 
 
+/* Track the current call depth for performance metering and to display
+   during instruction logging as functions are entered / left.
+   Tracking setjmp / longjmp is too painful and would bring hardly
+   any benefit -- for now we are fine with a note in README.  */
+
 static void
 set_call_depth (const decoded_t *d)
 {
@@ -230,7 +235,7 @@ set_call_depth (const decoded_t *d)
 
   if (alog.prologue_save.func
       // __prologue_saves__ ends with [E]IJMP
-      && (perf.id == ID_IJMP || perf.id == ID_EIJMP))
+      && (alog.id == ID_IJMP || alog.id == ID_EIJMP))
     {
       name = alog.prologue_save.func;
       alog.prologue_save.func = NULL;

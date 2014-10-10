@@ -47,11 +47,11 @@ Compile this program as usual but link against exit-atmega128.o.
 How to build that object is explained in the next chapter. Store the
 C source as hello.c and compile it with, e.g.
 
-  $ avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
+    avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
 The exit-*.o object arranges the putchar function to write to the mentioned
 location.  avrtest will pick the value and print it to standard output of
-your host computer.  To start the program, type
+your host computer.  To start the program, run
 
     avrtest -mmcu=avr51 hello.elf
 
@@ -353,14 +353,20 @@ be dumped at any time by
 
     PERF_DUMP (N);
 
+or
+    PERF_DUMP_ALL;
+
 This will show a summary of the extremal values for the perf-meter and
 reset it completely so that you can use it for a different task afterwards.
 Displayed values are:
 
- - Calls (abs):  The absolute call depth (CALLs increment, RETs decrement).
- - Calls (rel):  Call depth relative to the starting point.
  - Stack (abs):  Values of the stack pointer (SP).
  - Stack (rel):  Stack usage relative to the starting point.
+ - Calls (abs):  The absolute call depth (CALLs increment, RETs decrement).
+ - Calls (rel):  Call depth relative to the starting point.
+
+Tracking of the call depth won't work as expected for setjmp / longjmp
+and similar functions that set SP to an unknown call depth.
 
 In order to give a specific perf-meter a more descriptive name there are
 
@@ -421,7 +427,7 @@ int main (void)
 }
 
 
-Compile as usual and link against exit-***.o.  Running
+Compile as usual, link against exit-*.o and running
 
   $ avrtest_log ... -no-log -q
 
