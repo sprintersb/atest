@@ -784,7 +784,7 @@ skip_instruction_on_condition (int condition, int size)
       if (size == 0)
         {
           decoded_t *d = & decoded_flash[cpu_PC];
-          size = opcode_func_array[d->id].size;
+          size = opcodes[d->id].size;
           // Patch ID_CPSE to ID_CPSE1 resp. ID_CPSE2 so we don't need
           // to look up size in the remainder.
           (d - size)->id += size;
@@ -1653,17 +1653,17 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 // ----------------------------------------------------------------------------
 // flash pre-decoding functions
 
-const opcode_t opcode_func_array[] =
+const opcode_t opcodes[] =
   {
 #ifdef AVRTEST_LOG
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)                    \
+#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)                    \
     [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
 #else
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)            \
+#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)            \
     [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
 #endif // AVRTEST_LOG
-#include "avr-insn.def"
-#undef AVR_INSN
+#include "avr-opcode.def"
+#undef AVR_OPCODE
   };
 
 // ----------------------------------------------------------------------------
@@ -1692,7 +1692,7 @@ do_step (void)
     bad_PC (cpu_PC);
 
   // execute instruction
-  const opcode_t *insn = &opcode_func_array[id];
+  const opcode_t *insn = &opcodes[id];
   log_add_instr (&d);
   cpu_PC += insn->size;
   add_program_cycles (insn->cycles);

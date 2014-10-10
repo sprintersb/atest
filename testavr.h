@@ -151,14 +151,14 @@ extern void set_function_symbol (int, const char*, int);
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
 
-extern const opcode_t opcode_func_array[];
+extern const opcode_t opcodes[];
 
 enum
   {
-#define AVR_INSN(ID, N_WORDS, N_TICKS, NAME)    \
+#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)    \
     ID_ ## ID,
-#include "avr-insn.def"
-#undef AVR_INSN
+#include "avr-opcode.def"
+#undef AVR_OPCODE
   };
 
 #endif // TESTAVR_H

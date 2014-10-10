@@ -50,8 +50,8 @@ EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 exit	: $(EXIT_O)
 
 DEP_OPTIONS	= options.def options.h Makefile
-DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-insn.def sreg.h avrtest.h
-DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-insn.def
+DEPS_LOGGING	= $(DEP_OPTIONS) testavr.h avr-opcode.def sreg.h avrtest.h
+DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-opcode.def
 DEPS		= $(DEPS_LOGGING) flag-tables.h
 
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG

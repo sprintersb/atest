@@ -313,7 +313,7 @@ log_add_instr (const decoded_t *d)
   alog.id = d->id;
 
   char mnemo_[16];
-  const char *fmt, *mnemo = opcode_func_array[alog.id].mnemo;
+  const char *fmt, *mnemo = opcodes[alog.id].mnemo;
 
   // OUT and ST* might turn on logging: always log them to alog.data[].
   alog.maybe_OUT = (alog.id == ID_OUT || mnemo[1] == 'T');

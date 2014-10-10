@@ -1,0 +1,179 @@
+/*
+  This file is part of avrtest -- A simple simulator for the
+  Atmel AVR family of microcontrollers designed to test the compiler.
+
+  Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
+  Copyright (C) 2007 Paulo Marques
+  Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   
+  avrtest is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+  
+  avrtest is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with avrtest; see the file COPYING.  If not, write to
+  the Free Software Foundation, 59 Temple Place - Suite 330,
+  Boston, MA 02111-1307, USA.  */
+
+/*
+  Before including this file, define a macro
+
+    AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)
+
+  where
+
+    ID
+        is a valid C identifier.  It is used to compose `func_<ID>'
+        and `ID_<ID>'.
+
+    N_WORDS
+        is the number of words in flash needed to encode the instruction.
+
+    N_TICKS
+        is the number of instruction cycles needed by the instruction.
+
+    NAME
+        is a human-readable representation of the instruction (nmemonic)
+        displayed when logging is active.  log_put_bit() will fix '*'
+        on the fly.
+
+    Instructions marked with `*' might need extra cycles.
+    Instructions marked with `#' might be replaced by one of the two
+    following two instruction.
+*/
+
+// Dummy entry to guarantee that "zero" is an invalid function
+AVR_OPCODE (NULL, 0, 0, NULL)
+
+AVR_OPCODE (LDI,         1, 1,    "LDI"    )
+AVR_OPCODE (MOV,         1, 1,    "MOV"    )
+AVR_OPCODE (MOVW,        1, 1,    "MOVW"   )
+
+AVR_OPCODE (LAST_FAST,   0, 0,    "???"    )
+
+AVR_OPCODE (ADC,         1, 1,    "ADC"    )
+AVR_OPCODE (ADD,         1, 1,    "ADD"    )
+AVR_OPCODE (ADIW,        1, 2,    "ADIW"   )
+AVR_OPCODE (SBIW,        1, 2,    "SBIW"   )
+AVR_OPCODE (AND,         1, 1,    "AND"    )
+AVR_OPCODE (ANDI,        1, 1,    "ANDI"   )
+AVR_OPCODE (ASR,         1, 1,    "ASR"    )
+AVR_OPCODE (BCLR,        1, 1,    "CL*"    )
+AVR_OPCODE (BLD,         1, 1,    "BLD.*"  )
+AVR_OPCODE (BRBC,        1, 1,    "BR*C"   ) // *
+AVR_OPCODE (BRBS,        1, 1,    "BR*S"   ) // *
+AVR_OPCODE (BSET,        1, 1,    "SE*"    )
+AVR_OPCODE (BST,         1, 1,    "BST.*"  )
+AVR_OPCODE (CALL,        2, 4,    "CALL"   ) // *
+AVR_OPCODE (CBI,         1, 2-CX, "CBI.*"  )
+AVR_OPCODE (COM,         1, 1,    "COM"    )
+AVR_OPCODE (CP,          1, 1,    "CP"     )
+AVR_OPCODE (CPC,         1, 1,    "CPC"    )
+AVR_OPCODE (CPI,         1, 1,    "CPI"    )
+
+AVR_OPCODE (CPSE,        1, 1,    "CPSE"   ) // * #
+AVR_OPCODE (CPSE1,       1, 1,    "CPSE"   ) // *
+AVR_OPCODE (CPSE2,       1, 1,    "CPSE"   ) // *
+
+AVR_OPCODE (DEC,         1, 1,    "DEC"    )
+AVR_OPCODE (EICALL,      1, 4-CX, "EICALL" )
+AVR_OPCODE (EIJMP,       1, 2,    "EIJMP"  )
+AVR_OPCODE (ELPM,        1, 3,    "ELPM"   )
+AVR_OPCODE (ELPM_Z,      1, 3,    "ELPM Z" )
+AVR_OPCODE (ELPM_Z_incr, 1, 3,    "ELPM Z+")
+AVR_OPCODE (EOR,         1, 1,    "EOR"    )
+AVR_OPCODE (ESPM,        1, 1,    "ESPM"   )
+AVR_OPCODE (FMUL,        1, 2,    "FMUL"   )
+AVR_OPCODE (FMULS,       1, 2,    "FMULS"  )
+AVR_OPCODE (FMULSU,      1, 2,    "FMULSU" )
+AVR_OPCODE (ICALL,       1, 3-CX, "ICALL"  ) // *
+AVR_OPCODE (IJMP,        1, 2,    "IJMP"   )
+AVR_OPCODE (ILLEGAL,     1, 1,    "ILLEGAL")
+AVR_OPCODE (IN,          1, 1,    "IN"     )
+AVR_OPCODE (INC,         1, 1,    "INC"    )
+AVR_OPCODE (JMP,         2, 3,    "JMP"    )
+AVR_OPCODE (LDD_Y,       1, 2,    "LDD Y+q")
+AVR_OPCODE (LDD_Z,       1, 2,    "LDD Z+q")
+AVR_OPCODE (LDS,         2, 2+CX, "LDS"    )
+AVR_OPCODE (LD_X,        1, 2,    "LD X"   )
+AVR_OPCODE (LD_X_decr,   1, 2,    "LD -X"  )
+AVR_OPCODE (LD_X_incr,   1, 2,    "LD X+"  )
+AVR_OPCODE (LD_Y_decr,   1, 2,    "LD -Y"  )
+AVR_OPCODE (LD_Y_incr,   1, 2,    "LD Y+"  )
+AVR_OPCODE (LD_Z_decr,   1, 2,    "LD -Z"  )
+AVR_OPCODE (LD_Z_incr,   1, 2,    "LD Z+"  )
+AVR_OPCODE (LPM,         1, 3,    "LPM"    )
+AVR_OPCODE (LPM_Z,       1, 3,    "LPM Z"  )
+AVR_OPCODE (LPM_Z_incr,  1, 3,    "LPM Z+" )
+AVR_OPCODE (LSR,         1, 1,    "LSR"    )
+AVR_OPCODE (MUL,         1, 2,    "MUL"    )
+AVR_OPCODE (MULS,        1, 2,    "MULS"   )
+AVR_OPCODE (MULSU,       1, 2,    "MULSU"  )
+AVR_OPCODE (NEG,         1, 1,    "NEG"    )
+AVR_OPCODE (NOP,         1, 1,    "NOP"    )
+AVR_OPCODE (OR,          1, 1,    "OR"     )
+AVR_OPCODE (ORI,         1, 1,    "ORI"    )
+AVR_OPCODE (OUT,         1, 1,    "OUT"    )
+AVR_OPCODE (POP,         1, 2,    "POP"    )
+AVR_OPCODE (PUSH,        1, 2-CX, "PUSH"   )
+AVR_OPCODE (RCALL,       1, 3-CX, "RCALL"  ) // *
+AVR_OPCODE (RET,         1, 4,    "RET"    ) // *
+AVR_OPCODE (RETI,        1, 4,    "RETI"   ) // *
+AVR_OPCODE (RJMP,        1, 2,    "RJMP"   )
+AVR_OPCODE (ROR,         1, 1,    "ROR"    )
+AVR_OPCODE (SBC,         1, 1,    "SBC"    )
+AVR_OPCODE (SBCI,        1, 1,    "SBCI"   )
+AVR_OPCODE (SBI,         1, 2-CX, "SBI.*"  )
+
+AVR_OPCODE (SBIC,        1, 1+CX, "SBIC.*" ) // * #
+AVR_OPCODE (SBIC1,       1, 1+CX, "SBIC.*" ) // *
+AVR_OPCODE (SBIC2,       1, 1+CX, "SBIC.*" ) // *
+
+AVR_OPCODE (SBIS,        1, 1+CX, "SBIS.*" ) // * #
+AVR_OPCODE (SBIS1,       1, 1+CX, "SBIS.*" ) // *
+AVR_OPCODE (SBIS2,       1, 1+CX, "SBIS.*" ) // *
+
+AVR_OPCODE (SBRC,        1, 1,    "SBRC.*" ) // * #
+AVR_OPCODE (SBRC1,       1, 1,    "SBRC.*" ) // *
+AVR_OPCODE (SBRC2,       1, 1,    "SBRC.*" ) // *
+
+AVR_OPCODE (SBRS,        1, 1,    "SBRS.*" ) // * #
+AVR_OPCODE (SBRS1,       1, 1,    "SBRS.*" ) // *
+AVR_OPCODE (SBRS2,       1, 1,    "SBRS.*" ) // *
+
+AVR_OPCODE (SLEEP,       1, 1,    "SLEEP"  )
+AVR_OPCODE (SPM,         1, 1,    "SPM"    )
+AVR_OPCODE (STD_Y,       1, 2,    "STD Y+q")
+AVR_OPCODE (STD_Z,       1, 2,    "STD Z+q")
+AVR_OPCODE (STS,         2, 2,    "STS"    )
+AVR_OPCODE (ST_X,        1, 2,    "ST X"   )
+AVR_OPCODE (ST_X_decr,   1, 2,    "ST -X"  )
+AVR_OPCODE (ST_X_incr,   1, 2,    "ST X+"  )
+AVR_OPCODE (ST_Y_decr,   1, 2,    "ST -Y"  )
+AVR_OPCODE (ST_Y_incr,   1, 2,    "ST Y+"  )
+AVR_OPCODE (ST_Z_decr,   1, 2,    "ST -Z"  )
+AVR_OPCODE (ST_Z_incr,   1, 2,    "ST Z+"  )
+AVR_OPCODE (SUB,         1, 1,    "SUB"    )
+AVR_OPCODE (SUBI,        1, 1,    "SUBI"   )
+AVR_OPCODE (SWAP,        1, 1,    "SWAP"   )
+AVR_OPCODE (WDR,         1, 1,    "WDR"    )
+
+// Some common shortcuts
+AVR_OPCODE (CLR,         1, 1,    "CLR"    )
+AVR_OPCODE (LSL,         1, 1,    "LSL"    )
+AVR_OPCODE (ROL,         1, 1,    "ROL"    )
+AVR_OPCODE (TST,         1, 1,    "TST"    )
+
+// XMEGA must be at the end of this file
+AVR_OPCODE (xmega,       0, 0,    "???"    )
+
+AVR_OPCODE (XCH,         1, 1,    "XCH"    )
+AVR_OPCODE (LAS,         1, 1,    "LAS"    )
+AVR_OPCODE (LAC,         1, 1,    "LAC"    )
+AVR_OPCODE (LAT,         1, 1,    "LAT"    )
