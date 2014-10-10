@@ -91,7 +91,6 @@ $(A_s): avrtest.c $(DEPS)
 
 $(EXE) : avrtest%$(EXEEXT) : avrtest%.s
 	$(CC) $(CFLAGS_FOR_HOST) $< -o $@ $(XOBJ) $(XLIB)
-	$(STRIP) $@
 
 # Build some auto-generated files
 
