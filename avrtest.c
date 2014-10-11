@@ -142,6 +142,46 @@ time_sub (unsigned long *s, unsigned long *us, double *ms,
 }
 
 
+static void
+print_runtime (void)
+{
+  struct timeval t_end;
+  unsigned long r_sec, e_sec, d_sec, l_sec, r_us, e_us, d_us, l_us;
+  double r_ms, e_ms, d_ms, l_ms;
+
+  gettimeofday (&t_end, NULL);
+  time_sub (&r_sec, &r_us, &r_ms, &t_end, &t_start);
+  time_sub (&e_sec, &e_us, &e_ms, &t_end, &t_execute);
+  time_sub (&d_sec, &d_us, &d_ms, &t_execute, &t_decode);
+  time_sub (&l_sec, &l_us, &l_ms, &t_decode, &t_load);
+
+  printf ("        load: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+          " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
+          l_sec/60, l_sec%60, l_us, l_sec, l_us/1000,
+          r_ms > 0.01 ? 100.*l_ms/r_ms : 0.0,
+          l_ms > 0.01 ? program_size/l_ms : 0.0,
+          program_size, program_size);
+
+  printf ("      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+          " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
+          d_sec/60, d_sec%60, d_us, d_sec, d_us/1000,
+          r_ms > 0.01 ? 100.*d_ms/r_ms : 0.0,
+          d_ms > 0.01 ? program_size/d_ms : 0.0,
+          program_size, program_size);
+
+  printf ("     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+          " %6.2f%%,  %10.3f instructions/ms\n",
+          e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
+          r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
+          e_ms > 0.01 ? instr_count/e_ms : 0.0);
+
+  printf (" avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
+          " %6.2f%%,  %10.3f instructions/ms\n",
+          r_sec/60, r_sec%60, r_us, r_sec, r_us/1000, 100.,
+          r_ms > 0.01 ? instr_count/r_ms : 0.0);
+}
+
+
 // Skip any output if -q (quiet) is on
 void qprintf (const char *fmt, ...)
 {
@@ -159,8 +199,7 @@ static byte exit_value;
 void NOINLINE NORETURN
 leave (int status, const char *reason, ...)
 {
-  int args_consumed = 0;
-  static char s_runtime[200], s_decode[200], s_execute[200], s_load[200];
+  va_list args;
   int failing = status >= EXIT_STATUS_USAGE;
 
   // make sure we print the last log line before leaving
@@ -169,48 +208,10 @@ leave (int status, const char *reason, ...)
   qprintf ("\n");
 
   if (options.do_runtime && !failing)
-    {
-      struct timeval t_end;
-      unsigned long r_sec, e_sec, d_sec, l_sec, r_us, e_us, d_us, l_us;
-      double r_ms, e_ms, d_ms, l_ms;
-      gettimeofday (&t_end, ((void *)0));
-      time_sub (&r_sec, &r_us, &r_ms, &t_end, &t_start);
-      time_sub (&e_sec, &e_us, &e_ms, &t_end, &t_execute);
-      time_sub (&d_sec, &d_us, &d_ms, &t_execute, &t_decode);
-      time_sub (&l_sec, &l_us, &l_ms, &t_decode, &t_load);
-
-      sprintf (s_load, "        load: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
-               l_sec/60, l_sec%60, l_us, l_sec, l_us/1000,
-               r_ms > 0.01 ? 100.*l_ms/r_ms : 0.0,
-               l_ms > 0.01 ? program_size/l_ms : 0.0,
-               program_size, program_size);
-
-      sprintf (s_decode, "      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
-               d_sec/60, d_sec%60, d_us, d_sec, d_us/1000,
-               r_ms > 0.01 ? 100.*d_ms/r_ms : 0.0,
-               d_ms > 0.01 ? program_size/d_ms : 0.0,
-               program_size, program_size);
-
-      sprintf (s_execute, "     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f instructions/ms\n",
-               e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
-               r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
-               e_ms > 0.01 ? instr_count/e_ms : 0.0);
-
-      sprintf (s_runtime, " avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-               " %6.2f%%,  %10.3f instructions/ms\n",
-               r_sec/60, r_sec%60, r_us, r_sec, r_us/1000,
-               100.,
-               r_ms > 0.01 ? instr_count/r_ms : 0.0);
-
-      printf ("%s%s%s%s", s_load, s_decode, s_execute, s_runtime);
-    }
+    print_runtime();
 
   if (!options.do_quiet)
     {
-      va_list args;
       va_start (args, reason);
 
       printf (" exit status: %s\n"
@@ -226,50 +227,37 @@ leave (int status, const char *reason, ...)
               "total cycles: %u\n\n", cpu_PC * 2, program_cycles);
 
       va_end (args);
-      args_consumed = 1;
-    }
-  else
-    switch (status)
-      {
-      case EXIT_STATUS_EXIT:     exit (exit_value);
-      case EXIT_STATUS_ABORTED:  exit (EXIT_FAILURE);
-      case EXIT_STATUS_TIMEOUT:  exit (10);
-      case EXIT_STATUS_FILE:     exit (11);
-      case EXIT_STATUS_MEMORY:   exit (12);
-      case EXIT_STATUS_USAGE:
-        {
-          FILE *out = stdout;
-          va_list args;
-          va_start (args, reason);
-          fprintf (out, "\n%s: ", options.self);
-          vfprintf (out, reason, args);
-          fprintf (out, "\n");
-          va_end (args);
-          fflush (out);
-        }
-        exit (13);
-      default:
-        status = EXIT_STATUS_FATAL;
-      }
+      fflush (stdout);
 
-  if (EXIT_STATUS_FATAL == status)
+      exit (failing ? EXIT_FAILURE : EXIT_SUCCESS);
+    }
+
+  fflush (stdout);
+
+  FILE *out = stderr;
+  int usage = status == EXIT_STATUS_USAGE;
+
+  switch (status)
     {
-      if (!args_consumed)
-        {
-          va_list args;
-          va_start (args, reason);
-
-          fprintf (stderr, "\n%s: internal error: ", options.self);
-          vfprintf (stderr, reason, args);
-          fprintf (stderr, "\n");
-          fflush (stderr);
-
-          va_end (args);
-        }
-      exit (42);
+    case EXIT_STATUS_EXIT:     exit (exit_value);
+    case EXIT_STATUS_ABORTED:  exit (EXIT_FAILURE);
+    case EXIT_STATUS_TIMEOUT:  exit (10);
+    case EXIT_STATUS_FILE:     exit (11);
+    case EXIT_STATUS_MEMORY:   exit (12);
     }
 
-  exit (failing ? EXIT_FAILURE : EXIT_SUCCESS);
+  va_start (args, reason);
+
+  fprintf (out, "\n%s: ", options.self);
+  if (!usage)
+    fprintf  (out, "internal error: ");
+  vfprintf (out, reason, args);
+  fprintf (out, "\n");
+  fflush (out);
+
+  va_end (args);
+
+  exit (usage ? 13 : 42);
 }
 
 // ----------------------------------------------------------------------------
