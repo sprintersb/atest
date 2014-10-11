@@ -1,3 +1,23 @@
+2014-10-11  Georg-Johann Lay  <avr@gjlay.de>
+
+	Tidy up leave().  Pre-decode 32-bit skips.  Don't strip programs.
+
+	* load-flash.c (decode_opcode) [CPSE, SBRC, SBRS, SBIC, SBIS]:
+	Map to 32-bit variant as needed.
+	[BRBS/BRBC]: Precompute jump offset.
+	* avr-opcode.def (CPSE1, SBIC1, SBIS1, SBRC1, SBRS1): Remove.
+	* logging.c (log_patch_mnemo): Dito.
+	* avrtest.c (exit_status_t): New type.
+	(exit_status[]): New.
+	(exit_status_text): Remove.
+	(leave): Tidy up.  Factor out runtime statistics to...
+	(print_runtime): ...this new function.
+	(skip_instruction_on_condition): Don't handle size==0.
+	(branch_on_sreg_condition): Simplify delta computation.
+	(func_CPSE/SBIC/SBIS/SBRC/SBRS): Pass 1 as words to skip.
+	(func_CPSE1/SBIC1/SBIS1/SBRC1/SBRS1): Remove.
+	(Makefile): Don't strip executables.
+
 2014-10-10  Georg-Johann Lay  <avr@gjlay.de>
 
 	Refactoring and minor tweaks.
