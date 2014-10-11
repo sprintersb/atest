@@ -113,10 +113,8 @@ log_patch_mnemo (const decoded_t *d, char *buf)
       return;
     case ID_BLD:  case ID_SBI:
     case ID_BST:  case ID_CBI:
-    case ID_SBIS:  case ID_SBIS1:  case ID_SBIS2:
-    case ID_SBIC:  case ID_SBIC1:  case ID_SBIC2:
-    case ID_SBRS:  case ID_SBRS1:  case ID_SBRS2:
-    case ID_SBRC:  case ID_SBRC1:  case ID_SBRC2:
+    case ID_SBIS:  case ID_SBIS2:  case ID_SBRS:  case ID_SBRS2:
+    case ID_SBIC:  case ID_SBIC2:  case ID_SBRC:  case ID_SBRC2:
       mask = d->op2;
       style = 1;
       break;

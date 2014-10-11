@@ -55,7 +55,10 @@ enum decoder_operand_masks
     mask_q_displ  = 0x2C07,    // address displacement (q)
 
     mask_A_5      = 0x00F8,    // 5 bit register id (R00--R31)
-    mask_A_6      = 0x060F     // 6 bit IO port id
+    mask_A_6      = 0x060F,    // 6 bit IO port id
+
+    mask_JMP_CALL = 0xfe0c,    // identify JMP / CALL (1001 010x xxxx 11xx)
+    mask_LDS_STS  = 0xf30f     // identify LDS / STS  (1001 00xx xxxx 0000)
   };
 
 
@@ -466,10 +469,16 @@ static const byte avr_op_74_index[1 + 0x7ff] = {
 };
 
 
+#define DO_SKIP(ID)   \
+  do {                \
+      index = ID;     \
+      goto do_skip;   \
+    } while (0)
+
 static int
 decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
 {
-  byte index;
+  byte index = 0;
 
   // opcodes with no operands
 
@@ -491,6 +500,7 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
       if (ID_ADC == index && d->op1 == d->op2)  return ID_ROL;
       if (ID_EOR == index && d->op1 == d->op2)  return ID_CLR;
       if (ID_AND == index && d->op1 == d->op2)  return ID_TST;
+      if (ID_CPSE == index) DO_SKIP (ID_CPSE);
       return index;
     }
 
@@ -531,10 +541,10 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
       d->op2 = 1 << (opcode1 & 0x0007);
       decode = opcode1 & ~(mask_Rd_5 | mask_reg_bit);
       switch (decode) {
-      case 0xF800: return ID_BLD;   // 1111 100d dddd 0bbb | BLD
-      case 0xFA00: return ID_BST;   // 1111 101d dddd 0bbb | BST
-      case 0xFC00: return ID_SBRC;  // 1111 110d dddd 0bbb | SBRC
-      case 0xFE00: return ID_SBRS;  // 1111 111d dddd 0bbb | SBRS
+      case 0xF800: return ID_BLD;       // 1111 100d dddd 0bbb | BLD
+      case 0xFA00: return ID_BST;       // 1111 101d dddd 0bbb | BST
+      case 0xFC00: DO_SKIP (ID_SBRC);   // 1111 110d dddd 0bbb | SBRC
+      case 0xFE00: DO_SKIP (ID_SBRS);   // 1111 111d dddd 0bbb | SBRS
       }
     }
 
@@ -616,8 +626,8 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
       switch (opcode1 >> 8) {
       case 0x9800 >> 8: return ID_CBI;         // 1001 1000 AAAA Abbb | CBI
       case 0x9A00 >> 8: return ID_SBI;         // 1001 1010 AAAA Abbb | SBI
-      case 0x9900 >> 8: return ID_SBIC;        // 1001 1001 AAAA Abbb | SBIC
-      case 0x9B00 >> 8: return ID_SBIS;        // 1001 1011 AAAA Abbb | SBIS
+      case 0x9900 >> 8: DO_SKIP (ID_SBIC);     // 1001 1001 AAAA Abbb | SBIC
+      case 0x9B00 >> 8: DO_SKIP (ID_SBIS);     // 1001 1011 AAAA Abbb | SBIS
       }
     }
 
@@ -672,6 +682,18 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
 
   d->op2 = opcode1;
   return ID_ILLEGAL;
+
+  // Map ID_CPSE to ID_CPSE2 if CPSE has to skip 2 words.
+  // Dito for SBRC, SBRS, SBIC, SBIS.
+do_skip:;
+
+  if ((opcode2 & mask_LDS_STS) == 0x9000)
+    return 1 + index;
+
+  if ((opcode2 & mask_JMP_CALL) == 0x940c)
+    return 1 + index;
+
+  return index;
 }
 
 void
