@@ -29,6 +29,12 @@ enum
     LOG_FLOAT_CMD,
 
     LOG_TAG_FMT_CMD, LOG_TAG_PFMT_CMD,
+
+    TICKS_RESET_CMD, /* 1st TICKS command */
+    TICKS_IS_CYCLES_CMD, TICKS_IS_INSNS_CMD, TICKS_IS_PRAND_CMD,
+    TICKS_IS_RAND_CMD,
+    TICKS_RESET_ALL_CMD,  /* last TICKS command */
+
     LOG_X_sentinel
   };
 
@@ -267,14 +273,16 @@ enum
 
 #define PERF_STATX_(P,X,n,c) do { P=(X); LOG_PORT = PERF_CMD_(n,c); } while (0)
 
-enum
-  {
-    TICKS_AS_CYCLES,
-    TICKS_AS_INSTRUCTIONS,
-    TICKS_AS_PRAND,
-    TICKS_AS_RAND,
-    TICKS_AS_LOG,
-  };
+/* Controlling what slot of TICKS_PORT will be accessable */
+
+#define TICKS_IS_CYCLES  LOG_SEND_CMD_ (TICKS_IS_CYCLES_CMD)  /* default */
+#define TICKS_IS_INSNS   LOG_SEND_CMD_ (TICKS_IS_INSNS_CMD)
+#define TICKS_IS_PRAND   LOG_SEND_CMD_ (TICKS_IS_PRAND_CMD)
+#define TICKS_IS_RAND    LOG_SEND_CMD_ (TICKS_IS_RAND_CMD)
+#define TICKS_RESET      LOG_SEND_CMD_ (TICKS_RESET_CMD)
+#define TICKS_RESET_ALL  LOG_SEND_CMD_ (TICKS_RESET_ALL_CMD)
+
+#define LOG_SEND_CMD_(N)    do { LOG_PORT = LOG_DUMP_CMD (N);} while (0)
 
 #endif /* IN_AVRTEST */
 

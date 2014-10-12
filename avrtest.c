@@ -60,20 +60,20 @@
 #ifdef ISA_XMEGA
 #define IOBASE  0
 #define CX 1
-const int is_xmega = 1;
 #else
 #define IOBASE  0x20
 #define CX 0
-const int is_xmega = 0;
 #endif
-
-const int io_base = IOBASE;
 
 #ifdef AVRTEST_LOG
-const int is_avrtest_log = 1;
+#define IS_AVRTEST_LOG 1
 #else
-const int is_avrtest_log = 0;
+#define IS_AVRTEST_LOG 0
 #endif
+
+const int is_xmega = CX;
+const int is_avrtest_log = IS_AVRTEST_LOG;
+const int io_base = IOBASE;
 
 // ----------------------------------------------------------------------------
 // ports like EXIT_PORT used for application <-> simulator interactions 
@@ -83,24 +83,9 @@ const int is_avrtest_log = 0;
 
 
 // ----------------------------------------------------------------------------
-// vars that hold simulator state and program information.
-// These are kept as global vars for simplicity
+// holds simulator state and program information.
 
-// maximum number of executed instructions (used as a timeout)
-dword max_instr_count;
-
-// number of executed instructions so far
-dword instr_count;
-
-// cycle counter
-dword program_cycles;
-
-// program entry point (byte address) from ELF header or 0 for non-ELF.
-// can be set by -e
-unsigned program_entry_point;
-
-// size in bytes of program in flash
-unsigned int program_size;
+program_t program;
 
 
 // ---------------------------------------------------------------------------
@@ -200,26 +185,26 @@ print_runtime (void)
           " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
           l_sec/60, l_sec%60, l_us, l_sec, l_us/1000,
           r_ms > 0.01 ? 100.*l_ms/r_ms : 0.0,
-          l_ms > 0.01 ? program_size/l_ms : 0.0,
-          program_size, program_size);
+          l_ms > 0.01 ? program.size/l_ms : 0.0,
+          program.size, program.size);
 
   printf ("      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
           " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
           d_sec/60, d_sec%60, d_us, d_sec, d_us/1000,
           r_ms > 0.01 ? 100.*d_ms/r_ms : 0.0,
-          d_ms > 0.01 ? program_size/d_ms : 0.0,
-          program_size, program_size);
+          d_ms > 0.01 ? program.size/d_ms : 0.0,
+          program.size, program.size);
 
   printf ("     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
           " %6.2f%%,  %10.3f instructions/ms\n",
           e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
           r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
-          e_ms > 0.01 ? instr_count/e_ms : 0.0);
+          e_ms > 0.01 ? program.n_insns/e_ms : 0.0);
 
   printf (" avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
           " %6.2f%%,  %10.3f instructions/ms\n",
           r_sec/60, r_sec%60, r_us, r_sec, r_us/1000, 100.,
-          r_ms > 0.01 ? instr_count/r_ms : 0.0);
+          r_ms > 0.01 ? program.n_insns/r_ms : 0.0);
 }
 
 
@@ -263,10 +248,10 @@ leave (int n, const char *reason, ...)
       printf ("\n"
               "     program: %s\n",
               options.program_name ? options.program_name : "-not set-");
-      if (program_entry_point != 0)
-        printf (" entry point: %06x\n", program_entry_point);
+      if (program.entry_point != 0)
+        printf (" entry point: %06x\n", program.entry_point);
       printf ("exit address: %06x\n"
-              "total cycles: %u\n\n", cpu_PC * 2, program_cycles);
+              "total cycles: %u\n\n", cpu_PC * 2, program.n_cycles);
 
       va_end (args);
       fflush (stdout);
@@ -297,7 +282,7 @@ leave (int n, const char *reason, ...)
 
 // Adding magic to some I/O ports as we read from or write to them
 
-static INLINE void
+static NOINLINE void
 data_write_magic_port (int address, int value)
 {
   // add code here to handle special events
@@ -318,15 +303,19 @@ data_write_magic_port (int address, int value)
       log_add_data_mov ("(%s)<-%02x ", address, value & 0xff);
       leave (EXIT_STATUS_ABORTED, "abort function called");
       break;
+    case LOG_PORT:
+      if (IS_AVRTEST_LOG)
+        do_log_port_cmd (value);
+      else
+        cpu_data[address] = value;
+      break;
+    default:
+      cpu_data[address] = value;
+      break;
     }
-
-#ifdef AVRTEST_LOG
-  if (address == LOG_PORT)
-    do_log_port_cmd (value);
-#endif // AVRTEST_LOG
 }
 
-static INLINE int
+static NOINLINE int
 data_read_magic_port (int address)
 {
   // add code here to handle special events
@@ -334,17 +323,9 @@ data_read_magic_port (int address)
   if (address == STDIN_PORT && options.do_stdin)
     return getchar();
 
-#ifdef AVRTEST_LOG
   if (address == TICKS_PORT && options.do_ticks)
-    {
-      // update TICKS_PORT only on access of first byte to avoid glitches
-      dword cycles = program_cycles;
-      cpu_data[TICKS_PORT+0] = cycles;
-      cpu_data[TICKS_PORT+1] = cycles >> 8;
-      cpu_data[TICKS_PORT+2] = cycles >> 16;
-      cpu_data[TICKS_PORT+3] = cycles >> 24;
-    }
-#endif // AVRTEST_LOG
+    // update TICKS_PORT only on access of first byte to avoid glitches
+    flush_ticks_port (address);
 
   // default action, just read the value
   return cpu_data[address];
@@ -380,7 +361,8 @@ static INLINE int
 data_read_magic_byte (int address)
 {
   int ret;
-  if (address <= LAST_MAGIC_IN_PORT && address >= FIRST_MAGIC_IN_PORT)
+  if (address == STDIN_PORT
+      || (IS_AVRTEST_LOG && address == TICKS_PORT))
     ret = data_read_magic_port (address);
   else
     // default action, just read the value
@@ -622,7 +604,7 @@ FUT_ADD_SUB_INDEX (unsigned v1, unsigned v2, unsigned res)
 static INLINE void
 add_program_cycles (dword cycles)
 {
-  program_cycles += cycles;
+  program.n_cycles += cycles;
 }
 
 
@@ -665,7 +647,7 @@ static NOINLINE NORETURN void
 bad_PC (unsigned pc)
 {
   leave (EXIT_STATUS_ABORTED, "program counter 0x%x out of bounds "
-         "(0x%x--0x%x)", 2 * pc, 0, program_size);
+         "(0x%x--0x%x)", 2 * pc, 0, program.size);
 }
 
 static INLINE void
@@ -1675,16 +1657,15 @@ do_step (void)
 static INLINE void
 execute (void)
 {
-  log_init();
-  dword max_instr = max_instr_count;
-  program_cycles = 0;
+  dword max_insns = program.max_insns;
+  program.n_cycles = 0;
 
   for (;;)
     {
       do_step();
 
-      instr_count++;
-      if (max_instr && instr_count >= max_instr)
+      program.n_insns++;
+      if (max_insns && program.n_insns >= max_insns)
         leave (EXIT_STATUS_TIMEOUT, "instruction count limit reached");
     }
 }
@@ -1694,6 +1675,7 @@ int
 main (int argc, char *argv[])
 {
   gettimeofday (&t_start, NULL);
+  log_init (t_start.tv_usec + t_start.tv_sec);
 
   parse_args (argc, argv);
 

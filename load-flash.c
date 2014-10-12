@@ -308,7 +308,7 @@ load_elf (FILE *f, byte *flash, byte *ram)
 
   if (!options.do_entry_point)
     {
-      unsigned pc = program_entry_point = get_elf32_word (&ehdr.e_entry);
+      unsigned pc = program.entry_point = get_elf32_word (&ehdr.e_entry);
       cpu_PC = pc / 2;
       if (pc >= MAX_FLASH_SIZE)
         leave (EXIT_STATUS_FILE, "ELF entry-point 0x%x it too big", pc);
@@ -337,9 +337,11 @@ load_elf (FILE *f, byte *flash, byte *ram)
         continue;
       if (filesz == 0)
         continue;
-      /* if (verbose)
-         printf ("Load 0x%06x - 0x%06x\n",
-         (unsigned)addr, (unsigned)(addr + memsz)); */
+
+      if (options.do_verbose)
+        printf (">>> Load 0x%06x - 0x%06x\n",
+                (unsigned) addr, (unsigned) (addr + memsz));
+
       if (addr + memsz > MAX_FLASH_SIZE)
         leave (EXIT_STATUS_FILE,
                "program too big to fit in flash");
@@ -355,8 +357,8 @@ load_elf (FILE *f, byte *flash, byte *ram)
         memcpy (ram + vaddr - DATA_VADDR, flash + addr, filesz);
 
       // No need to clear memory
-      if ((unsigned) (addr + memsz) > program_size)
-        program_size = addr + memsz;
+      if ((unsigned) (addr + memsz) > program.size)
+        program.size = addr + memsz;
     }
 
   if (is_avrtest_log && options.do_symbols)
@@ -384,14 +386,14 @@ load_to_flash (const char *filename, byte *flash, byte *ram)
   else
     {
       rewind (fp);
-      program_size = fread (flash, 1, MAX_FLASH_SIZE, fp);
+      program.size = fread (flash, 1, MAX_FLASH_SIZE, fp);
     }
   fclose (fp);
 
-  if (program_size & (~arch.flash_addr_mask))
+  if (program.size & (~arch.flash_addr_mask))
     {
       leave (EXIT_STATUS_FILE, "program is too large (size: %"PRIu32
-             ", max: %u)", program_size, arch.flash_addr_mask + 1);
+             ", max: %u)", program.size, arch.flash_addr_mask + 1);
     }
 }
 
@@ -701,7 +703,7 @@ decode_flash (decoded_t d[], const byte flash[])
 {
   word opcode1 = flash[0] | (flash[1] << 8);
   
-  for (unsigned i = 0; i < program_size; i += 2)
+  for (unsigned i = 0; i < program.size; i += 2)
     {
       word opcode2 = flash[i + 2] | (flash[i + 3] << 8);
       d[i / 2].id = decode_opcode (&d[i / 2], opcode1, opcode2);

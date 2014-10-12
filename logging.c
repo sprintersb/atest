@@ -552,6 +552,102 @@ get_raw_value (const layout_t *lay)
   return val;
 }
 
+enum
+{
+  TI_CYCLES,
+  TI_INSNS,
+  TI_RAND,
+  TI_PRAND
+};
+
+// a prime m
+static uint32_t prand_m     = 0xfffffffb;
+// phi (m)
+// uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
+// a primitive root of (Z/m*Z)^*
+static uint32_t prand_root  = 0xcafebabe;
+
+typedef struct
+{
+  // What value will be read from TICKS_PORT.
+  int config;
+  // Offset set by RESET.
+  dword n_insns;
+  dword n_cycles;
+  
+  uint32_t pvalue;
+
+} ticks_port_t;
+
+static ticks_port_t ticks_port;
+
+/* Reading LSB of TICKS port triggeres updating all 4 bytes
+   in order to avoid glitches as the following bytes are read
+   by the program.  avr-gcc emits LSB reads first.  */
+
+void
+flush_ticks_port (int addr)
+{
+  uint32_t value = 0;
+
+  switch (ticks_port.config)
+    {
+    case TI_CYCLES:
+      value = program.n_cycles - ticks_port.n_cycles;
+      break;
+    case TI_INSNS:
+      value = program.n_insns - ticks_port.n_insns;
+      break;
+    case TI_RAND:
+      value = rand();
+      value ^= (unsigned) rand() << 11;
+      value ^= (unsigned) rand() << 22;
+      break;
+    case TI_PRAND:
+      value = ticks_port.pvalue ? ticks_port.pvalue : 1;
+      value = ((uint64_t) value * prand_root) % prand_m;
+      ticks_port.pvalue = value;
+      break;
+    }
+
+  byte *p = log_cpu_address (addr, 0);
+  *p++ = value;
+  *p++ = value >> 8;
+  *p++ = value >> 16;
+  *p++ = value >> 24;
+}
+
+
+static void
+do_ticks_cmd (int cfg)
+{
+  ticks_port_t *tp = &ticks_port;
+
+  switch (cfg)
+    {
+    case TICKS_RESET_CMD:
+      switch (tp->config)
+        {
+        case TI_CYCLES:   tp->n_cycles = program.n_cycles;  break;
+        case TI_INSNS:    tp->n_insns  = program.n_insns;   break;
+        case TI_PRAND:    tp->pvalue = 0;  break;
+        }
+      break;
+
+    case TICKS_RESET_ALL_CMD:
+      tp->n_cycles = program.n_cycles;
+      tp->n_insns  = program.n_insns;
+      tp->pvalue = 0;
+      break;
+
+    case TICKS_IS_CYCLES_CMD:  tp->config = TI_CYCLES;  break;
+    case TICKS_IS_INSNS_CMD:   tp->config = TI_INSNS;   break;
+    case TICKS_IS_PRAND_CMD:   tp->config = TI_PRAND;   break;
+    case TICKS_IS_RAND_CMD:    tp->config = TI_RAND;    break;
+    }
+}
+
+
 static void
 do_log_dump (int what)
 {
@@ -709,8 +805,16 @@ do_log_port_cmd (int x)
       break; // LOG_TAG_PERF
 
     case LOG_DUMP:
-      // Dumping values to host's stdout.
-      do_log_dump (LOG_NUM (x));
+      {
+        int n = LOG_NUM (x);
+        if (n >= TICKS_RESET_CMD
+            && n <= TICKS_RESET_ALL_CMD)
+          // Config what's being read from TICKS_PORT
+          do_ticks_cmd (n);
+        else
+          // Dumping values to host's stdout.
+          do_log_dump (n);
+      }
       break;
 
     case LOG_SET:
@@ -869,8 +973,8 @@ perf_start (perfs_t *p, int i)
       p->valid = PERF_START;
       p->n = 0;
       p->insns = p->ticks = 0;
-      minmax_init (& p->insn,  instr_count);
-      minmax_init (& p->tick,  program_cycles);
+      minmax_init (& p->insn,  program.n_insns);
+      minmax_init (& p->tick,  program.n_cycles);
       minmax_init (& p->calls, perf.calls);
       minmax_init (& p->sp,    perf.sp);
       minmax_init (& p->pc,    p->pc_start = cpu_PC);
@@ -879,8 +983,8 @@ perf_start (perfs_t *p, int i)
   // (Re)start
   p->on = 1;
   p->n++;
-  p->insn.at_start = instr_count;
-  p->tick.at_start = program_cycles;
+  p->insn.at_start = program.n_insns;
+  p->tick.at_start = program.n_cycles;
 }
 
 
@@ -910,7 +1014,7 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
     {
       p->on = 0;
       p->pc.at_end = p->pc_end = perf.pc2;
-      p->insn.at_end = instr_count -1;
+      p->insn.at_end = program.n_insns -1;
       p->tick.at_end = perf.tick;
       p->calls.at_end = perf.calls;
       p->sp.at_end = sp;
@@ -1083,12 +1187,12 @@ perf_instruction (int id)
   perf.sp  = sp;
   perf.pc2 = perf.pc;
   perf.pc  = cpu_PC;
-  perf.tick = program_cycles;
+  perf.tick = program.n_cycles;
 }
 
 
 void
-log_init (void)
+log_init (unsigned val)
 {
   alog.pos = alog.data;
   alog.maybe_log = 1;
@@ -1098,6 +1202,7 @@ log_init (void)
 
   // Tell the program whether it's being executed by avrtest or avrtest_log.
   *(log_cpu_address (MAX_RAM_SIZE-1, 0)) = 1;
+  srand (val);
 }
 
 

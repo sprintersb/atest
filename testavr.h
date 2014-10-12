@@ -50,12 +50,29 @@ typedef struct
   word op2;
 } decoded_t;
 
+typedef struct
+{
+  // Program entry byte address as of ELF header or set
+  // by -e ENTRY
+  unsigned entry_point;
+
+  // Size in bytes of program in flash (assuming it starts at 0x0).
+  unsigned size;
+
+  // Maximum number of instructions to be executed,
+  // used as a timeout.  Can be set my -m CYCLES
+  dword max_insns;
+
+  // Number of instructions simulated so far.
+  dword n_insns;
+
+  // Cycles consumed by the program so far.
+  dword n_cycles;
+} program_t;
+
+extern program_t program;
+
 extern unsigned cpu_PC;
-extern unsigned program_entry_point;
-extern unsigned program_size;
-extern dword max_instr_count;
-extern dword instr_count;
-extern dword program_cycles;
 extern const int is_xmega;
 extern const int io_base;
 extern const int is_avrtest_log;
@@ -125,11 +142,13 @@ typedef struct
 #define log_add_data_mov(...)  (void) 0
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
+#define do_log_port_cmd(...)   (void) 0
+#define flush_ticks_port(...)  (void) 0
 #define log_set_func_symbol(...) (void) 0
 
 #else
 
-extern void log_init (void);
+extern void log_init (unsigned);
 extern void log_append (const char *fmt, ...);
 extern void log_add_instr (const decoded_t *op);
 extern void log_add_data_mov (const char *format, int addr, int value);
@@ -137,6 +156,7 @@ extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
 extern void do_log_port_cmd (int x);
+extern void flush_ticks_port (int addr);
 extern void log_set_func_symbol (int, const char*, int);
 
 #endif  // AVRTEST_LOG
