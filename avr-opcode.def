@@ -43,20 +43,25 @@
         displayed when logging is active.  log_put_bit() will fix '*'
         on the fly.
 
-    Instructions marked with `*' might need extra cycles.
-    Instructions marked with `#' might be replaced by one of the two
-    following two instruction.
+    *
+        Instructions might need extra cycles.
+
+    #
+        Instructions might be replaced by the following instruction.
+
 */
 
 // Dummy entry to guarantee that "zero" is an invalid function
-AVR_OPCODE (NULL, 0, 0, NULL)
+AVR_OPCODE (_null, 0, 0, NULL)
+
+// Instructions small enough to be inlined in their caller
 
 AVR_OPCODE (LDI,         1, 1,    "LDI"    )
 AVR_OPCODE (MOV,         1, 1,    "MOV"    )
 AVR_OPCODE (MOVW,        1, 1,    "MOVW"   )
+AVR_OPCODE (_last_fast,  0, 0,    "???"    )
 
-AVR_OPCODE (LAST_FAST,   0, 0,    "???"    )
-
+// Vanilla
 AVR_OPCODE (ADC,         1, 1,    "ADC"    )
 AVR_OPCODE (ADD,         1, 1,    "ADD"    )
 AVR_OPCODE (ADIW,        1, 2,    "ADIW"   )
@@ -76,11 +81,8 @@ AVR_OPCODE (COM,         1, 1,    "COM"    )
 AVR_OPCODE (CP,          1, 1,    "CP"     )
 AVR_OPCODE (CPC,         1, 1,    "CPC"    )
 AVR_OPCODE (CPI,         1, 1,    "CPI"    )
-
 AVR_OPCODE (CPSE,        1, 1,    "CPSE"   ) // * #
-AVR_OPCODE (CPSE1,       1, 1,    "CPSE"   ) // *
 AVR_OPCODE (CPSE2,       1, 1,    "CPSE"   ) // *
-
 AVR_OPCODE (DEC,         1, 1,    "DEC"    )
 AVR_OPCODE (EICALL,      1, 4-CX, "EICALL" )
 AVR_OPCODE (EIJMP,       1, 2,    "EIJMP"  )
@@ -130,23 +132,14 @@ AVR_OPCODE (ROR,         1, 1,    "ROR"    )
 AVR_OPCODE (SBC,         1, 1,    "SBC"    )
 AVR_OPCODE (SBCI,        1, 1,    "SBCI"   )
 AVR_OPCODE (SBI,         1, 2-CX, "SBI.*"  )
-
 AVR_OPCODE (SBIC,        1, 1+CX, "SBIC.*" ) // * #
-AVR_OPCODE (SBIC1,       1, 1+CX, "SBIC.*" ) // *
 AVR_OPCODE (SBIC2,       1, 1+CX, "SBIC.*" ) // *
-
 AVR_OPCODE (SBIS,        1, 1+CX, "SBIS.*" ) // * #
-AVR_OPCODE (SBIS1,       1, 1+CX, "SBIS.*" ) // *
 AVR_OPCODE (SBIS2,       1, 1+CX, "SBIS.*" ) // *
-
 AVR_OPCODE (SBRC,        1, 1,    "SBRC.*" ) // * #
-AVR_OPCODE (SBRC1,       1, 1,    "SBRC.*" ) // *
 AVR_OPCODE (SBRC2,       1, 1,    "SBRC.*" ) // *
-
 AVR_OPCODE (SBRS,        1, 1,    "SBRS.*" ) // * #
-AVR_OPCODE (SBRS1,       1, 1,    "SBRS.*" ) // *
 AVR_OPCODE (SBRS2,       1, 1,    "SBRS.*" ) // *
-
 AVR_OPCODE (SLEEP,       1, 1,    "SLEEP"  )
 AVR_OPCODE (SPM,         1, 1,    "SPM"    )
 AVR_OPCODE (STD_Y,       1, 2,    "STD Y+q")
@@ -170,9 +163,7 @@ AVR_OPCODE (LSL,         1, 1,    "LSL"    )
 AVR_OPCODE (ROL,         1, 1,    "ROL"    )
 AVR_OPCODE (TST,         1, 1,    "TST"    )
 
-// XMEGA must be at the end of this file
-AVR_OPCODE (xmega,       0, 0,    "???"    )
-
+// XMEGA instructions
 AVR_OPCODE (XCH,         1, 1,    "XCH"    )
 AVR_OPCODE (LAS,         1, 1,    "LAS"    )
 AVR_OPCODE (LAC,         1, 1,    "LAC"    )

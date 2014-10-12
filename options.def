@@ -61,6 +61,9 @@ AVRTEST_OPT (stdin, 1, stdin)
 // Whether STDOUT_PORT is active
 AVRTEST_OPT (stdout, 1, stdout)
 
+// Verbosity about avrtest internals
+AVRTEST_OPT (v, 0, verbose)
+
 
 /* All of the following options are silently ignored by avrtest
    and behave as if disabled, i.e. specified as -no-...  */
@@ -69,11 +72,11 @@ AVRTEST_OPT (stdout, 1, stdout)
 // program resp. ignored with -no-args ...
 AVRTEST_OPT (args, 0, args)
 
-// Whether loggin is on and LOG_PORT is active
+// Whether logging is on active at program start
 AVRTEST_OPT (log, 1, log)
 
 // Whether TICKS_PORT is active
-AVRTEST_OPT (ticks, 0, ticks)
+AVRTEST_OPT (ticks, 1, ticks)
 
-// Whether to read and display symbols for functions
+// Whether to read and display symbol names from ELF
 AVRTEST_OPT (syms, 1, symbols)

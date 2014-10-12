@@ -47,8 +47,8 @@ static const char USAGE[] =
   "  -q           Quiet operation.  Only print messages explicitly requested,\n"
   "               e.g. by LOG_U8(42).  Pass exit status from the program.\n"
   "  -runtime     Print avrtest execution time.\n"
-  "  -ticks       Enable the 32-bit cycle counter TICKS_PORT that can be used\n"
-  "               to measure performance.\n"
+  "  -no-ticks    Disable the 32-bit cycle counter TICKS_PORT that can be\n"
+  "               used to measure performance (avrtest_log only).\n"
   "  -no-log      Disable logging in avrtest_log.  Useful when capturing\n"
   "               performance data.  Logging can be turned on / off by\n"
   "               writing to LOG_PORT.  For avrtest this option and writing\n"
@@ -115,7 +115,7 @@ usage (const char *fmt, ...)
   va_end (args);
 
   qprintf ("\n");
-  leave (EXIT_STATUS_USAGE, "command line error: %s%s", reason,
+  leave (EXIT_STATUS_USAGE, "%s%s", reason,
          options.do_quiet ? ", use -h for help" : "");
 }
 
@@ -217,7 +217,7 @@ parse_args (int argc, char *argv[])
             }
           else
             cpu_PC = 0;
-          program_entry_point = cpu_PC;
+          program.entry_point = cpu_PC;
           cpu_PC /= 2;
           break; // -e
 
@@ -232,7 +232,7 @@ parse_args (int argc, char *argv[])
           if (++i >= argc)
             usage ("missing MAXCOUNT after '%s'", argv[i]);
           if (on)
-            max_instr_count = get_valid_number (argv[i], "-m");
+            program.max_insns = get_valid_number (argv[i], "-m");
           break; // -m
         }
     }
