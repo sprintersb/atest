@@ -140,7 +140,13 @@ typedef struct
 #define ET_EXEC 2
 #define EM_AVR 0x53
 
+// Program Header Type
 #define PT_LOAD 1
+
+// Program Header Flags
+#define PF_X    (1 << 0)       // Execute
+#define PF_W    (1 << 1)       // Write
+#define PF_R    (1 << 2)       // Read
 
 #define DATA_VADDR 0x800000
 
@@ -158,12 +164,33 @@ typedef struct
 #define SHT_SHLIB    10        // Reserved
 #define SHT_DYNSYM   11        // Minimal symbol table for dynamic linking
 
+const char * const s_SHT[] =
+  {
+    [SHT_NULL]     = "NULL",
+    [SHT_PROGBITS] = "PROGBITS",
+    [SHT_SYMTAB]   = "SYMTAB",
+    [SHT_STRTAB]   = "STRTAB",
+    [SHT_RELA]     = "RELA",
+    [SHT_HASH]     = "HASH",
+    [SHT_DYNAMIC]  = "DYNAMIC",
+    [SHT_NOTE]     = "NOTE",
+    [SHT_NOBITS]   = "NOBITS",
+    [SHT_REL]      = "REL",
+    [SHT_SHLIB]    = "SHLIB",
+    [SHT_DYNSYM]   = "DYNSYM",
+  };
+
 // Section header flags
-#define SHF_WRITE   (1u << 0)  // Section can be written during execution
-#define SHF_ALLOC   (1u << 1)  // Section occupies memory on target
-#define SHF_EXEC    (1u << 2)  // Section contains executable code
-#define SHF_MERGE   (1u << 4)  // Section data can be merged
-#define SHF_STRINGS (1u << 5)  // Section contains 0-terminated strings
+#define SHF_WRITE      (1u <<  0)  // Section can be written during execution
+#define SHF_ALLOC      (1u <<  1)  // Section occupies memory on target
+#define SHF_EXEC       (1u <<  2)  // Section contains executable code
+#define SHF_MERGE      (1u <<  4)  // Section data can be merged
+#define SHF_STRINGS    (1u <<  5)  // Section contains 0-terminated strings
+#define SHF_INFO_LINK  (1u <<  6)  // Section .sh_info links to a section header
+#define SHF_GROUP      (1u <<  9)  // Section group
+#define SHF_EXCLUDE    (1u << 31)  // Section exclude
+//                   "01234567890123456789012345678901"
+const char s_SHF[] = "wax.MS>..G.....................E";
 
 // Special values for Elf32_Sym.st_shndx
 #define SHN_LORESERVE 0xff00   // First reserved section header index
@@ -212,6 +239,30 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
   if (fseek (f, e_shoff, SEEK_SET) != 0
       || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
     leave (EXIT_STATUS_FILE, "ELF section headers truncated");
+
+  if (options.do_verbose)
+    for (int n = 0; n < e_shnum; n++)
+      {
+        Elf32_Word sh_type  = get_elf32_word (&shdr[n].sh_type);
+        Elf32_Word sh_flags = get_elf32_word (&shdr[n].sh_flags);
+        Elf32_Word sh_info  = get_elf32_word (&shdr[n].sh_info);
+        Elf32_Word sh_size  = get_elf32_word (&shdr[n].sh_size);
+        Elf32_Addr sh_addr  = get_elf32_word (&shdr[n].sh_addr);
+        Elf32_Off sh_offset = get_elf32_word (&shdr[n].sh_offset);
+        unsigned ns = sizeof (s_SHT) / sizeof (*s_SHT);
+        printf (">>> [%2d] %-12s \"", n, sh_type <  ns ? s_SHT[sh_type] : "???");
+        for (size_t j = 0; j < strlen (s_SHF); j++)
+          if (s_SHF[j] != '.')
+            printf ("%c", (sh_flags & (1 << j)) ? s_SHF[j] : ' ');
+        printf ("\"");
+        if (sh_flags & SHF_INFO_LINK)
+          printf (" --> [%2d] ", sh_info);
+        else
+          printf ("%11s", "");
+        printf ("# = 0x%06x, addr = 0x%06x, off = 0x%06x",
+                (unsigned) sh_size, (unsigned) sh_addr, (unsigned) sh_offset);
+        printf ("\n");
+      }
 
   for (int n = 0; n < e_shnum; n++)
     {
@@ -331,7 +382,8 @@ load_elf (FILE *f, byte *flash, byte *ram)
       Elf32_Addr addr = get_elf32_word (&phdr[i].p_paddr);
       Elf32_Addr vaddr = get_elf32_word (&phdr[i].p_vaddr);
       Elf32_Word filesz = get_elf32_word (&phdr[i].p_filesz);
-      Elf32_Word memsz= get_elf32_word (&phdr[i].p_memsz);
+      Elf32_Word memsz = get_elf32_word (&phdr[i].p_memsz);
+      Elf32_Word flags = get_elf32_word (&phdr[i].p_flags);
         
       if (get_elf32_word (&phdr[i].p_type) != PT_LOAD)
         continue;
@@ -339,8 +391,10 @@ load_elf (FILE *f, byte *flash, byte *ram)
         continue;
 
       if (options.do_verbose)
-        printf (">>> Load 0x%06x - 0x%06x\n",
-                (unsigned) addr, (unsigned) (addr + memsz));
+        printf (">>> Load PHDR 0x%06x -- 0x%06x (vaddr = 0x%06x) \"%s%s%s\"\n",
+                (unsigned) addr, (unsigned) (addr + memsz - 1),
+                (unsigned) vaddr, flags & PF_R ? "r" : "",
+                flags & PF_W ? "w" : "", flags & PF_X ? "x" : "");
 
       if (addr + memsz > MAX_FLASH_SIZE)
         leave (EXIT_STATUS_FILE,
