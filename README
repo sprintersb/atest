@@ -464,3 +464,28 @@ The computation of sin (x) took 1029..1952 cycles for the 315 values it had
 been computed with an average of 1720 cycles.  sin() needs 19 bytes stack
 space.  The maximal difference between sin (x) and the 3rd-order
 approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14.
+
+
+============================
+ Timing data from TICKS_PORT
+============================
+
+* This feature is only supported by avrtest_log and avrtest-xmega_log.
+
+TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit value that
+contains the number of program cycles since program start.  TICKS_PORT
+can be configured to supply 4 different kinds of values:
+
+    TICKS_IS_CYCLES;        Cycles since program start (default)
+    TICKS_IS_INSNS;         Number of simulated instructions since start
+    TICKS_IS_PRAND;         A 32-bit pseudo randum number
+    TICKS_IS_RAND;          A 32-bit randum number
+
+To reset the value for the currently active TICKS_PORT mode (except RAND) use
+
+    TICKS_RESET;
+
+The values for all modes (except RAND) can be reset by
+
+  TICKS_RESET_ALL;
+

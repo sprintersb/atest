@@ -103,6 +103,7 @@ static byte cpu_reg[0x20];
 // cpu_data is used to store registers (non-xmega), ioport values
 // and actual SRAM
 static byte cpu_data[MAX_RAM_SIZE];
+static byte cpu_eeprom[MAX_EEPROM_SIZE];
 
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
@@ -113,17 +114,17 @@ static decoded_t decoded_flash[MAX_FLASH_SIZE/2];
 // Exit stati as used with leave()
 
 typedef struct
-  {
-    // Holding some keyword that is scanned by board descriptions
-    const char *text;
-    // Specify kind of failure (not from target program) error
-    const char *kind;
-    // Whether we exit because of avrtest or usage problems rather than
-    // problems in the target program
-    int failure;
-    // Exit value with -q quiet operation, cf. README
-    int quiet_value;
-  } exit_status_t;
+{
+  // Holding some keyword that is scanned by board descriptions
+  const char *text;
+  // Specify kind of failure (not from target program) error
+  const char *kind;
+  // Whether we exit because of avrtest or usage problems rather than
+  // problems in the target program
+  int failure;
+  // Exit value with -q quiet operation, cf. README
+  int quiet_value;
+} exit_status_t;
 
 static byte exit_value;
 
@@ -171,6 +172,7 @@ time_sub (unsigned long *s, unsigned long *us, double *ms,
 static void
 print_runtime (void)
 {
+  const program_t *p = &program;
   struct timeval t_end;
   unsigned long r_sec, e_sec, d_sec, l_sec, r_us, e_us, d_us, l_us;
   double r_ms, e_ms, d_ms, l_ms;
@@ -185,26 +187,25 @@ print_runtime (void)
           " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
           l_sec/60, l_sec%60, l_us, l_sec, l_us/1000,
           r_ms > 0.01 ? 100.*l_ms/r_ms : 0.0,
-          l_ms > 0.01 ? program.size/l_ms : 0.0,
-          program.size, program.size);
+          l_ms > 0.01 ? p->n_bytes/l_ms : 0.0, p->n_bytes, p->n_bytes);
 
+  unsigned n_decoded = p->code_end - p->code_start + 1;
   printf ("      decode: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
           " %6.2f%%,  %10.3f        bytes/ms, 0x%05x = %u bytes\n",
           d_sec/60, d_sec%60, d_us, d_sec, d_us/1000,
           r_ms > 0.01 ? 100.*d_ms/r_ms : 0.0,
-          d_ms > 0.01 ? program.size/d_ms : 0.0,
-          program.size, program.size);
+          d_ms > 0.01 ? n_decoded/d_ms : 0.0, n_decoded, n_decoded);
 
   printf ("     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
           " %6.2f%%,  %10.3f instructions/ms\n",
           e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
           r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
-          e_ms > 0.01 ? program.n_insns/e_ms : 0.0);
+          e_ms > 0.01 ? p->n_insns/e_ms : 0.0);
 
   printf (" avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
           " %6.2f%%,  %10.3f instructions/ms\n",
           r_sec/60, r_sec%60, r_us, r_sec, r_us/1000, 100.,
-          r_ms > 0.01 ? program.n_insns/r_ms : 0.0);
+          r_ms > 0.01 ? p->n_insns/r_ms : 0.0);
 }
 
 
@@ -251,7 +252,9 @@ leave (int n, const char *reason, ...)
       if (program.entry_point != 0)
         printf (" entry point: %06x\n", program.entry_point);
       printf ("exit address: %06x\n"
-              "total cycles: %u\n\n", cpu_PC * 2, program.n_cycles);
+              "total cycles: %u\n"
+              "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
+              program.n_insns);
 
       va_end (args);
       fflush (stdout);
@@ -647,7 +650,7 @@ static NOINLINE NORETURN void
 bad_PC (unsigned pc)
 {
   leave (EXIT_STATUS_ABORTED, "program counter 0x%x out of bounds "
-         "(0x%x--0x%x)", 2 * pc, 0, program.size);
+         "(0x%x--0x%x)", 2 * pc, program.code_start, program.code_end - 1);
 }
 
 static INLINE void
@@ -1682,7 +1685,7 @@ main (int argc, char *argv[])
   if (options.do_runtime)
     gettimeofday (&t_load, NULL);
 
-  load_to_flash (options.program_name, cpu_flash, cpu_data);
+  load_to_flash (options.program_name, cpu_flash, cpu_data, cpu_eeprom);
 
   if (options.do_runtime)
     gettimeofday (&t_decode, NULL);
