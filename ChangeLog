@@ -1,3 +1,27 @@
+2014-10-13  Georg-Johann Lay  <avr@gjlay.de>
+
+	Load EEPROM, -v option (verbose), more TICKS_PORT.
+
+	* optiond.def (-v): New option.
+	* load-flash.c (load_elf): Load .eeprom section to eeprom.
+	[-v]: Print PHDR.
+	(decode_flash): Only decode from program code_start to code_end.
+	* testavr.h (MAX_EEPROM_SIZE): New define.
+	(program_t, program, flush_ticks_port): New type and protos.
+	* logging.c (ticks_port_t, ticks_port): New type and variable.
+	(flush_ticks_port, do_ticks_cmd): New functions.
+	(do_log_dump): Handle TICKS_*_CMD.
+	* avrtest.h (TICKS_IS_RAND_CMD, TICKS_RESET_CMD, TICKS_IS_CYCLES_CMD)
+	(TICKS_IS_INSNS_CMD, TICKS_IS_PRAND_CMD, TICKS_RESET_ALL_CMD)
+	(TICKS_IS_RAND, TICKS_RESET, TICKS_IS_CYCLES, TICKS_IS_INSNS)
+	(TICKS_IS_PRAND, TICKS_RESET_ALL): New macros.
+	* avrtest.c (max_instr_count, instr_count, program_size)
+	(program_cycles, program_entry_point): Move data to...
+	(program): ...this new structure.
+	(cpu_eeprom[]): New...
+	(main): ...pass it to load_to_flash.  Pass time to log_init.
+	(data_read_magic_port): Move TICKS_PORT handling to flush_ticks_port.
+
 2014-10-11  Georg-Johann Lay  <avr@gjlay.de>
 
 	Tidy up leave().  Pre-decode 32-bit skips.  Don't strip programs.
