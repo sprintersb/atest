@@ -9,8 +9,6 @@ CFLAGS_FOR_AVR	= -Os
 
 SUFFIXES =
 
-.PHONY: $(srcdir)/config.h.in
-
 A_xmega	=
 A_log	= avrtest_log
 A	= avrtest avrtest_log
@@ -80,7 +78,7 @@ options.o: options.c $(DEP_OPTIONS)
 logging.o: logging.c logging.h $(DEPS_LOGGING)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-load-flash.o: load-flash.c #$(DEPS_LOAD_FLASH)
+load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 flag-tables.o: flag-tables.c Makefile
@@ -107,7 +105,7 @@ gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 # Cross-compile AVR exit*.o objects
 
 $(EXIT_O): exit-%.o :dejagnuboards/exit.c avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I$(srcdir) $< -c -o $@ -save-temps -dp
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I$(srcdir) $< -c -o $@
 
 .PHONY: all all-host all-avr clean clean-exit exe exit all-avrtest
 

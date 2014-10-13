@@ -48,12 +48,13 @@ AC_TYPE_INT16_T
 AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
 AC_C_INLINE
 AC_C_CONST
 
 # Checks for library functions.
 AC_CHECK_FUNCS([gettimeofday strtoul])
-AC_CHECK_FUNCS([memset sqrt strrchr])
+AC_CHECK_FUNCS([memset sqrt strrchr rand srand])
 
 # autoconf is wrong with sqrt gcc:
 # AC_CHECK_FUNCS([sqrt])
