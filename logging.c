@@ -561,11 +561,11 @@ enum
 };
 
 // a prime m
-static uint32_t prand_m     = 0xfffffffb;
+static uint32_t prand_m = 0xfffffffb;
 // phi (m)
 // uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
 // a primitive root of (Z/m*Z)^*
-static uint32_t prand_root  = 0xcafebabe;
+static uint32_t prand_root = 0xcafebabe;
 
 typedef struct
 {
@@ -574,9 +574,8 @@ typedef struct
   // Offset set by RESET.
   dword n_insns;
   dword n_cycles;
-  
+  // Current value for PRAND mode
   uint32_t pvalue;
-
 } ticks_port_t;
 
 static ticks_port_t ticks_port;
@@ -769,8 +768,8 @@ do_log_port_cmd (int x)
           case PERF_TAG_U16:   cmd = LOG_U16_CMD;  break;
           case PERF_TAG_U32:   cmd = LOG_U32_CMD;  break;
           case PERF_TAG_FLOAT: cmd = LOG_FLOAT_CMD; break;
-          case PERF_LABEL:    cmd = LOG_STR_CMD;  break;
-          case PERF_PLABEL:   cmd = LOG_PSTR_CMD; break;
+          case PERF_LABEL:  cmd = LOG_STR_CMD;  break;
+          case PERF_PLABEL: cmd = LOG_PSTR_CMD; break;
           }
 
         const layout_t *lay = & layout[cmd];
@@ -1215,9 +1214,9 @@ log_dump_line (int id)
       qprintf ("*** done log %u\n", alog.count_val);
     }
 
-  int log_this = options.do_log
-    || (alog.perf_only
-        && (perf.on || perf.will_be_on));
+  int log_this = (options.do_log
+                  || (alog.perf_only
+                      && (perf.on || perf.will_be_on)));
   if (log_this || (log_this != alog.log_this))
     {
       alog.maybe_log = 1;
