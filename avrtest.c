@@ -113,17 +113,17 @@ static decoded_t decoded_flash[MAX_FLASH_SIZE/2];
 // Exit stati as used with leave()
 
 typedef struct
-  {
-    // Holding some keyword that is scanned by board descriptions
-    const char *text;
-    // Specify kind of failure (not from target program) error
-    const char *kind;
-    // Whether we exit because of avrtest or usage problems rather than
-    // problems in the target program
-    int failure;
-    // Exit value with -q quiet operation, cf. README
-    int quiet_value;
-  } exit_status_t;
+{
+  // Holding some keyword that is scanned by board descriptions
+  const char *text;
+  // Specify kind of failure (not from target program) error
+  const char *kind;
+  // Whether we exit because of avrtest or usage problems rather than
+  // problems in the target program
+  int failure;
+  // Exit value with -q quiet operation, cf. README
+  int quiet_value;
+} exit_status_t;
 
 static byte exit_value;
 
@@ -251,7 +251,9 @@ leave (int n, const char *reason, ...)
       if (program.entry_point != 0)
         printf (" entry point: %06x\n", program.entry_point);
       printf ("exit address: %06x\n"
-              "total cycles: %u\n\n", cpu_PC * 2, program.n_cycles);
+              "total cycles: %u\n"
+              "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
+              program.n_insns);
 
       va_end (args);
       fflush (stdout);
