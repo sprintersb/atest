@@ -148,7 +148,11 @@ typedef struct
 #define PF_W    (1 << 1)       // Write
 #define PF_R    (1 << 2)       // Read
 
-#define DATA_VADDR 0x800000
+#define DATA_VADDR        0x800000
+#define DATA_VADDR_END    0x80ffff
+
+#define EEPROM_VADDR      0x810000
+#define EEPROM_VADDR_END  0x81ffff
 
 // Section header type
 #define SHT_NULL      0        // Section header is inactive
@@ -240,30 +244,6 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
       || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
     leave (EXIT_STATUS_FILE, "ELF section headers truncated");
 
-  if (options.do_verbose)
-    for (int n = 0; n < e_shnum; n++)
-      {
-        Elf32_Word sh_type  = get_elf32_word (&shdr[n].sh_type);
-        Elf32_Word sh_flags = get_elf32_word (&shdr[n].sh_flags);
-        Elf32_Word sh_info  = get_elf32_word (&shdr[n].sh_info);
-        Elf32_Word sh_size  = get_elf32_word (&shdr[n].sh_size);
-        Elf32_Addr sh_addr  = get_elf32_word (&shdr[n].sh_addr);
-        Elf32_Off sh_offset = get_elf32_word (&shdr[n].sh_offset);
-        unsigned ns = sizeof (s_SHT) / sizeof (*s_SHT);
-        printf (">>> [%2d] %-12s \"", n, sh_type <  ns ? s_SHT[sh_type] : "???");
-        for (size_t j = 0; j < strlen (s_SHF); j++)
-          if (s_SHF[j] != '.')
-            printf ("%c", (sh_flags & (1 << j)) ? s_SHF[j] : ' ');
-        printf ("\"");
-        if (sh_flags & SHF_INFO_LINK)
-          printf (" --> [%2d] ", sh_info);
-        else
-          printf ("%11s", "");
-        printf ("# = 0x%06x, addr = 0x%06x, off = 0x%06x",
-                (unsigned) sh_size, (unsigned) sh_addr, (unsigned) sh_offset);
-        printf ("\n");
-      }
-
   for (int n = 0; n < e_shnum; n++)
     {
       Elf32_Word sh_type = get_elf32_word (&shdr[n].sh_type);
@@ -339,7 +319,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 }
 
 static void
-load_elf (FILE *f, byte *flash, byte *ram)
+load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 {
   Elf32_Ehdr ehdr;
   Elf32_Phdr phdr[16];
@@ -396,23 +376,50 @@ load_elf (FILE *f, byte *flash, byte *ram)
                 (unsigned) vaddr, flags & PF_R ? "r" : "",
                 flags & PF_W ? "w" : "", flags & PF_X ? "x" : "");
 
-      if (addr + memsz > MAX_FLASH_SIZE)
+      // Skip special sections like .fuse, .lock, .signature etc.
+      if (vaddr > EEPROM_VADDR_END)
+        continue;
+
+      if (addr + memsz > MAX_FLASH_SIZE
+          && vaddr <= DATA_VADDR_END)
         leave (EXIT_STATUS_FILE,
                "program too big to fit in flash");
       if (fseek (f, get_elf32_word (&phdr[i].p_offset), SEEK_SET) != 0)
         leave (EXIT_STATUS_FILE, "ELF file truncated");
+
+      program.n_bytes += filesz;
+
+      // Read to eeprom
+      if (vaddr >= EEPROM_VADDR)
+        {
+          addr -= EEPROM_VADDR;
+          if (addr + filesz > MAX_EEPROM_SIZE)
+            leave (EXIT_STATUS_FILE, ".eeprom too big to fit in memory");
+          if (fread (eeprom + addr, filesz, 1, f) != 1)
+            leave (EXIT_STATUS_FILE, "ELF file truncated");
+          continue;
+        }
 
       // Read to Flash
       if (fread (flash + addr, filesz, 1, f) != 1)
         leave (EXIT_STATUS_FILE, "ELF file truncated");
 
       // Also copy in SRAM
-      if (options.do_initialize_sram && vaddr >= DATA_VADDR)
+      if (options.do_initialize_sram
+          && vaddr >= DATA_VADDR
+          && vaddr + filesz -1 <= DATA_VADDR_END)
         memcpy (ram + vaddr - DATA_VADDR, flash + addr, filesz);
 
-      // No need to clear memory
       if ((unsigned) (addr + memsz) > program.size)
         program.size = addr + memsz;
+
+      if (flags & PF_X)
+        {
+          if ((unsigned) addr < program.code_start)
+            program.code_start = addr;
+          if ((unsigned) (addr + memsz - 1) > program.code_end)
+            program.code_end = addr + memsz - 1;
+        }
     }
 
   if (is_avrtest_log && options.do_symbols)
@@ -420,9 +427,11 @@ load_elf (FILE *f, byte *flash, byte *ram)
 }
 
 void
-load_to_flash (const char *filename, byte *flash, byte *ram)
+load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
 {
   char buf[EI_NIDENT];
+
+  program.code_start = -1U;
 
   FILE *fp = fopen (filename, "rb");
   if (!fp)
@@ -435,12 +444,14 @@ load_to_flash (const char *filename, byte *flash, byte *ram)
       && buf[2] == 'L'
       && buf[3] == 'F')
     {
-      load_elf (fp, flash, ram);
+      load_elf (fp, flash, ram, eeprom);
     }
   else
     {
       rewind (fp);
-      program.size = fread (flash, 1, MAX_FLASH_SIZE, fp);
+      program.size = program.n_bytes = fread (flash, 1, MAX_FLASH_SIZE, fp);
+      program.code_start = 0;
+      program.code_end = program.size - 1;
     }
   fclose (fp);
 
@@ -757,7 +768,7 @@ decode_flash (decoded_t d[], const byte flash[])
 {
   word opcode1 = flash[0] | (flash[1] << 8);
   
-  for (unsigned i = 0; i < program.size; i += 2)
+  for (unsigned i = program.code_start; i <= program.code_end; i += 2)
     {
       word opcode2 = flash[i + 2] | (flash[i + 3] << 8);
       d[i / 2].id = decode_opcode (&d[i / 2], opcode1, opcode2);

@@ -32,6 +32,7 @@
 
 #define MAX_RAM_SIZE     (64 * 1024)
 #define MAX_FLASH_SIZE  (256 * 1024)  // Must be at least 128KB
+#define MAX_EEPROM_SIZE  (16 * 1024)  // .eeprom is read from ELF but unused
 
 // PC is used as array index into decoded_flash[].
 // If PC has bits outside the following mask, something went really wrong,
@@ -58,6 +59,13 @@ typedef struct
 
   // Size in bytes of program in flash (assuming it starts at 0x0).
   unsigned size;
+
+  // Number of bytes read from file.
+  unsigned n_bytes;
+
+  // Range that covers executable code's byte addresses.  That range might
+  // contain non-executable code like ELF headers that are part of PHDRs.
+  unsigned code_start, code_end;
 
   // Maximum number of instructions to be executed,
   // used as a timeout.  Can be set my -m CYCLES
@@ -161,7 +169,7 @@ extern void log_set_func_symbol (int, const char*, int);
 
 #endif  // AVRTEST_LOG
 
-extern void load_to_flash (const char *filename, byte flash[], byte ram[]);
+extern void load_to_flash (const char*, byte[], byte[], byte[]);
 extern void decode_flash (decoded_t[], const byte[]);
 extern void set_function_symbol (int, const char*, int);
 
