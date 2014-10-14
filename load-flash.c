@@ -465,6 +465,7 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
 
 // Opcodes with no arguments except NOP       1001 010~ ~~~~ ~~~~ 
 static const byte avr_op_16_index[1 + 0x1ff] = {
+  [0x9598 ^ 0x9400] = ID_BREAK,  // 1001 0101 1001 1000 | BREAK
   [0x9519 ^ 0x9400] = ID_EICALL, // 1001 0101 0001 1001 | EICALL
   [0x9419 ^ 0x9400] = ID_EIJMP,  // 1001 0100 0001 1001 | EIJMP
   [0x95D8 ^ 0x9400] = ID_ELPM,   // 1001 0101 1101 1000 | ELPM
