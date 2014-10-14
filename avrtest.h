@@ -72,6 +72,7 @@ enum
 #define PERF_STOP       0
 #define PERF_START      1
 #define PERF_DUMP       2
+#define PERF_START_CALL 3
 #define PERF_STAT_U32   5
 #define PERF_STAT_S32   6
 #define PERF_STAT_FLOAT 7
@@ -255,13 +256,15 @@ enum
 #define LOG_PERF      do { LOG_PORT = LOG_PERF_CMD;   } while (0)
 
 /* Controling perf-meters */
-#define PERF_STOP(n)  do { LOG_PORT = PERF_CMD_(n,0); } while (0)
-#define PERF_START(n) do { LOG_PORT = PERF_CMD_(n,1); } while (0)
-#define PERF_DUMP(n)  do { LOG_PORT = PERF_CMD_(n,2); } while (0)
+#define PERF_STOP(n)        do { LOG_PORT = PERF_CMD_(n,0); } while (0)
+#define PERF_START(n)       do { LOG_PORT = PERF_CMD_(n,1); } while (0)
+#define PERF_DUMP(n)        do { LOG_PORT = PERF_CMD_(n,2); } while (0)
+#define PERF_START_CALL(n)  do { LOG_PORT = PERF_CMD_(n,3); } while (0)
 
-#define PERF_STOP_ALL  PERF_STOP (0)
-#define PERF_START_ALL PERF_START (0)
-#define PERF_DUMP_ALL  PERF_DUMP (0)
+#define PERF_STOP_ALL         PERF_STOP (0)
+#define PERF_START_ALL        PERF_START (0)
+#define PERF_START_CALL_ALL   PERF_START_CALL (0)
+#define PERF_DUMP_ALL         PERF_DUMP (0)
 
 /* Perf-meter Min/Max on value from program */
 #define PERF_STAT_U32(n,x)   PERF_STATX_ (TICKS_4PORT, (x), (n), 5)

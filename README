@@ -429,7 +429,7 @@ int main (void)
 
 Compile as usual, link against exit-*.o and running
 
-  $ avrtest_log ... -no-log -q
+    avrtest_log ... -no-log -q
 
 produces an output like
 
@@ -448,8 +448,8 @@ produces an output like
     Stack (rel) in [   0,  19] was:   0 now:   0
 
            Min round Max round    Min tag           /   Max tag
-    Calls           -all-same-                      /
-    Stack           -all-same-                      /
+    Calls       -all-same-                          /
+    Stack       -all-same-                          /
     Instr.         1       315     sin (0.00000)    /   sin (3.14000) 
     Ticks          1       315     sin (0.00000)    /   sin (3.14000) 
 
@@ -463,7 +463,29 @@ produces an output like
 The computation of sin (x) took 1029..1952 cycles for the 315 values it had
 been computed with an average of 1720 cycles.  sin() needs 19 bytes stack
 space.  The maximal difference between sin (x) and the 3rd-order
-approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14.
+approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14000.
+
+
+In the sample code from above, one is interested in the resource consumption
+of the sin function.  In order to supply that function with a value x and to
+store the result y, additional instructions are needed:
+
+    PERF_START (1);
+    y = sin (x);
+    PERF_STOP (1);
+
+If these additional instructions are of no interest, use
+
+    PERF_START_CALL (N);
+
+which only adds costs of instructions that are at a call depth of at
+least 1 (relative to the starting point).  This includes costs of
+CALL and RET that start / finish the function.
+
+Make sure that the function of interest is not inlined or optimized away,
+e.g. by making inputs and outputs volatile and attributing the function
+with __attribute__((noinline,noclone)).  The additional overhead caused by
+the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
 ============================
@@ -473,7 +495,7 @@ approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14.
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
 TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit value that
-contains the number of program cycles since program start.  TICKS_PORT
+contains the number of instruction cycles since program start.  TICKS_PORT
 can be configured to supply 4 different kinds of values:
 
     TICKS_IS_CYCLES;        Cycles since program start (default)
@@ -481,11 +503,13 @@ can be configured to supply 4 different kinds of values:
     TICKS_IS_PRAND;         A 32-bit pseudo randum number
     TICKS_IS_RAND;          A 32-bit randum number
 
-To reset the value for the currently active TICKS_PORT mode (except RAND) use
+You can switch back and forth between the different modes of operation
+as needed.  To reset the value for the currently active TICKS_PORT mode
+(except RAND) use
 
     TICKS_RESET;
 
-The values for all modes (except RAND) can be reset by
+The values for all modes (except RAND) can be reset at the same time by
 
   TICKS_RESET_ALL;
 

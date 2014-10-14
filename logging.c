@@ -704,10 +704,10 @@ do_log_dump (int what)
 static int
 print_tag (const perf_tag_t *t, const char *no_tag, const char *tag_prefix)
 {
-  printf ("%s", tag_prefix);
-
   if (t->cmd < 0)
     return printf (no_tag);
+
+  printf ("%s", tag_prefix);
 
   const char *fmt = *t->fmt ? t->fmt : layout[t->cmd].fmt;
 
@@ -725,12 +725,12 @@ print_tags (const minmax_t *mm, const char *text)
   int pos;
   printf ("%s", text);
   if (mm->r_min == mm->r_max)
-    return printf ("         -all-same-                      /\n");
+    return printf ("     -all-same-                          /\n");
 
   printf ("%9d %9d", mm->r_min, mm->r_max);
-  pos = print_tag (& mm->tag_min, " -no-tag- ", "    ");
+  pos = print_tag (& mm->tag_min, "    -no-tag-         ", "    ");
   printf ("%*s", pos >= 20 ? 0 : 20 - pos, " / ");
-  print_tag (& mm->tag_max, " -no-tag- ", " ");
+  print_tag (& mm->tag_max, "  -no-tag-", "   ");
   return printf ("\n");
 }
 
@@ -752,7 +752,7 @@ do_log_port_cmd (int x)
       // Do perf-meter stuff only in avrtest*_log in order
       // to avoid impact on execution speed.
       perf.cmd[PERF_CMD(x)] = PERF_N (x) ? 1 << PERF_N (x) : PERF_ALL;
-      perf.will_be_on = perf.cmd[PERF_START];
+      perf.will_be_on = perf.cmd[PERF_START] || perf.cmd[PERF_START_CALL];
       break;
 
       // LOG_TAG_FMT sent the address of the format string, then
@@ -903,12 +903,7 @@ perf_verbose_start (perfs_t *p, int i, int mode)
     qprintf ("Stat T%d ignored: T%d is in Start/Stop mode (%s "
              "round %d", i, i, p->on ? "in" : "after", p->n);
 
-  if (!options.do_quiet && mode == PERF_START)
-    {
-      perf_tag_t *t = & p->tag_for_start;
-      print_tag (t->cmd >= 0 ? t : & p->tag, "", ", ");
-      qprintf (")\n");
-    }
+  // Finishing --- message is perf_stat() resp. perf_start()
 
   return (!p->valid
           || (mode >= PERF_STAT && p->valid == PERF_STAT)
@@ -981,9 +976,19 @@ perf_start (perfs_t *p, int i)
 
   // (Re)start
   p->on = 1;
+  // Overridden by caller for PERF_START_CALL
+  p->call_only.sp = INT_MAX;
+  p->call_only.insns = 0;
+  p->call_only.ticks = 0;
   p->n++;
   p->insn.at_start = program.n_insns;
   p->tick.at_start = program.n_cycles;
+
+  if (!options.do_quiet)
+    {
+      print_tag (& p->tag, "", ", ");
+      qprintf (")\n");
+    }
 }
 
 
@@ -1011,14 +1016,24 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
 
   if (p->valid == PERF_START && p->on)
     {
+      long ticks;
+      int insns;
       p->on = 0;
       p->pc.at_end = p->pc_end = perf.pc2;
       p->insn.at_end = program.n_insns -1;
       p->tick.at_end = perf.tick;
       p->calls.at_end = perf.calls;
       p->sp.at_end = sp;
-      long ticks = p->tick.at_end - p->tick.at_start;
-      int insns = p->insn.at_end - p->insn.at_start;
+      if (p->call_only.sp == LONG_MAX)
+        {
+          ticks = p->tick.at_end - p->tick.at_start;
+          insns = p->insn.at_end - p->insn.at_start;
+        }
+      else
+        {
+          ticks = p->call_only.ticks;
+          insns = p->call_only.insns;
+        }
       p->tick.ev2 += (double) ticks * ticks;
       p->insn.ev2 += (double) insns * insns;
       p->ticks += ticks;
@@ -1131,13 +1146,14 @@ perf_instruction (int id)
   int dumps  = perf.cmd[PERF_DUMP];
   int starts = perf.cmd[PERF_START];
   int stops  = perf.cmd[PERF_STOP];
+  int starts_call = perf.cmd[PERF_START_CALL];
   int stats_u32   = perf.cmd[PERF_STAT_U32];
   int stats_s32   = perf.cmd[PERF_STAT_S32];
   int stats_float = perf.cmd[PERF_STAT_FLOAT];
   int stats = stats_u32 | stats_s32 | stats_float;
 
   int sp = log_data_read_SP();
-  int cmd = starts || stops || dumps || stats;
+  int cmd = starts || starts_call || stops || dumps || stats;
 
   if (!perf.on && !cmd)
     goto done;
@@ -1150,13 +1166,24 @@ perf_instruction (int id)
   for (int i = 1; i < NUM_PERFS; i++)
     {
       perfs_t *p = &perfs[i];
-      int start = (starts & (1 << i)) ? PERF_START : 0;
+      int start = ((starts | starts_call) & (1 << i)) ? PERF_START : 0;
       int stop  = stops & (1 << i);
       int dump  = dumps & (1 << i);
+      int start_call = starts_call  & (1 << i);
       int stat_u32   = (stats_u32   & (1 << i)) ? PERF_STAT_U32 : 0;
       int stat_s32   = (stats_s32   & (1 << i)) ? PERF_STAT_S32 : 0;
       int stat_float = (stats_float & (1 << i)) ? PERF_STAT_FLOAT : 0;
       int stat_val = stat_u32 | stat_s32 | stat_float;
+
+      if (p->on
+          // PERF_START_CALL:  Only account costs (includeing CALL+RET)
+          // if we have a call depth > 0 relative to the starting point.
+          && p->call_only.sp < INT_MAX
+          && (sp < p->call_only.sp || perf.sp < p->call_only.sp))
+        {
+          p->call_only.insns += 1;
+          p->call_only.ticks += program.n_cycles - perf.tick;
+        }
 
       if (stop | dump)
         perf_stop (p, i, dumps, dump, sp);
@@ -1171,7 +1198,11 @@ perf_instruction (int id)
         }
 
       if (start && perf_verbose_start (p, i, start))
-        perf_start (p, i);
+        {
+          perf_start (p, i);
+          if (start_call)
+            p->call_only.sp = sp;
+        }
       else if (stat_val && perf_verbose_start (p, i, stat_val))
         perf_stat (p, i, stat_val);
 
