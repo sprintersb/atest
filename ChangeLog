@@ -1,3 +1,16 @@
+2014-10-14  Georg-Johann Lay  <avr@gjlay.de>
+
+	Postpone writing EXIT_PORT from exit to .fini1.
+
+	* dejagnuboards/exit.c (putchar_exit_c, init_exit_c, file_exit_c)
+	(init_args): Rename...
+	(avrtest_fputc, avrtest_init_stream, avrtest_output_stream)
+	(avrtest_init_argc_argv): ...to these.
+	(avrtest_output_stream): Use FDEV_SETUP_STREAM to initialize.
+	(avrtest_exit_code): New variable.
+	(exit): Set it.  And jump to _exit.
+	(avrtest_fini1): New .fini1 function.
+
 2014-10-13  Georg-Johann Lay  <avr@gjlay.de>
 
 	Load EEPROM, -v option (verbose), more TICKS_PORT.
