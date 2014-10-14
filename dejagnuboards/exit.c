@@ -35,7 +35,7 @@
 #include "avrtest.h"
 
 static int
-putchar_exit_c (char c, FILE *stream)
+avrtest_fputc (char c, FILE *stream)
 {
   (void) stream;
   STDOUT_PORT = c;
@@ -43,61 +43,83 @@ putchar_exit_c (char c, FILE *stream)
   return 0;
 }
 
-#define BY_AVRTEST_LOG (*((unsigned char*) 0xffff))
 
 static void __attribute__ ((constructor, used))
-init_exit_c (void)
+avrtest_init_stream (void)
 {
-  static FILE file_exit_c =
-    {
-      .put   = putchar_exit_c,
-      .get   = NULL,
-      .flags = _FDEV_SETUP_WRITE,
-      .udata = 0,
-    };
+  static FILE avrtest_output_stream
+    = FDEV_SETUP_STREAM (avrtest_fputc, NULL, _FDEV_SETUP_WRITE);
 
-  stderr = stdout = &file_exit_c;
+  stderr = stdout = &avrtest_output_stream;
 }
 
 
+#define BY_AVRTEST_LOG (*((unsigned char*) 0xffff))
+
 static void __attribute__ ((naked, section(".init8"), used))
-init_args (void)
+avrtest_init_argc_argv (void)
 {
   if (BY_AVRTEST_LOG)
     {
-/*
-      extern void *__heap_start[];
-      uintptr_t pargs = (uintptr_t) __heap_start;
-*/
+      /* Use 0xf000 as start address for command line arguments as passed by
+         -args ... from avrtest_log.  There's plenty of RAM in the simulator.
+         The linker will never see that big address and hence won't complain.
+
+         If you prefer a more common address, e.g. just after static storage
+         (after .data and .bss) you can change the address to __heap_start:
+
+          extern void *__heap_start[];
+          uintptr_t pargs = (uintptr_t) __heap_start;
+      */
+
       uintptr_t pargs = (uintptr_t) 0xf000;
+
+      /* Tell avrtest_log to set R24 to argc, R22 to argv and to start
+         command args (argv[0]) at `pargs'.  */
+
       LOG_PORT = LOG_GET_ARGS_CMD;
       LOG_PORT = pargs;
       LOG_PORT = pargs >> 8;
     }
   else
     {
-/*
-      static void *pnull[2];
-*/
-      void **pnull = (void**) 0xf000;
-      register int r24 __asm ("24");
-      register void **r22 __asm ("22");
-      __asm volatile ("" :: "r" (r24 = 0), "r" (r22 = pnull));
+      /* Set argc (R24) to 0.
+         Set argv (R22) to the address of a memory location that contains
+         NULL so that argv[0] = NULL.  */
+
+      static void *avrtest_pnull[1];
+      register int r24 __asm ("24") = 0;
+      register void **r22 __asm ("22") = avrtest_pnull;
+        __asm volatile ("" :: "r" (r24), "r" (r22));
     }
 }
 
 
 /* This defines never returning functions exit() and abort() */ 
 
-void __attribute__ ((noreturn))
-exit (int code) 
+/* Postpone writing EXIT_PORT until .fini1 below so that higher .fini dtors,
+   destructors and functions registered by atexit() won't be bypassed.  */
+
+static int avrtest_exit_code;
+
+/* libgcc defines exit as weak.  */
+
+void exit (int code)
 {
-  EXIT_PORT = code;
+  __asm volatile ("sts %0,%1"  "\n\t"
+                  "%~jmp _exit"
+                  : /* no outputs */
+                  : "i" (&avrtest_exit_code), "r" (code));
   for (;;);
 }
 
-void __attribute__ ((noreturn))
-abort (void)
+static void __attribute__ ((naked, used, section(".fini1")))
+avrtest_fini1 (void)
+{
+  EXIT_PORT = avrtest_exit_code;
+}
+
+void abort (void)
 {
   ABORT_PORT = 0;
   for (;;);
