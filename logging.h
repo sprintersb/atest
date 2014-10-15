@@ -139,6 +139,12 @@ typedef struct
   minmax_t pc, tick, insn, val;
   // Extremal values for stack pointer and call depth
   minmax_t sp, calls;
+  struct
+  {
+    // Only instructions with SP smaller than this matter (PERF_START_CALL).
+    int sp;
+    dword ticks, insns;
+  } call_only;
   // PERF_LABEL
   char label[LEN_PERF_LABEL];
 } perfs_t;

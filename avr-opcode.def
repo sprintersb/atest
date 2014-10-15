@@ -71,6 +71,7 @@ AVR_OPCODE (ANDI,        1, 1,    "ANDI"   )
 AVR_OPCODE (ASR,         1, 1,    "ASR"    )
 AVR_OPCODE (BCLR,        1, 1,    "CL*"    )
 AVR_OPCODE (BLD,         1, 1,    "BLD.*"  )
+AVR_OPCODE (BREAK,       1, 1,    "BREAK"  )
 AVR_OPCODE (BRBC,        1, 1,    "BR*C"   ) // *
 AVR_OPCODE (BRBS,        1, 1,    "BR*S"   ) // *
 AVR_OPCODE (BSET,        1, 1,    "SE*"    )

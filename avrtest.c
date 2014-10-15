@@ -828,6 +828,13 @@ static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
 //     opcode execution functions
 
 /* opcodes with no operands */
+
+/* 1001 0101 1001 1000 | BREAK */
+static OP_FUNC_TYPE func_BREAK (int rd, int rr)
+{
+  // FIXME: Acts currently like NOP.  Do helpful feature here
+}
+
 /* 1001 0101 0001 1001 | EICALL */
 static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 {
@@ -921,7 +928,7 @@ static OP_FUNC_TYPE func_SLEEP (int rd, int rr)
 /* 1001 0101 1110 1000 | SPM */
 static OP_FUNC_TYPE func_SPM (int rd, int rr)
 {
-  func_ILLEGAL (0,0x95E8);
+  func_ILLEGAL (0, 0x95E8);
   //TODO
 }
 

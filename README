@@ -8,7 +8,7 @@ microcontrollers distributed under the GNU General Public License.
 
 The main intention of avrtest is to supply a fast, easy-to-use simulator
 to run the GCC testsuite for avr-gcc.  Thus, its main audience are guys
-that develop parts of the AVR toolchain like avr-gcc or avr-libc.
+and ladies that develop parts of the AVR toolchain like avr-gcc or avr-libc.
 
 avrtest is an instruction set simulator for AVR core families
     avr51: ATmega128*, AT90can128, AT90usb128*
@@ -29,8 +29,9 @@ interrupts, etc.
 Special features
 ================
 
-The simulator has builtin capability of writing to stdout when a value
-is written to a destinct memory location.  For example, an easy hello world
+The simulator has builtin capability of writing to stdout of the host
+computer (the machine that runs the simulator) when a value is written
+to a destinct memory location.  For example, an easy hello world
 program for AVR could look like this:
 
 
@@ -44,7 +45,7 @@ int main (void)
 
 
 Compile this program as usual but link against exit-atmega128.o. 
-How to build that object is explained in the next chapter. Store the
+How to build that object is explained in the next chapter.  Store the
 C source as hello.c and compile it with, e.g.
 
     avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
@@ -85,7 +86,7 @@ int main (void)
 }
 
 
-avrtest.h defines the port locations. Compile the C source with
+avrtest.h defines the port locations.  Compile the C source with
 
     avr-gcc inout.c -O -mmcu=atmega128 -o inout.elf -I /someplace/avrtest
 
@@ -115,9 +116,9 @@ Running avr-gcc testsuite using avrtest simulator
 
 http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
-* Get avr-gcc, binutils and avr-libc built from sources and working.
+* Get avr-gcc, Binutils and avr-libc built from sources and working.
 
-* Install dejagnu, expect and TCL
+* Install DejaGNU, expect and TCL
 
 * Unpack the avrtest tar file from WinAVR sources top "someplace".
   You find a link to the package at "Download Snapshot" on
@@ -174,11 +175,12 @@ Voila!
 
 With -q turned on avrtest will print no messages except the ones
 explicitly requested by:
+
   - -runtime
   - LOG_U8 (X), PERF_DUMP_ALL and similar logging commands, see below.
 
-
 The following exit stati will be returned with -q:
+
   -  0  Everything went fine.
   -  1  Target program called abort()  resp. wrote to ABORT_PORT.
   -  x  Target program called exit (x) resp. wrote x to EXIT_PORT.
@@ -225,17 +227,29 @@ int main (int argc, char *argv[])
 }
 
 
-and use argc and argv as in any hosted application.
+and use argc and argv as in any hosted application:  If the program unter
+simulation is main.elf and you run
 
-exit.c:init_args() requests the command args to be put at <ADDR> = 0xf000.
-If you prefer a different address then simply adjust exit.c.
+    avrtest_log main.elf -args hallo "4 2"
+
+then:
+
+    argc       is 3
+    argv[0]    is (the address of) string "main.elf" (i.e. argv[0][0] = 'm')
+    argv[1]    is (the address of) string "hallo"
+    argv[2]    is (the address of) string "4 2"
+    argv[3]    is the NULL string
+
+exit.c:avrtest_init_argc_argv() requests the command args to be put
+starting at <ADDR> = 0xf000.  If you prefer a different location then
+simply adjust exit.c following the source comments.
 
 
 ========
 -no-args
 ========
 
-will skip all arguments thereafter and set argc = 0 and argv[0] = NULL.
+will skip all arguments thereafter and set argc = 0 and argc[0] = NULL.
 
 The start-up code in exit.c detects whether the code is executed by
 avrtest or by avrtest_log.  If avrtest executes the code (and hence
@@ -314,7 +328,7 @@ printf format string to print the supplied value:
     LOG_FMT_XXX (F, X);    log X using format string F located in RAM
     LOG_PFMT_XXX (F, X);   log X using format string F located in Flash
 
-!!! Please use formatz strings with care!  You can easily crash avrtest_log
+!!! Please use format strings with care!  You can easily crash avrtest_log
 !!! and make it raise a Segmentation Fault or other undefined behaviour
 !!! by specifying a format string that does not fit the value!
 
@@ -341,22 +355,21 @@ The simulator supports 7 independently operating performance-meters:
 
     PERF_START (N);
 
-Starts perf-meter N which will start capturing values of the
-running program like program counter, instruction count, stack pointer,
-call depth, etc.
+starts perf-meter N which will start capturing values of the running program
+like program counter, instruction count, stack pointer, call depth, etc.
 
     PERF_STOP (N);
 
 will halt the perf-meter.  Upon encountering the next PERF_START(N)
 the meter will be re-enabled and proceed.  The collected values can
-be dumped at any time by
+be dumped at any time to the standard output of the host computer by
 
     PERF_DUMP (N);
 
 or
     PERF_DUMP_ALL;
 
-This will show a summary of the extremal values for the perf-meter and
+This will show a summary of the extremal values for the perf-meter(s) and
 reset it completely so that you can use it for a different task afterwards.
 Displayed values are:
 
@@ -373,11 +386,11 @@ In order to give a specific perf-meter a more descriptive name there are
     PERF_LABEL (L);
     PERF_PLABEL (L);
 
-where L is a label residing in RAM or Flash, respectively.
+where label L is a C-string residing in RAM or Flash, respectively.
 avrtest_log will cache the label so you can override it after PERF_LABEL.
 
 If you want to find out what value lead to the round with mimimal or maximal
-instruction cycles, each round can be tagged with a value:
+instruction cycles, the next START/STOP round can be tagged with a value:
 
     PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR
     PERF_TAG_U16 (N, U);        ... with a 16-bit unsigned integer U
@@ -429,7 +442,7 @@ int main (void)
 
 Compile as usual, link against exit-*.o and running
 
-  $ avrtest_log ... -no-log -q
+    avrtest_log ... -no-log -q
 
 produces an output like
 
@@ -448,8 +461,8 @@ produces an output like
     Stack (rel) in [   0,  19] was:   0 now:   0
 
            Min round Max round    Min tag           /   Max tag
-    Calls           -all-same-                      /
-    Stack           -all-same-                      /
+    Calls       -all-same-                          /
+    Stack       -all-same-                          /
     Instr.         1       315     sin (0.00000)    /   sin (3.14000) 
     Ticks          1       315     sin (0.00000)    /   sin (3.14000) 
 
@@ -463,7 +476,38 @@ produces an output like
 The computation of sin (x) took 1029..1952 cycles for the 315 values it had
 been computed with an average of 1720 cycles.  sin() needs 19 bytes stack
 space.  The maximal difference between sin (x) and the 3rd-order
-approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14.
+approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14000.
+
+    PERF_STAT_FLOAT (N, F);
+
+in the example makes perf-meter N gather statistics of float value F:
+mean (expected value), standard deviation, minimum, maximum, and the
+START/STOP round for which a minimal / maximal value of F has been seen.
+If rounds have been tagged, the tags for the rounds that yielded a minimal
+and maximal value of F are also displayed.  Besides PERF_STAT_FLOAT there
+are also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
+32-bit integer values.
+    
+In the sample code from above, one is interested in the resource consumption
+of the sin function.  In order to supply that function with a value x and to
+store the result y, additional instructions are needed:
+
+    PERF_START (1);
+    y = sin (x);
+    PERF_STOP (1);
+
+If these additional instructions are of no interest, use
+
+    PERF_START_CALL (N);
+
+which only adds costs of instructions that are at a call depth of at
+least 1 (relative to the starting point).  This includes costs of
+CALL and RET that start / finish the function.
+
+Make sure that the function of interest is not inlined or optimized away,
+e.g. by making inputs and outputs volatile and attributing the function
+with __attribute__((noinline,noclone)).  The additional overhead caused by
+the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
 ============================
@@ -473,7 +517,7 @@ approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14.
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
 TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit value that
-contains the number of program cycles since program start.  TICKS_PORT
+contains the number of instruction cycles since program start.  TICKS_PORT
 can be configured to supply 4 different kinds of values:
 
     TICKS_IS_CYCLES;        Cycles since program start (default)
@@ -481,11 +525,13 @@ can be configured to supply 4 different kinds of values:
     TICKS_IS_PRAND;         A 32-bit pseudo randum number
     TICKS_IS_RAND;          A 32-bit randum number
 
-To reset the value for the currently active TICKS_PORT mode (except RAND) use
+You can switch back and forth between the different modes of operation
+as needed.  To reset the value for the currently active TICKS_PORT mode
+(except RAND) use
 
     TICKS_RESET;
 
-The values for all modes (except RAND) can be reset by
+The values for all modes (except RAND) can be reset at the same time by
 
   TICKS_RESET_ALL;
 
