@@ -1,3 +1,15 @@
+2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support BREAK and PERF_START_CALL.
+
+	* avr-opcode.def (BREAK): New.
+	* avrtest.c (func_BREAK): New.
+	* avrtest.h (PERF_START_CALL): New.
+	* logging.h (perfs_t.call_only): New.
+	* loggin.g.c (print_tag): Tidy.
+	(do_log_port_cmd, perf_start, perf_stop, perf_instructions):
+	Handle PERF_START_CALL.
+
 2014-10-14  Georg-Johann Lay  <avr@gjlay.de>
 
 	Postpone writing EXIT_PORT from exit to .fini1.
