@@ -471,8 +471,7 @@ data_write_word (int address, int value)
 // ----------------------------------------------------------------------------
 // extern functions to make logging.c independent of ISA_XMEGA
 
-const int addr_SREG       = SREG;
-const int addr_TICKS_PORT = TICKS_PORT;
+const int addr_SREG = SREG;
 
 const magic_t named_port[] =
   {
@@ -494,54 +493,18 @@ const magic_t named_port[] =
     { 0, 0, 0, 0, NULL }
   };
   
-int log_data_read_SP (void)
+byte* log_cpu_address (int address, int where)
 {
-  return data_read_byte_raw (SPL) | (data_read_byte_raw (SPH) << 8);
-}
-
-byte* log_cpu_address (int address, int flash)
-{
-  return flash
-    ? cpu_flash + address
-    : cpu_data + address;
-}
-
-byte log_data_read_byte (int address, int nraw)
-{
-  return (nraw)
-    ? data_read_byte (address)
-    : data_read_byte_raw (address);
-}
-
-void log_data_write_byte (int address, int value, int nraw)
-{
-  if (nraw)
-    data_write_byte (address, value);
-  else
-    data_write_byte_raw (address, value);
-}
-
-void log_put_word_reg (int regno, int value, int nraw)
-{
-  if (nraw)
-    put_word_reg (regno, value);
-  else
+  switch (where)
     {
-      cpu_reg[regno] = value;
-      cpu_reg[regno + 1] = value >> 8;
+    case AR_REG:    return cpu_reg + address;
+    case AR_RAM:    return cpu_data + address;
+    case AR_FLASH:  return cpu_flash + address;
+    case AR_EEPROM: return cpu_eeprom + address;
+    case AR_SP:         return cpu_data + SPL;
+    case AR_TICKS_PORT: return cpu_data + TICKS_PORT;
     }
-}
-
-void log_data_write_word (int address, int value, int nraw)
-{
-  if (nraw)
-    data_write_word (address, value);
-  else
-    {
-      value &= 0xffff;
-      data_write_byte_raw (address, value & 0xFF);
-      data_write_byte_raw (address + 1, value >> 8);
-    }
+  leave (EXIT_STATUS_FATAL, "code must be unreachable");
 }
 
 void set_function_symbol (int addr, const char *fname, int is_func)

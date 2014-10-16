@@ -90,7 +90,7 @@ avrtest_init_argc_argv (void)
       static void *avrtest_pnull[1];
       register int r24 __asm ("24") = 0;
       register void **r22 __asm ("22") = avrtest_pnull;
-        __asm volatile ("" :: "r" (r24), "r" (r22));
+        __asm volatile ("" : "+r" (r24), "+r" (r22));
     }
 }
 

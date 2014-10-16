@@ -102,19 +102,22 @@ enum
     EXIT_STATUS_FATAL
   };
 
-extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
+enum
+  {
+    AR_REG,
+    AR_RAM,
+    AR_FLASH,
+    AR_EEPROM,
+    AR_SP,
+    AR_TICKS_PORT
+  };
 
-extern int log_data_read_SP (void);
-extern byte log_data_read_byte (int, int);
-extern void log_put_word_reg (int, int, int);
-extern void log_data_write_byte (int, int, int);
-extern void log_data_write_word (int, int, int);
-extern byte* log_cpu_address (int, int);
+extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
 extern void qprintf (const char *fmt, ...);
+extern byte* log_cpu_address (int, int);
 extern void* get_mem (unsigned, size_t);
 
 extern const int addr_SREG;
-extern const int addr_TICKS_PORT;
 
 typedef struct
 {

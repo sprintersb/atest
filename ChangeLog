@@ -1,5 +1,16 @@
 2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	Make clean-up.  Use "+r" to constrain regs in exit.c.
+
+	* logging.c (perf_instruction): Read SP via log_cpu_address.
+	* avrtest.c (log_cpu_address): More AR_* address ranges.
+	(log_data_write_byte, addr_TICKS_PORT, log_data_read_byte)
+	(addr_SP, log_put_word_reg, log_data_write_word): Remove.
+	* testavr.h: Same.
+	(AR_REG, AR_RAM, AR_FLASH, AR_EEPROM, AR_SP, AR_TICKS_PORT): New.
+
+2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	Support BREAK and PERF_START_CALL.
 
 	* avr-opcode.def (BREAK): New.

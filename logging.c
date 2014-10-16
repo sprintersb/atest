@@ -396,7 +396,7 @@ putchar_escaped (char c)
   else if (c == '\n')  { putchar ('\\'); putchar ('n'); }
   else if (c == '\t')  { putchar ('\\'); putchar ('t'); }
   else if (c == '\r')  { putchar ('\\'); putchar ('r'); }
-  else if (c == '\"')  { putchar ('\\'); putchar ('\"'); }
+  else if (c == '\"')  { putchar ('\\'); putchar ('"'); }
   else if (c == '\\')  { putchar ('\\'); putchar ('\\'); }
   else putchar (c);
 }
@@ -423,7 +423,7 @@ do_put_args (byte x)
   // put strings to args.addr 
   int argc = args.argc - args.i;
   int a = args.addr;
-  byte* b = log_cpu_address (args.addr, 0);
+  byte* b = log_cpu_address (args.addr, AR_RAM);
   for (int i = args.i; i < args.argc; i++)
     {
       const char *arg = i == args.i ? program : args.argv[i];
@@ -445,20 +445,21 @@ do_put_args (byte x)
       const char *arg = i == args.i ? program : args.argv[i];
       int len = 1 + strlen (arg);
       qprintf ("*** (%04x) <-- argv[%d] = %04x\n", a, i - args.i, aa);
-      log_data_write_word (a, aa, 0);
+      *b++ = aa;
+      *b++ = aa >> 8;
       a += 2;
       aa += len;
     }
   qprintf ("*** (%04x) <-- argv[%d] = NULL\n", a, argc);
-  log_data_write_word (a, aa, 0);
+  *b++ = 0;
+  *b++ = 0;
 
-  // set argc, argc: picked up by exit.c:init_args() in .init8
-  qprintf ("*** -args: at=%04x, argc=%d, argv=%04x\n", args.addr, argc, argv);
-  qprintf ("*** R24 = %04x\n", argc);
-  qprintf ("*** R22 = %04x\n", argv);
+  // set argc, argc: picked up by exit.c:avrtest_init_argc_argv() in .init8
+  qprintf ("*** -args: at=0x%04x, argc=R24=%d, argv=R22=0x%04x\n", args.addr, argc, argv);
 
-  log_put_word_reg (24, argc, 0);
-  log_put_word_reg (22, argv, 0);
+  b = log_cpu_address (22, AR_REG);
+  *b++ = argv; *b++ = argv >> 8;
+  *b++ = argc; *b++ = argc >> 8;
 }
 
 
@@ -524,7 +525,7 @@ read_string (char *p, unsigned addr, int flash_p, size_t len_max)
 {
   char c;
   size_t n = 0;
-  byte *p_avr = log_cpu_address (addr, flash_p);
+  byte *p_avr = log_cpu_address (addr, flash_p ? AR_FLASH : AR_RAM);
 
   while (++n < len_max && (c = *p_avr++))
     if (c != '\r')
@@ -540,7 +541,7 @@ read_string (char *p, unsigned addr, int flash_p, size_t len_max)
 static unsigned
 get_raw_value (const layout_t *lay)
 {
-  byte *p = log_cpu_address (addr_TICKS_PORT, 0);
+  byte *p = log_cpu_address (0, AR_TICKS_PORT);
   unsigned val = 0;
 
   if (lay->signed_p && (0x80 & p[lay->size - 1]))
@@ -609,7 +610,7 @@ flush_ticks_port (int addr)
       break;
     }
 
-  byte *p = log_cpu_address (addr, 0);
+  byte *p = log_cpu_address (addr, AR_RAM);
   *p++ = value;
   *p++ = value >> 8;
   *p++ = value >> 16;
@@ -1152,7 +1153,8 @@ perf_instruction (int id)
   int stats_float = perf.cmd[PERF_STAT_FLOAT];
   int stats = stats_u32 | stats_s32 | stats_float;
 
-  int sp = log_data_read_SP();
+  byte *psp = log_cpu_address (0, AR_SP);
+  int sp = psp[0] | (psp[1] << 8);
   int cmd = starts || starts_call || stops || dumps || stats;
 
   if (!perf.on && !cmd)
@@ -1231,7 +1233,7 @@ log_init (unsigned val)
     perfs[i].tag_for_start.cmd = -1;
 
   // Tell the program whether it's being executed by avrtest or avrtest_log.
-  *(log_cpu_address (MAX_RAM_SIZE-1, 0)) = 1;
+  *(log_cpu_address (MAX_RAM_SIZE-1, AR_RAM)) = 1;
   srand (val);
 }
 

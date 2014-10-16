@@ -238,7 +238,7 @@ then:
     argv[0]    is (the address of) string "main.elf" (i.e. argv[0][0] = 'm')
     argv[1]    is (the address of) string "hallo"
     argv[2]    is (the address of) string "4 2"
-    argv[3]    is the NULL string
+    argv[3]    is the NULL pointer
 
 exit.c:avrtest_init_argc_argv() requests the command args to be put
 starting at <ADDR> = 0xf000.  If you prefer a different location then

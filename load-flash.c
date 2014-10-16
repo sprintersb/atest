@@ -239,7 +239,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
   // Read section headers
   if (e_shentsize != sizeof (Elf32_Shdr))
     leave (EXIT_STATUS_FILE, "ELF section headers invalid");
-  shdr = (Elf32_Shdr*) get_mem (e_shnum, sizeof (Elf32_Shdr));
+  shdr = get_mem (e_shnum, sizeof (Elf32_Shdr));
   if (fseek (f, e_shoff, SEEK_SET) != 0
       || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
     leave (EXIT_STATUS_FILE, "ELF section headers truncated");
@@ -262,8 +262,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 
       // Read symbol table
       size_t n_syms = sh_size / sh_entsize;
-      Elf32_Sym *symtab = (Elf32_Sym*) get_mem ((unsigned) n_syms,
-                                                sizeof (Elf32_Sym));
+      Elf32_Sym *symtab = get_mem ((unsigned) n_syms, sizeof (Elf32_Sym));
       if (fseek (f, sh_offset, SEEK_SET) != 0
           || fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
         leave (EXIT_STATUS_FILE, "ELF symbol table truncated");
@@ -278,7 +277,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
       // Read string table
       sh_offset = get_elf32_word (&shdr[sh_link].sh_offset);
       sh_size   = get_elf32_word (&shdr[sh_link].sh_size);
-      char *strtab = (char*) get_mem (sh_size, sizeof (char));
+      char *strtab = get_mem (sh_size, sizeof (char));
       if (fseek (f, sh_offset, SEEK_SET) != 0
           || fread (strtab, sh_size, 1, f) != 1)
         leave (EXIT_STATUS_FILE, "ELF string table truncated");
