@@ -1,5 +1,16 @@
 2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
 
+	Make ID = 0 bad_pc instruction.
+
+	* avr-opcodes.def (_bad_pc, DES): New.
+	(_null, _last__fast): Remove.
+	* avrtest.c (func__bad_pc, func_DES): New.
+	(do_step): ID = 0 is no more a special case.
+	(do_fast): Remove.
+	(func_ILLEGAL) [!rd]: Read bad opcode from flash.
+
+2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
+
 	Make clean-up.  Use "+r" to constrain regs in exit.c.
 
 	* logging.c (perf_instruction): Read SP via log_cpu_address.

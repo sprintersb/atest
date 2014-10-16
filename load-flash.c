@@ -669,6 +669,8 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
       // BSET takes care of SE{C,Z,N,V,S,H,T,I}
       case 0x9488: return ID_BCLR;        // 1001 0100 1sss 1000 | BCLR
       case 0x9408: return ID_BSET;        // 1001 0100 0sss 1000 | BSET
+      case 0x948b: d->op1 |= 0x8;
+      case 0x940b: return ID_DES;         // 1001 0100 KKKK 1011 | DES
       }
     }
 
@@ -747,6 +749,7 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
     }
   }
 
+  d->op1 = 1;
   d->op2 = opcode1;
   return ID_ILLEGAL;
 

@@ -51,17 +51,10 @@
 
 */
 
-// Dummy entry to guarantee that "zero" is an invalid function
-AVR_OPCODE (_null, 0, 0, NULL)
+// First entry (ID = 0) is executed when jumping to a location
+// outside of the decoded flash memory.
+AVR_OPCODE (_bad_pc, 0, 0, "bad PC")
 
-// Instructions small enough to be inlined in their caller
-
-AVR_OPCODE (LDI,         1, 1,    "LDI"    )
-AVR_OPCODE (MOV,         1, 1,    "MOV"    )
-AVR_OPCODE (MOVW,        1, 1,    "MOVW"   )
-AVR_OPCODE (_last_fast,  0, 0,    "???"    )
-
-// Vanilla
 AVR_OPCODE (ADC,         1, 1,    "ADC"    )
 AVR_OPCODE (ADD,         1, 1,    "ADD"    )
 AVR_OPCODE (ADIW,        1, 2,    "ADIW"   )
@@ -85,6 +78,7 @@ AVR_OPCODE (CPI,         1, 1,    "CPI"    )
 AVR_OPCODE (CPSE,        1, 1,    "CPSE"   ) // * #
 AVR_OPCODE (CPSE2,       1, 1,    "CPSE"   ) // *
 AVR_OPCODE (DEC,         1, 1,    "DEC"    )
+AVR_OPCODE (DES,         1, 1,    "DES"    )
 AVR_OPCODE (EICALL,      1, 4-CX, "EICALL" )
 AVR_OPCODE (EIJMP,       1, 2,    "EIJMP"  )
 AVR_OPCODE (ELPM,        1, 3,    "ELPM"   )
@@ -101,6 +95,7 @@ AVR_OPCODE (ILLEGAL,     1, 1,    "ILLEGAL")
 AVR_OPCODE (IN,          1, 1,    "IN"     )
 AVR_OPCODE (INC,         1, 1,    "INC"    )
 AVR_OPCODE (JMP,         2, 3,    "JMP"    )
+AVR_OPCODE (LDI,         1, 1,    "LDI"    )
 AVR_OPCODE (LDD_Y,       1, 2,    "LDD Y+q")
 AVR_OPCODE (LDD_Z,       1, 2,    "LDD Z+q")
 AVR_OPCODE (LDS,         2, 2+CX, "LDS"    )
@@ -115,6 +110,8 @@ AVR_OPCODE (LPM,         1, 3,    "LPM"    )
 AVR_OPCODE (LPM_Z,       1, 3,    "LPM Z"  )
 AVR_OPCODE (LPM_Z_incr,  1, 3,    "LPM Z+" )
 AVR_OPCODE (LSR,         1, 1,    "LSR"    )
+AVR_OPCODE (MOV,         1, 1,    "MOV"    )
+AVR_OPCODE (MOVW,        1, 1,    "MOVW"   )
 AVR_OPCODE (MUL,         1, 2,    "MUL"    )
 AVR_OPCODE (MULS,        1, 2,    "MULS"   )
 AVR_OPCODE (MULSU,       1, 2,    "MULSU"  )

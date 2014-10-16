@@ -1254,7 +1254,7 @@ log_dump_line (int id)
     {
       alog.maybe_log = 1;
       puts (alog.data);
-      if (id && log_this && alog.unused)
+      if (log_this && alog.unused)
         leave (EXIT_STATUS_FATAL, "problem in log_dump_line");
     }
   else

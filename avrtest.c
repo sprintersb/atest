@@ -229,7 +229,8 @@ leave (int n, const char *reason, ...)
   va_list args;
 
   // make sure we print the last log line before leaving
-  log_dump_line (0);
+  if (EXIT_SUCCESS == status->failure)
+    log_dump_line (0);
 
   qprintf ("\n");
 
@@ -780,9 +781,15 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
   put_word_reg (0, result);
 }
 
-// handle illegal instructions
+// handle illegal opcodes
 static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
 {
+  if (!rd)
+    {
+      byte *f = cpu_flash + 2 * (cpu_PC + rr);
+      rr = f[0] + (f[1] << 8);
+    }
+
   log_append (".word 0x%04x", rr);
   leave (EXIT_STATUS_ABORTED, "illegal opcode 0x%04x", rr);
 }
@@ -801,32 +808,24 @@ static OP_FUNC_TYPE func_BREAK (int rd, int rr)
 /* 1001 0101 0001 1001 | EICALL */
 static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 {
-  if (arch.has_eind)
-    {
-      push_PC();
-      cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
-      if (cpu_PC >= MAX_FLASH_SIZE / 2)
-        bad_PC (cpu_PC);
-    }
-  else
-    {
-      func_ILLEGAL (0, 0x9519);
-    }
+  if (!arch.has_eind)
+    func_ILLEGAL (0, -1);
+
+  push_PC();
+  cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
+  if (cpu_PC >= MAX_FLASH_SIZE / 2)
+    bad_PC (cpu_PC);
 }
 
 /* 1001 0100 0001 1001 | EIJMP */
 static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
 {
-  if (arch.has_eind)
-    {
-      cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
-      if (cpu_PC >= MAX_FLASH_SIZE / 2)
-        bad_PC (cpu_PC);
-    }
-  else
-    {
-      func_ILLEGAL (0, 0x9419);
-    }
+  if (!arch.has_eind)
+    func_ILLEGAL (0, -1);
+
+  cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
+  if (cpu_PC >= MAX_FLASH_SIZE / 2)
+    bad_PC (cpu_PC);
 }
 
 /* 1001 0101 1101 1000 | ELPM */
@@ -838,7 +837,7 @@ static OP_FUNC_TYPE func_ELPM (int rd, int rr)
 /* 1001 0101 1111 1000 | ESPM */
 static OP_FUNC_TYPE func_ESPM (int rd, int rr)
 {
-  func_ILLEGAL (0, 0x95F8);
+  func_ILLEGAL (0, -1);
   //TODO
 }
 
@@ -891,7 +890,14 @@ static OP_FUNC_TYPE func_SLEEP (int rd, int rr)
 /* 1001 0101 1110 1000 | SPM */
 static OP_FUNC_TYPE func_SPM (int rd, int rr)
 {
-  func_ILLEGAL (0, 0x95E8);
+  func_ILLEGAL (0, -1);
+  //TODO
+}
+
+/* 1001 0100 KKKK 1011 | DES */
+static OP_FUNC_TYPE func_DES (int rd, int rr)
+{
+  func_ILLEGAL (0, -1);
   //TODO
 }
 
@@ -1138,10 +1144,10 @@ static OP_FUNC_TYPE func_POP (int rd, int rr)
 }
 
 static INLINE void
-xmega_atomic (int regno, int op, const char *mnemo, int magic_p)
+xmega_atomic (int regno, int op, int magic_p)
 {
 #ifndef ISA_XMEGA
-  leave (EXIT_STATUS_ABORTED, "illegal instruction %s", mnemo);
+  func_ILLEGAL (0, -1);
 #endif
 
   int mask = get_reg (regno);
@@ -1169,25 +1175,25 @@ xmega_atomic (int regno, int op, const char *mnemo, int magic_p)
 /* 1001 001d dddd 0100 | XCH */
 static OP_FUNC_TYPE func_XCH (int rd, int rr)
 {
-  xmega_atomic (rd, ID_XCH, "XCH", 1);
+  xmega_atomic (rd, ID_XCH, 1);
 }
 
 /* 1001 001d dddd 0101 | LAS */
 static OP_FUNC_TYPE func_LAS (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAS, "LAS", 0);
+  xmega_atomic (rd, ID_LAS, 0);
 }
 
 /* 1001 001d dddd 0110 | LAC */
 static OP_FUNC_TYPE func_LAC (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAC, "LAC", 0);
+  xmega_atomic (rd, ID_LAC, 0);
 }
 
 /* 1001 001d dddd 0111 | LAT */
 static OP_FUNC_TYPE func_LAT (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAT, "LAT", 0);
+  xmega_atomic (rd, ID_LAT, 0);
 }
 
 /* 1001 001d dddd 1111 | PUSH */
@@ -1569,12 +1575,11 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 }
 
 
-static OP_FUNC_TYPE func__null (int rd, int rr)
+static OP_FUNC_TYPE func__bad_pc (int rd, int rr)
 {
-  leave (EXIT_STATUS_FATAL, "function must be unreachable");
+  bad_PC (cpu_PC);
 }
 
-#define func__last_fast  func__null
 
 // ----------------------------------------------------------------------------
 // AVR opcodes
@@ -1592,26 +1597,11 @@ const opcode_t opcodes[] =
 //     main execution loop
 
 static INLINE void
-do_fast (byte id, int op1, int op2)
-{
-  // Some instructions are used so frequently and are so easy to simulate
-  // (not more than 4 instructions) that they are not worth a function call.
-  switch (id)
-    {
-    case ID_LDI:  func_LDI  (op1, op2); break;
-    case ID_MOV:  func_MOV  (op1, op2); break;
-    case ID_MOVW: func_MOVW (op1, op2); break;
-    }
-}
-    
-static INLINE void
 do_step (void)
 {
   // fetch decoded instruction
   decoded_t d = decoded_flash[cpu_PC];
   byte id = d.id;
-  if (!id)
-    bad_PC (cpu_PC);
 
   // execute instruction
   const opcode_t *insn = &opcodes[id];
@@ -1620,10 +1610,7 @@ do_step (void)
   add_program_cycles (insn->cycles);
   int op1 = d.op1;
   int op2 = d.op2;
-  if (id >= ID__last_fast)
-    insn->func (op1, op2);
-  else
-    do_fast (id, op1, op2);
+  insn->func (op1, op2);
   log_dump_line (id);
 }
 
@@ -1631,7 +1618,6 @@ static INLINE void
 execute (void)
 {
   dword max_insns = program.max_insns;
-  program.n_cycles = 0;
 
   for (;;)
     {
