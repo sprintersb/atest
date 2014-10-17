@@ -749,8 +749,7 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
     }
   }
 
-  d->op1 = 1;
-  d->op2 = opcode1;
+  d->op2 = 0;
   return ID_ILLEGAL;
 
   // Map ID_CPSE to ID_CPSE2 if CPSE has to skip 2 words.

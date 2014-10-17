@@ -784,11 +784,8 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 // handle illegal opcodes
 static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
 {
-  if (!rd)
-    {
-      byte *f = cpu_flash + 2 * (cpu_PC + rr);
-      rr = f[0] + (f[1] << 8);
-    }
+  byte *f = cpu_flash + 2 * (cpu_PC + rr);
+  rr = f[0] + (f[1] << 8);
 
   log_append (".word 0x%04x", rr);
   leave (EXIT_STATUS_ABORTED, "illegal opcode 0x%04x", rr);

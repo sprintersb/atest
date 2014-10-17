@@ -55,6 +55,9 @@
 // outside of the decoded flash memory.
 AVR_OPCODE (_bad_pc, 0, 0, "bad PC")
 
+// An invalid opcode inside the decoded flash memory.
+AVR_OPCODE (ILLEGAL,     0, 0,    "ILLEGAL")
+
 AVR_OPCODE (ADC,         1, 1,    "ADC"    )
 AVR_OPCODE (ADD,         1, 1,    "ADD"    )
 AVR_OPCODE (ADIW,        1, 2,    "ADIW"   )
@@ -91,7 +94,6 @@ AVR_OPCODE (FMULS,       1, 2,    "FMULS"  )
 AVR_OPCODE (FMULSU,      1, 2,    "FMULSU" )
 AVR_OPCODE (ICALL,       1, 3-CX, "ICALL"  ) // *
 AVR_OPCODE (IJMP,        1, 2,    "IJMP"   )
-AVR_OPCODE (ILLEGAL,     1, 1,    "ILLEGAL")
 AVR_OPCODE (IN,          1, 1,    "IN"     )
 AVR_OPCODE (INC,         1, 1,    "INC"    )
 AVR_OPCODE (JMP,         2, 3,    "JMP"    )
