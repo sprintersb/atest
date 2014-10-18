@@ -66,8 +66,9 @@ typedef struct
 
 typedef struct
 {
-  int argc, i, addr, request;
+  int argc, i;
   char **argv;
+  int avr_argc, avr_argv;
 } args_t;
 
 extern options_t options;

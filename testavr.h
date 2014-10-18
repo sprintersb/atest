@@ -84,6 +84,7 @@ extern unsigned cpu_PC;
 extern const int is_xmega;
 extern const int io_base;
 extern const int is_avrtest_log;
+extern const unsigned invalid_opcode;
 
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
@@ -153,7 +154,7 @@ typedef struct
 #define log_add_data_mov(...)  (void) 0
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
-#define do_log_port_cmd(...)   (void) 0
+#define do_syscall(...)        (void) 0
 #define flush_ticks_port(...)  (void) 0
 #define log_set_func_symbol(...) (void) 0
 
@@ -166,7 +167,7 @@ extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
-extern void do_log_port_cmd (int x);
+extern void do_syscall (int x, int val);
 extern void flush_ticks_port (int addr);
 extern void log_set_func_symbol (int, const char*, int);
 
@@ -175,6 +176,7 @@ extern void log_set_func_symbol (int, const char*, int);
 extern void load_to_flash (const char*, byte[], byte[], byte[]);
 extern void decode_flash (decoded_t[], const byte[]);
 extern void set_function_symbol (int, const char*, int);
+extern void put_argv (int, byte*);
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables

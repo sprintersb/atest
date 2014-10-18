@@ -326,10 +326,9 @@ log_add_instr (const decoded_t *d)
   char mnemo_[16];
   const char *fmt, *mnemo = mnemonic[alog.id];
 
-  // OUT and ST* might turn on logging: always log them to alog.data[].
-  alog.maybe_OUT = (alog.id == ID_OUT || mnemo[1] == 'T');
+  // SYSCALL might turn on logging: always log them to alog.data[].
 
-  int maybe_used = alog.maybe_log || alog.maybe_OUT;
+  int maybe_used = alog.maybe_log || alog.id == ID_SYSCALL;
 
   if ((alog.unused = !maybe_used))
     return;
@@ -383,83 +382,6 @@ log_add_data_mov (const char *format, int addr, int value)
     }
 
   log_append (format, s_name, value);
-}
-
-
-static void
-putchar_escaped (char c)
-{
-  if (options.do_quiet)
-    return;
-
-  if (c == '\0') {}
-  else if (c == '\n')  { putchar ('\\'); putchar ('n'); }
-  else if (c == '\t')  { putchar ('\\'); putchar ('t'); }
-  else if (c == '\r')  { putchar ('\\'); putchar ('r'); }
-  else if (c == '\"')  { putchar ('\\'); putchar ('"'); }
-  else if (c == '\\')  { putchar ('\\'); putchar ('\\'); }
-  else putchar (c);
-}
-
-// set argc and argv[] from -args
-// LOG_PORT = LOG_GET_ARGS_CMD;
-static void
-do_put_args (byte x)
-{
-  // We have been asked to transfer command line arguments.
-  if (--args.request == 1)
-    {
-      args.addr = (byte) x;
-      return;
-    }
-
-  args.addr |= (byte) x << 8;
-
-  // strip directory to save space
-  const char *p, *program = options.program_name;
-  if ((p = strrchr (program, '/')))    program = p;
-  if ((p = strrchr (program, '\\')))   program = p;
-
-  // put strings to args.addr 
-  int argc = args.argc - args.i;
-  int a = args.addr;
-  byte* b = log_cpu_address (args.addr, AR_RAM);
-  for (int i = args.i; i < args.argc; i++)
-    {
-      const char *arg = i == args.i ? program : args.argv[i];
-      int len = 1 + strlen (arg);
-      qprintf ("*** (%04x) <-- *argv[%d] = \"", a, i - args.i);
-      strcpy ((char*) b, arg);
-      a += len;
-      b += len;
-      for (int j = 0; j < len; j++)
-        putchar_escaped (arg[j]);
-      qprintf ("\"\n");
-    }
-
-  // put their addresses to argv[]
-  int argv = a;
-  int aa = args.addr;
-  for (int i = args.i; i < args.argc; i++)
-    {
-      const char *arg = i == args.i ? program : args.argv[i];
-      int len = 1 + strlen (arg);
-      qprintf ("*** (%04x) <-- argv[%d] = %04x\n", a, i - args.i, aa);
-      *b++ = aa;
-      *b++ = aa >> 8;
-      a += 2;
-      aa += len;
-    }
-  qprintf ("*** (%04x) <-- argv[%d] = NULL\n", a, argc);
-  *b++ = 0;
-  *b++ = 0;
-
-  // set argc, argc: picked up by exit.c:avrtest_init_argc_argv() in .init8
-  qprintf ("*** -args: at=0x%04x, argc=R24=%d, argv=R22=0x%04x\n", args.addr, argc, argv);
-
-  b = log_cpu_address (22, AR_REG);
-  *b++ = argv; *b++ = argv >> 8;
-  *b++ = argc; *b++ = argc >> 8;
 }
 
 
@@ -535,13 +457,14 @@ read_string (char *p, unsigned addr, int flash_p, size_t len_max)
   return p;
 }
 
-// Read a value as unsigned from TICKS_PORT.  Bytesize (1..4) and
+
+// Read a value as unsigned from R20.  Bytesize (1..4) and
 // signedness are determined by respective layout[].
 // If the value is signed a cast to signed will do the conversion.
 static unsigned
-get_raw_value (const layout_t *lay)
+get_r20_value (const layout_t *lay)
 {
-  byte *p = log_cpu_address (0, AR_TICKS_PORT);
+  byte *p = log_cpu_address (20, AR_REG);
   unsigned val = 0;
 
   if (lay->signed_p && (0x80 & p[lay->size - 1]))
@@ -621,42 +544,56 @@ flush_ticks_port (int addr)
 static void
 do_ticks_cmd (int cfg)
 {
+  const char *r = NULL;
+  const char *s = NULL;
   ticks_port_t *tp = &ticks_port;
+  cfg &= 0xff;
 
   switch (cfg)
     {
     case TICKS_RESET_CMD:
+      log_append ("reset TICKS_PORT (");
       switch (tp->config)
         {
-        case TI_CYCLES:   tp->n_cycles = program.n_cycles;  break;
-        case TI_INSNS:    tp->n_insns  = program.n_insns;   break;
-        case TI_PRAND:    tp->pvalue = 0;  break;
+        case TI_CYCLES: r = "cycles"; tp->n_cycles = program.n_cycles; break;
+        case TI_INSNS:  r = "insns";  tp->n_insns  = program.n_insns;  break;
+        case TI_PRAND:  r = "prind";  tp->pvalue = 0; break;
         }
       break;
 
     case TICKS_RESET_ALL_CMD:
+      r = "all";
       tp->n_cycles = program.n_cycles;
       tp->n_insns  = program.n_insns;
       tp->pvalue = 0;
       break;
 
-    case TICKS_IS_CYCLES_CMD:  tp->config = TI_CYCLES;  break;
-    case TICKS_IS_INSNS_CMD:   tp->config = TI_INSNS;   break;
-    case TICKS_IS_PRAND_CMD:   tp->config = TI_PRAND;   break;
-    case TICKS_IS_RAND_CMD:    tp->config = TI_RAND;    break;
+    case TICKS_IS_CYCLES_CMD: s = "cycles"; tp->config = TI_CYCLES; break;
+    case TICKS_IS_INSNS_CMD:  s = "isnns";  tp->config = TI_INSNS;  break;
+    case TICKS_IS_PRAND_CMD:  s = "prand";  tp->config = TI_PRAND;  break;
+    case TICKS_IS_RAND_CMD:   s = "rand";   tp->config = TI_RAND;   break;
     }
+
+  if (r) log_append ("reset TICKS_PORT (%s)", r);
+  if (s) log_append ("config TICKS_PORT as %s", s);
 }
 
 
 static void
 do_log_dump (int what)
 {
+  what &= 0xff;
+  if (what >= LOG_X_sentinel)
+    {
+      log_append ("log: invalid cmd %d\n", what);
+      return;
+    }
+
   static int fmt_once = 0;
   static char xfmt[LEN_LOG_XFMT];
   static char string[LEN_LOG_STRING];
   const layout_t *lay = & layout[what];
-
-  unsigned val = get_raw_value (lay);
+  unsigned val = get_r20_value (lay);
   const char *fmt = fmt_once ? xfmt : lay->fmt;
 
   if (fmt_once == 1)
@@ -665,42 +602,200 @@ do_log_dump (int what)
   switch (what)
     {
     default:
+      log_append ("log %d-byte value", lay->size);
       printf (fmt, val);
       break;
 
     case LOG_SET_FMT_ONCE_CMD:
     case LOG_SET_PFMT_ONCE_CMD:
+      log_append ("log set format");
       fmt_once = 1;
       read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
       break;
 
     case LOG_SET_FMT_CMD:
     case LOG_SET_PFMT_CMD:
+      log_append ("log set format");
       fmt_once = -1;
       read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
       break;
 
-    case LOG_TAG_FMT_CMD:
-    case LOG_TAG_PFMT_CMD:
-      perf.pending_LOG_TAG_FMT = 1;
-      read_string (perfs[0].tag.fmt, val, lay->in_rom,
-                   sizeof (perfs[0].tag.fmt));
+    case LOG_UNSET_FMT_CMD:
+      log_append ("log unset format");
+      fmt_once = 0;
       break;
 
     case LOG_PSTR_CMD:
     case LOG_STR_CMD:
+      log_append ("log string");
       read_string (string, val, lay->in_rom, sizeof (string));
       printf (fmt, string);
       break;
 
     case LOG_FLOAT_CMD:
       {
+        log_append ("log float");
         avr_float_t af = decode_avr_float (val);
         printf (fmt, af.x);
       }
       break;
     }
 }
+
+
+enum
+{
+  LOG_ON_CMD,
+  LOG_OFF_CMD,
+  LOG_SET_CMD,
+  LOG_PERF_CMD,
+};
+
+static void
+do_log_config (int cmd, int val)
+{
+#define SET_LOGGING(F, P, C)                                            \
+  do { options.do_log=(F); alog.perf_only=(P); alog.countdown=(C); } while(0)
+
+  // Turning logging on / off
+  switch (cmd)
+    {
+    case LOG_ON_CMD:
+      log_append ("log On");
+      SET_LOGGING (1, 0, 0);
+      break;
+    case LOG_OFF_CMD:
+      log_append ("log Off");
+      SET_LOGGING (0, 0, 0);
+      break;
+    case LOG_PERF_CMD:
+      log_append ("performance log");
+      SET_LOGGING (0, 1, 0);
+      break;
+    case LOG_SET_CMD:
+      alog.count_val = val ? val : 0x10000;
+      log_append ("start log %u", alog.count_val);
+      SET_LOGGING (1, 0, 1 + alog.count_val);
+      break;
+    }
+
+#undef SET_LOGGING
+}
+
+
+static void
+do_perf_cmd (int x)
+{
+  const char *s = "";
+  int n = PERF_N (x);
+  int cmd = PERF_CMD(x);
+
+  switch (cmd)
+    {
+    case PERF_START_CMD: s = "start"; break;
+    case PERF_STOP_CMD:  s = "stop"; break;
+    case PERF_DUMP_CMD:  s = "dump"; break;
+    case PERF_STAT_U32_CMD:   s = "stat u32"; break;
+    case PERF_STAT_S32_CMD:   s = "stat s32"; break;
+    case PERF_STAT_FLOAT_CMD: s = "stat float"; break;
+    case PERF_START_CALL_CMD: s = "start on call"; break;
+    }
+
+  if (n) log_append ("PERF %d %s", n, s);
+  else   log_append ("PERF all %s", s);
+
+  // Do perf-meter stuff only in avrtest*_log in order
+  // to avoid impact on execution speed.
+  perf.cmd[cmd] = n ? 1 << n : PERF_ALL;
+  perf.will_be_on = perf.cmd[PERF_START_CMD]
+                    || perf.cmd[PERF_START_CALL_CMD];
+}
+
+
+static void
+do_perf_tag_cmd (int x)
+{
+  // PERF_TAG_[P]FMT gets the format string, then
+  // PERF_TAG_XXX uses that format on a specific perf-meter
+
+  perfs_t *p = & perfs[PERF_N (x)];
+  int cmd = 0, tag_cmd = PERF_TAG_CMD (x);
+  const char *s = "";
+
+  switch (tag_cmd)
+    {
+    case PERF_TAG_STR_CMD: s = "_TAG string";  cmd = LOG_STR_CMD;   break;
+    case PERF_TAG_U16_CMD:   s = "_TAG u16";   cmd = LOG_U16_CMD;   break;
+    case PERF_TAG_U32_CMD:   s = "_TAG u32";   cmd = LOG_U32_CMD;   break;
+    case PERF_TAG_FLOAT_CMD: s = "_TAG float"; cmd = LOG_FLOAT_CMD; break;
+    case PERF_LABEL_CMD:     s = " label";     cmd = LOG_STR_CMD;   break;
+    case PERF_PLABEL_CMD:    s = " plabel";    cmd = LOG_PSTR_CMD;  break;
+    case PERF_TAG_FMT_CMD:   s = " fmt";       cmd = LOG_STR_CMD;   break;
+    case PERF_TAG_PFMT_CMD:  s = " pfmt";      cmd = LOG_PSTR_CMD;  break;
+    }
+  log_append ("PERF%s %d", s, PERF_N (x));
+
+  const layout_t *lay = & layout[cmd];
+  unsigned raw = get_r20_value (lay);
+
+  switch (tag_cmd)
+    {
+    case PERF_TAG_FMT_CMD:
+    case PERF_TAG_PFMT_CMD:
+      perf.pending_LOG_TAG_FMT = 1;
+      read_string (perfs[0].tag.fmt, raw, lay->in_rom,
+                   sizeof (perfs[0].tag.fmt));
+      return;
+
+    case PERF_LABEL_CMD:
+    case PERF_PLABEL_CMD:
+      if (raw)
+        read_string (p->label, raw, lay->in_rom, sizeof (p->label));
+      else
+        * p->label = '\0';
+      return;
+    }
+
+  perf_tag_t *t = & p->tag_for_start;
+
+  t->cmd = cmd;
+  t->val = raw;
+
+  if (cmd == LOG_STR_CMD)
+    read_string (t->string, t->val, 0, sizeof (t->string));
+  else if (cmd == LOG_FLOAT_CMD)
+    t->dval = decode_avr_float (t->val).x;
+
+  if (perf.pending_LOG_TAG_FMT)
+    strcpy (t->fmt, perfs[0].tag.fmt);
+  else
+    * t->fmt = '\0';
+
+  perf.pending_LOG_TAG_FMT = 0;
+}
+
+
+void
+do_syscall (int sysno, int val)
+{
+  switch (sysno)
+    {
+    default:
+      log_append ("void ");
+      qprintf ("*** syscall %d: void\n", sysno);
+      break;
+
+    case 0: do_log_config (LOG_OFF_CMD, 0);    break;
+    case 1: do_log_config (LOG_ON_CMD, 0);     break;
+    case 2: do_log_config (LOG_PERF_CMD, 0);   break;
+    case 3: do_log_config (LOG_SET_CMD, val);  break;
+    case 4: do_ticks_cmd (val);    break;
+    case 5: do_perf_cmd (val);     break;
+    case 6: do_perf_tag_cmd (val); break;
+    case 7: do_log_dump (val);     break;
+    }
+}
+
 
 static int
 print_tag (const perf_tag_t *t, const char *no_tag, const char *tag_prefix)
@@ -733,119 +828,6 @@ print_tags (const minmax_t *mm, const char *text)
   printf ("%*s", pos >= 20 ? 0 : 20 - pos, " / ");
   print_tag (& mm->tag_max, "  -no-tag-", "   ");
   return printf ("\n");
-}
-
-NOINLINE void
-do_log_port_cmd (int x)
-{
-#define SET_LOGGING(F, P, C)                                            \
-  do { options.do_log=(F); alog.perf_only=(P); alog.countdown=(C); } while(0)
-
-  if (args.request)
-    {
-      do_put_args (x);
-      return;
-    }
-
-  switch (LOG_CMD (x))
-    {
-    case 0:
-      // Do perf-meter stuff only in avrtest*_log in order
-      // to avoid impact on execution speed.
-      perf.cmd[PERF_CMD(x)] = PERF_N (x) ? 1 << PERF_N (x) : PERF_ALL;
-      perf.will_be_on = perf.cmd[PERF_START] || perf.cmd[PERF_START_CALL];
-      break;
-
-      // LOG_TAG_FMT sent the address of the format string, then
-      // LOG_TAG_PERF to use that format on a specific perf-meter
-    case LOG_TAG_PERF:
-      {
-        perfs_t *p = & perfs[PERF_N (x)];
-        int cmd = 0, tag_cmd = PERF_TAG_CMD (x);
-
-        switch (tag_cmd)
-          {
-          case PERF_TAG_STR:   cmd = LOG_STR_CMD;  break;
-          case PERF_TAG_U16:   cmd = LOG_U16_CMD;  break;
-          case PERF_TAG_U32:   cmd = LOG_U32_CMD;  break;
-          case PERF_TAG_FLOAT: cmd = LOG_FLOAT_CMD; break;
-          case PERF_LABEL:  cmd = LOG_STR_CMD;  break;
-          case PERF_PLABEL: cmd = LOG_PSTR_CMD; break;
-          }
-
-        const layout_t *lay = & layout[cmd];
-        unsigned raw = get_raw_value (lay);
-
-        if (PERF_LABEL == tag_cmd
-            || PERF_PLABEL == tag_cmd)
-          {
-            if (raw)
-              read_string (p->label, raw, lay->in_rom, sizeof (p->label));
-            else
-              * p->label = '\0';
-            break;
-          }
-
-        perf_tag_t *t = & p->tag_for_start;
-
-        t->cmd = cmd;
-        t->val = raw;
-
-        if (cmd == LOG_STR_CMD)
-          read_string (t->string, t->val, 0, sizeof (t->string));
-        else if (cmd == LOG_FLOAT_CMD)
-          t->dval = decode_avr_float (t->val).x;
-
-        if (perf.pending_LOG_TAG_FMT)
-          strcpy (t->fmt, perfs[0].tag.fmt);
-        else
-          * t->fmt = '\0';
-        perf.pending_LOG_TAG_FMT = 0;
-      }
-      break; // LOG_TAG_PERF
-
-    case LOG_DUMP:
-      {
-        int n = LOG_NUM (x);
-        if (n >= TICKS_RESET_CMD
-            && n <= TICKS_RESET_ALL_CMD)
-          // Config what's being read from TICKS_PORT
-          do_ticks_cmd (n);
-        else
-          // Dumping values to host's stdout.
-          do_log_dump (n);
-      }
-      break;
-
-    case LOG_SET:
-      // Turning logging on / off
-      switch (LOG_NUM (x))
-        {
-        case LOG_GET_ARGS_CMD:
-          args.request = 2;
-          qprintf ("*** transfer %s-args\n", options.do_args ? "" : "-no");
-          break;
-        case LOG_ON_CMD:
-          qprintf ("*** log On\n");
-          SET_LOGGING (1, 0, 0);
-          break;
-        case LOG_OFF_CMD:
-          qprintf ("*** log Off\n");
-          SET_LOGGING (0, 0, 0);
-          break;
-        case LOG_PERF_CMD:
-          qprintf ("*** performance log\n");
-          SET_LOGGING (0, 1, 0);
-          break;
-        default:
-          alog.count_val = LOG_NUM (x);
-          qprintf ("*** start log %u\n", alog.count_val);
-          SET_LOGGING (1, 0, 1 + alog.count_val);
-          break;
-        } // LOG_NUM
-      break; // LOG_SET
-    } // LOG_CMD
-#undef SET_LOGGING
 }
 
 
@@ -886,12 +868,12 @@ perf_verbose_start (perfs_t *p, int i, int mode)
 
   if (!p->valid)
     {
-      if (PERF_START == mode)
+      if (PERF_START_CMD == mode)
         qprintf ("Start T%d (round 1", i);
     }
-  else if (PERF_START == mode)
+  else if (PERF_START_CMD == mode)
     {
-      if (PERF_STAT == p->valid)
+      if (PERF_STAT_CMD == p->valid)
         qprintf ("Start T%d ignored: T%d in Stat mode (%d values",
                  i, i, p->n);
       else if (p->on)
@@ -900,18 +882,20 @@ perf_verbose_start (perfs_t *p, int i, int mode)
       else
         qprintf ("reStart T%d (round %d", i, 1 + p->n);
     }
-  else if (PERF_START == p->valid)
+  else if (PERF_START_CMD == p->valid)
     qprintf ("Stat T%d ignored: T%d is in Start/Stop mode (%s "
              "round %d", i, i, p->on ? "in" : "after", p->n);
 
   // Finishing --- message is perf_stat() resp. perf_start()
 
   return (!p->valid
-          || (mode >= PERF_STAT && p->valid == PERF_STAT)
-          || (mode == PERF_START && p->valid == PERF_START && !p->on));
+          || (mode >= PERF_STAT_CMD
+              && p->valid == PERF_STAT_CMD)
+          || (mode == PERF_START_CMD
+              && p->valid == PERF_START_CMD && !p->on));
 }
 
-// LOG_PORT = PERF_STAT_XXX (i, x)
+// PERF_STAT_XXX (i, x)
 static void
 perf_stat (perfs_t *p, int i, int stat)
 {
@@ -924,18 +908,21 @@ perf_stat (perfs_t *p, int i, int stat)
   if (!p->valid)
     {
       // First value
-      p->valid = PERF_STAT;
+      p->valid = PERF_STAT_CMD;
       p->on = p->n = 0;
       p->val_ev = 0.0;
       minmax_init (& p->val, 0);
     }
 
   double dval;
-  signed sraw = get_raw_value (& layout[LOG_S32_CMD]);
+  signed sraw = get_r20_value (& layout[LOG_S32_CMD]);
   unsigned uraw = (unsigned) sraw & 0xffffffff;
-  if (PERF_STAT_U32 == stat)       dval = (double) uraw;
-  else if (PERF_STAT_S32 == stat)  dval = (double) sraw;
-  else                             dval = decode_avr_float (uraw).x;
+  if (PERF_STAT_U32_CMD == stat)
+    dval = (double) uraw;
+  else if (PERF_STAT_S32_CMD == stat)
+    dval = (double) sraw;
+  else
+    dval = decode_avr_float (uraw).x;
 
   p->n++;
   minmax_update_double (& p->val, dval, p);
@@ -950,7 +937,7 @@ perf_stat (perfs_t *p, int i, int stat)
     }
 }
 
-// LOG_PORT = PERF_START (i)
+// PERF_START (i)
 static void
 perf_start (perfs_t *p, int i)
 {
@@ -965,7 +952,7 @@ perf_start (perfs_t *p, int i)
   if (!p->valid)
     {
       // First round begins
-      p->valid = PERF_START;
+      p->valid = PERF_START_CMD;
       p->n = 0;
       p->insns = p->ticks = 0;
       minmax_init (& p->insn,  program.n_insns);
@@ -993,7 +980,7 @@ perf_start (perfs_t *p, int i)
 }
 
 
-// LOG_PORT = PERF_STOP (i)
+// PERF_STOP (i)
 static void
 perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
 {
@@ -1002,10 +989,10 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
       int ret = 1;
       if (!p->valid)
         qprintf ("\n--- Stop T%d ignored: -unused-\n", i);
-      else if (p->valid == PERF_START && !p->on)
+      else if (p->valid == PERF_START_CMD && !p->on)
         qprintf ("\n--- Stop T%d ignored: T%d already stopped (after "
                  "round %d)\n", i, i, p->n);
-      else if (p->valid == PERF_STAT)
+      else if (p->valid == PERF_STAT_CMD)
         qprintf ("\n--- Stop T%d ignored: T%d used for Stat (%d Values)\n",
                  i, i, p->n);
       else
@@ -1015,7 +1002,7 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
         return;
     }
 
-  if (p->valid == PERF_START && p->on)
+  if (p->valid == PERF_START_CMD && p->on)
     {
       long ticks;
       int insns;
@@ -1053,7 +1040,7 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
 }
 
 
-// LOG_PORT = PERF_DUMP (i)
+// PERF_DUMP (i)
 static void
 perf_dump (perfs_t *p, int i, int dumps)
 {
@@ -1066,7 +1053,7 @@ perf_dump (perfs_t *p, int i, int dumps)
 
   long c = p->calls.at_start;
   long s = p->sp.at_start;
-  if (p->valid == PERF_START)
+  if (p->valid == PERF_START_CMD)
     printf (" Timer T%d \"%s\" (%d round%s):  %04x--%04x\n"
             "              Instructions        Ticks\n"
             "    Total:      %7u"  "         %7u\n",
@@ -1078,7 +1065,7 @@ perf_dump (perfs_t *p, int i, int dumps)
 
   double e_x2, e_x;
 
-  if (p->valid == PERF_START)
+  if (p->valid == PERF_START_CMD)
     {
       if (p->n > 1)
         {
@@ -1142,15 +1129,15 @@ perf_instruction (int id)
   perf.id = id;
   perf.will_be_on = 0;
 
-  // actions requested by LOG_PORT
+  // actions requested by perf SYSCALLs 5..6
 
-  int dumps  = perf.cmd[PERF_DUMP];
-  int starts = perf.cmd[PERF_START];
-  int stops  = perf.cmd[PERF_STOP];
-  int starts_call = perf.cmd[PERF_START_CALL];
-  int stats_u32   = perf.cmd[PERF_STAT_U32];
-  int stats_s32   = perf.cmd[PERF_STAT_S32];
-  int stats_float = perf.cmd[PERF_STAT_FLOAT];
+  int dumps  = perf.cmd[PERF_DUMP_CMD];
+  int starts = perf.cmd[PERF_START_CMD];
+  int stops  = perf.cmd[PERF_STOP_CMD];
+  int starts_call = perf.cmd[PERF_START_CALL_CMD];
+  int stats_u32   = perf.cmd[PERF_STAT_U32_CMD];
+  int stats_s32   = perf.cmd[PERF_STAT_S32_CMD];
+  int stats_float = perf.cmd[PERF_STAT_FLOAT_CMD];
   int stats = stats_u32 | stats_s32 | stats_float;
 
   byte *psp = log_cpu_address (0, AR_SP);
@@ -1168,17 +1155,17 @@ perf_instruction (int id)
   for (int i = 1; i < NUM_PERFS; i++)
     {
       perfs_t *p = &perfs[i];
-      int start = ((starts | starts_call) & (1 << i)) ? PERF_START : 0;
+      int start = ((starts | starts_call) & (1 << i)) ? PERF_START_CMD : 0;
       int stop  = stops & (1 << i);
       int dump  = dumps & (1 << i);
       int start_call = starts_call  & (1 << i);
-      int stat_u32   = (stats_u32   & (1 << i)) ? PERF_STAT_U32 : 0;
-      int stat_s32   = (stats_s32   & (1 << i)) ? PERF_STAT_S32 : 0;
-      int stat_float = (stats_float & (1 << i)) ? PERF_STAT_FLOAT : 0;
+      int stat_u32   = (stats_u32   & (1 << i)) ? PERF_STAT_U32_CMD : 0;
+      int stat_s32   = (stats_s32   & (1 << i)) ? PERF_STAT_S32_CMD : 0;
+      int stat_float = (stats_float & (1 << i)) ? PERF_STAT_FLOAT_CMD : 0;
       int stat_val = stat_u32 | stat_s32 | stat_float;
 
       if (p->on
-          // PERF_START_CALL:  Only account costs (includeing CALL+RET)
+          // PERF_START_CALL:  Only account costs (including CALL+RET)
           // if we have a call depth > 0 relative to the starting point.
           && p->call_only.sp < INT_MAX
           && (sp < p->call_only.sp || perf.sp < p->call_only.sp))

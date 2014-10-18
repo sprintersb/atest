@@ -53,10 +53,37 @@
 
 // First entry (ID = 0) is executed when jumping to a location
 // outside of the decoded flash memory.
-AVR_OPCODE (_bad_pc, 0, 0, "bad PC")
+AVR_OPCODE (BAD_PC, 0, 0, "bad PC")
 
 // An invalid opcode inside the decoded flash memory.
-AVR_OPCODE (ILLEGAL,     0, 0,    "ILLEGAL")
+AVR_OPCODE (ILLEGAL, 0, 0,  "ILLEGAL")
+
+/* SYSCALL N (N = 0..31) is the special code sequence that unconditionally
+   skips the invalid opcode 0xffff:
+
+      CPSE N, N
+      .word 0xffff
+
+   This sequence is unlikely to be seen in real programs and is used to
+   trigger special target program <-> avrtest intsractions:
+
+   SYSCALL 31       raise abort
+   SYSCALL 30       raise exit
+   SYSCALL 29       stdout to PC's stdout
+   SYSCALL 28       read from PC's stdin
+   SYSCALL 27       set argc, argv as of -args ...
+
+   These syscalls are only supported by avrtest_log:
+
+   SYSCALL 7        dumping values to PC's stdout
+   SYSCALL 6..5     performance meters
+   SYSCALL 4        TICKS_PORT control
+   SYSCALL 3..0     logging control
+
+   Remaining syscalls are unused.
+*/
+
+AVR_OPCODE (SYSCALL, 2, 0,  "*** SYSCALL")
 
 AVR_OPCODE (ADC,         1, 1,    "ADC"    )
 AVR_OPCODE (ADD,         1, 1,    "ADD"    )
