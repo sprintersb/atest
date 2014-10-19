@@ -756,6 +756,11 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
   // Dito for SBRC, SBRS, SBIC, SBIS.
 do_skip:;
 
+  if (index == ID_CPSE
+      && d->op1 == d->op2 && opcode2 == invalid_opcode)
+    // Always skipping invalid opcode 0xffff represents a syscall
+    return ID_SYSCALL;        //  0001 00xX XXXX xxxx | CPSE X X = SYSCALL X
+
   if ((opcode2 & mask_LDS_STS) == 0x9000)
     return 1 + index;
 

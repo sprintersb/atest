@@ -47,16 +47,12 @@ static const char USAGE[] =
   "  -q           Quiet operation.  Only print messages explicitly requested,\n"
   "               e.g. by LOG_U8(42).  Pass exit status from the program.\n"
   "  -runtime     Print avrtest execution time.\n"
-  "  -no-ticks    Disable the 32-bit cycle counter TICKS_PORT that can be\n"
-  "               used to measure performance (avrtest_log only).\n"
+  "  -no-ticks    Disable the 32-bit cycle counter TICKS_PORT and ticks syscalls.\n"
   "  -no-log      Disable logging in avrtest_log.  Useful when capturing\n"
-  "               performance data.  Logging can be turned on / off by\n"
-  "               writing to LOG_PORT.  For avrtest this option and writing\n"
-  "               to LOG_PORT have no effect.\n"
-  "  -no-stdin    Disable stdin, i.e. reading from STDIN_PORT will not wait\n"
-  "               for user input.\n"
-  "  -no-stdout   Disable stdout, i.e. writing to STDOUT_PORT will not print\n"
-  "               to stdout.\n"
+  "               performance data.  Logging can still be cnotrolled by the\n"
+  "               running program, cf. README.\n"
+  "  -no-stdin    Using getchar syscall has no effect.\n"
+  "  -no-stdout   Using putchar syscall has no effect.\n"
   "  -no-syms     Don't display function names from ELF symbol table when\n"
   "               logging.\n"
   "  -mmcu=ARCH   Select instruction set for ARCH\n"
@@ -240,3 +236,79 @@ parse_args (int argc, char *argv[])
   if (options.program_name == NULL)
     usage ("missing program name");
 }
+
+
+static void
+putchar_escaped (char c)
+{
+  if (options.do_quiet)
+    return;
+
+  if (c == '\0') {}
+  else if (c == '\n')  { putchar ('\\'); putchar ('n'); }
+  else if (c == '\t')  { putchar ('\\'); putchar ('t'); }
+  else if (c == '\r')  { putchar ('\\'); putchar ('r'); }
+  else if (c == '\"')  { putchar ('\\'); putchar ('"'); }
+  else if (c == '\\')  { putchar ('\\'); putchar ('\\'); }
+  else putchar (c);
+}
+
+
+// set argc and argv[] from -args
+void
+put_argv (int args_addr, byte *b)
+{
+  // strip directory to save space
+  const char *p, *program = options.program_name;
+  if ((p = strrchr (program, '/')))    program = p;
+  if ((p = strrchr (program, '\\')))   program = p;
+
+  // put strings to args_addr 
+  int argc = args.argc - args.i;
+  int a = args_addr;
+
+  for (int i = args.i; i < args.argc; i++)
+    {
+      const char *arg = i == args.i ? program : args.argv[i];
+      int len = 1 + strlen (arg);
+      if (is_avrtest_log)
+        qprintf ("*** (%04x) <-- *argv[%d] = \"", a, i - args.i);
+      strcpy ((char*) b, arg);
+      a += len;
+      b += len;
+      if (is_avrtest_log)
+        {
+          for (int j = 0; j < len; j++)
+            putchar_escaped (arg[j]);
+          qprintf ("\"\n");
+        }
+    }
+
+  // put their addresses to argv[]
+  int argv = a;
+  int aa = args_addr;
+  for (int i = args.i; i < args.argc; i++)
+    {
+      const char *arg = i == args.i ? program : args.argv[i];
+      int len = 1 + strlen (arg);
+      if (is_avrtest_log)
+        qprintf ("*** (%04x) <-- argv[%d] = %04x\n", a, i - args.i, aa);
+      *b++ = aa;
+      *b++ = aa >> 8;
+      a += 2;
+      aa += len;
+    }
+  if (is_avrtest_log)
+    qprintf ("*** (%04x) <-- argv[%d] = NULL\n", a, argc);
+  *b++ = 0;
+  *b++ = 0;
+
+  // set argc, argc: picked up by exit.c:avrtest_init_argc_argv() in .init8
+  if (is_avrtest_log)
+    qprintf ("*** -args: at=0x%04x, argc=R24=%d, argv=R22=0x%04x, "
+             "env=R20=%d\n", args_addr, argc, argv, is_avrtest_log);
+
+  args.avr_argv = argv;
+  args.avr_argc = argc;
+}
+
