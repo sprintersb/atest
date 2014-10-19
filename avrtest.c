@@ -337,11 +337,9 @@ data_write_magic_byte (int address, int value)
 {
   // add code here to handle special events
 
-  // default action, just store the value
-  cpu_data[address] = value;
-
   log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
                     address, value & 0xff);
+  cpu_data[address] = value;
 }
 
 

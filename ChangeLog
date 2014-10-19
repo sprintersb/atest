@@ -1,3 +1,40 @@
+2014-10-19  Georg-Johann Lay  <avr@gjlay.de>
+
+	Use SYSCALLs instead of magic ports.
+
+	* dejagnuboards/exit.c: Adjust to syscall interfaces.
+	* avrtest.h: Adjust to syscall.
+	(ABORT_PORT_ADDR, LOG_PORT_ADDR, EXIT_PORT_ADDR, STDIN_PORT_ADDR)
+	(STDOUT_PORT_ADDR): Remove.
+	(avrtest_abort, avrtest_exit, avrtest_putchar, avrtest_getchar)
+	(avrtest_ticks) [!IN_AVRTEST]: New user functions.
+	* avr-opcode.def (SYSCALL): New.
+	* load-flash.c (decode_opcode) [CPSE]: Map special skips to SYSCALLs.
+
+	* logging.c (log_set_func_symbol): Ignore weird addresses.
+	(log_add_instr) [maybe_used]: Adjust to SYSCALL.
+	(do_log_dump, do_ticks_cmd): Dito.
+	(perf_verbose_start, perf_stat, perf_stop, perf_dump)
+	(perf_instruction): Adjust to new CMDs.
+	(log_init): Don't set RAM[0xffff].
+	(get_raw_value): Rename to...
+	(get_r20_value): ...this.
+	(flush_ticks_port, log_get_ticks, s_ti[], do_get_ticks): New.
+	(do_log_port_cmd): Removed and diffuse code to...
+	(do_log_config, do_perf_cmd, do_perf_tag_cmd): ... new functions.
+	(do_syscall): New. Use them.
+	(putchar_escaped, do_put_args): Move to...
+	* options.c: ...here.
+	* avrtest.c (invalid_opcode, get_word_reg_raw): New.
+	(data_read_magic_port, data_write_magic_port): Remove.
+	(data_read_magic_byte): Just handle TICKS_PORT.
+	(named_port) [LOG_PORT, STDOUT_PORT, STDIN_PORT, EXIT_PORT]
+	[ABORT_PORT]: Remove.
+	(do_argc_argv, do_stdin, do_stdout, do_abort, do_exit): New.
+	(func_SYSCALL): New, use them.
+	* testavr.h (do_log_port_cmd, flush_ticks_port): Remove.
+	(do_syscall, log_get_ticks, put_argv): New.
+
 2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
 
 	Make ID = 0 bad_pc instruction.
@@ -7,7 +44,7 @@
 	* avrtest.c (func__bad_pc, func_DES): New.
 	(do_step): ID = 0 is no more a special case.
 	(do_fast): Remove.
-	(func_ILLEGAL) [!rd]: Read bad opcode from flash.
+	(func_ILLEGAL): Read bad opcode from flash.
 
 2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
 
