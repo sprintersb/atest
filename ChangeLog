@@ -7,7 +7,7 @@
 	* avrtest.c (func__bad_pc, func_DES): New.
 	(do_step): ID = 0 is no more a special case.
 	(do_fast): Remove.
-	(func_ILLEGAL) [!rd]: Read bad opcode from flash.
+	(func_ILLEGAL): Read bad opcode from flash.
 
 2014-10-15  Georg-Johann Lay  <avr@gjlay.de>
 
