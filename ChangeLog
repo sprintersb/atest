@@ -1,5 +1,11 @@
 2014-10-19  Georg-Johann Lay  <avr@gjlay.de>
 
+	Implement __vector_default to call abort.
+
+	* dejagnuboards/exit.c (__vector_default): New, call abort.
+
+2014-10-19  Georg-Johann Lay  <avr@gjlay.de>
+
 	Use SYSCALLs instead of magic ports.
 
 	* dejagnuboards/exit.c: Adjust to syscall interfaces.

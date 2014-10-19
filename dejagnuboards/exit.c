@@ -34,6 +34,15 @@
 
 #include "avrtest.h"
 
+/* .weak in avr-libc/crt1/gcrt1.S */
+
+extern void __vector_default (void);
+void __vector_default (void)
+{
+  abort ();
+}
+
+
 static int
 avrtest_fputc (char c, FILE *stream)
 {
