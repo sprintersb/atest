@@ -29,11 +29,11 @@ typedef struct
   // Name of the architecture
   const char *name;
   // True if PC is 3 bytes, false if only 2 bytes
-  unsigned char pc_3bytes;
+  int pc_3bytes;
   // True if the architecture has EIND related insns (EICALL/EIJMP)
-  unsigned char has_eind;
+  int has_eind;
   // True if this is XMEGA
-  unsigned char is_xmega;
+  int is_xmega;
   // Mask to detect whether cpu_PC is out of bounds
   unsigned int flash_addr_mask;
 } arch_t;

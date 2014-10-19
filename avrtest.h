@@ -58,7 +58,7 @@ enum
 
 /* This defines are for avrtest itself.  */
 
-/* Inputs */
+// Inputs
 #define TICKS_PORT  TICKS_PORT_ADDR
 
 // bits 5..3
@@ -289,7 +289,7 @@ static __inline__ __attribute__((__always_inline__))
 int avrtest_syscall_28 (void)
 {
   register int r24 __asm ("24");
-  __asm __volatile__ (".long %1 ;; SYSCALL %0"
+  __asm __volatile__ (".long %2 ;; SYSCALL %1"
                       : "=r" (r24)
                       : "n" (28), "n" (SYSCo_28));
   return r24;
@@ -304,25 +304,25 @@ AVRTEST_DEF_SYSCALL0 (_0, 0) // LOG_OFFI
 AVRTEST_DEF_SYSCALL0 (_1, 1) // LOG_ON
 AVRTEST_DEF_SYSCALL0 (_2, 2) // LOG_PERF
 
-// LOG_SET (N)
+/* LOG_SET (N) */
 AVRTEST_DEF_SYSCALL1 (_3, 3, unsigned, 24)
 
-// TICKS_PORT config & reset
+/* TICKS_PORT config & reset */
 AVRTEST_DEF_SYSCALL1 (_4, 4, unsigned char, 24)
 
-// Perf-meter control
+/* Perf-meter control */
 AVRTEST_DEF_SYSCALL1 (_5, 5, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_5_u, 5, unsigned long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_5_s, 5, signed long,   20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_5_f, 5, float,         20, unsigned char, 24)
 
-// PERF_TAG
+/* PERF_TAG */
 AVRTEST_DEF_SYSCALL2 (_6_s, 6, const volatile char*, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_u, 6, unsigned, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_ul, 6, unsigned long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_f,  6, float, 20, unsigned char, 24)
 
-// Logging values
+/* Logging values */
 AVRTEST_DEF_SYSCALL1 (_7, 7, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_a, 7, const volatile void*, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_f, 7, float,                20, unsigned char, 24)
@@ -341,10 +341,51 @@ AVRTEST_DEF_SYSCALL2 (_7_u24, 7, unsigned long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_s24, 7,   signed long, 20, unsigned char, 24)
 #endif
 
+/* Get ticks / insns / (pseudo) random value */
+
+static __inline__ __attribute__((__always_inline__))
+unsigned long avrtest_syscall_8 (void)
+{
+  register unsigned long r22 __asm ("22");
+  __asm __volatile__ (".long %2 ;; SYSCALL %1"
+                      : "=r" (r22)
+                      : "n" (8), "n" (SYSCo_8));
+  return r22;
+}
 
 #undef AVRTEST_DEF_SYSCALL0
 #undef AVRTEST_DEF_SYSCALL1
 #undef AVRTEST_DEF_SYSCALL2
+
+static __inline__ __attribute__((__always_inline__))
+void avrtest_abort (void)
+{
+  avrtest_syscall_31 ();
+}
+
+static __inline__ __attribute__((__always_inline__))
+void avrtest_exit (int _status)
+{
+  avrtest_syscall_30 (_status);
+}
+
+static __inline__ __attribute__((__always_inline__))
+void avrtest_putchar (int _c)
+{
+  avrtest_syscall_29 (_c);
+}
+
+static __inline__ __attribute__((__always_inline__))
+int avrtest_getchar (void)
+{
+  return avrtest_syscall_28 ();
+}
+
+static __inline__ __attribute__((__always_inline__))
+unsigned long avrtest_ticks (void)
+{
+  return avrtest_syscall_8 ();
+}
 
 #endif /* IN_AVRTEST */
 

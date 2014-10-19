@@ -128,7 +128,7 @@ typedef struct
   int quiet_value;
 } exit_status_t;
 
-static byte exit_value;
+static int exit_value;
 
 static const exit_status_t exit_status[] = 
   {
@@ -252,12 +252,15 @@ leave (int n, const char *reason, ...)
       printf ("\n"
               "     program: %s\n",
               options.program_name ? options.program_name : "-not set-");
-      if (program.entry_point != 0)
-        printf (" entry point: %06x\n", program.entry_point);
-      printf ("exit address: %06x\n"
-              "total cycles: %u\n"
-              "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
-              program.n_insns);
+      if (EXIT_SUCCESS == status->failure)
+        {
+          if (program.entry_point != 0)
+            printf (" entry point: %06x\n", program.entry_point);
+          printf ("exit address: %06x\n"
+                  "total cycles: %u\n"
+                  "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
+                  program.n_insns);
+        }
 
       va_end (args);
       fflush (stdout);
@@ -319,7 +322,7 @@ data_read_magic_byte (int address)
 
   if (address == TICKS_PORT && options.do_ticks)
     // update TICKS_PORT only on access of first byte to avoid glitches
-    flush_ticks_port (address);
+    log_get_ticks (cpu_data + TICKS_PORT);
 
   // default action, just read the value
   int ret = cpu_data[address];
@@ -433,15 +436,15 @@ const int addr_SREG = SREG;
 
 const magic_t named_port[] =
   {
-    { SPL,   1, 1, 1, "SPL"   },
-    { SPH,   1, 1, 0, "SPH"   },
-    { EIND,  1, 1, 0, "EIND"  },
-    { RAMPZ, 1, 1, 0, "RAMPZ" },
+    { SPL,   1, 1, NULL, "SPL"   },
+    { SPH,   1, 1, NULL, "SPH"   },
+    { EIND,  1, 1, &arch.has_eind, "EIND" },
+    { RAMPZ, 1, 1, NULL, "RAMPZ" },
 
-    { TICKS_PORT,     1, 1, 0, "TICKS_PORT"   },
-    { TICKS_PORT + 1, 1, 1, 0, "TICKS_PORT+1" },
-    { TICKS_PORT + 2, 1, 1, 0, "TICKS_PORT+2" },
-    { TICKS_PORT + 3, 1, 1, 0, "TICKS_PORT+3" },
+    { TICKS_PORT,     1, 1, &options.do_ticks, "TICKS_PORT"   },
+    { TICKS_PORT + 1, 1, 1, &options.do_ticks, "TICKS_PORT+1" },
+    { TICKS_PORT + 2, 1, 1, &options.do_ticks, "TICKS_PORT+2" },
+    { TICKS_PORT + 3, 1, 1, &options.do_ticks, "TICKS_PORT+3" },
 
     { 0, 0, 0, 0, NULL }
   };
@@ -1542,7 +1545,6 @@ static void do_argc_argv (void)
       put_word_reg (20, IS_AVRTEST_LOG);
       put_word_reg (22, args.avr_argv);
       put_word_reg (24, args.avr_argc);
-
     }
 }
 
@@ -1572,16 +1574,16 @@ static void do_stdout (void)
 
 static void do_exit (void)
 {
-  int r24 = (int16_t) get_word_reg (24);
+  int r24 = (int16_t) get_word_reg_raw (24);
 
-  log_append (": exit %d", r24);
-  leave (EXIT_STATUS_EXIT, "exit(%d) function called", exit_value = r24);
+  log_append ("exit %d: ", r24);
+  get_word_reg (24);
+  leave (EXIT_STATUS_EXIT, "exit %d function called", exit_value = r24);
 }
 
-static void
-do_abort (void)
+static void do_abort (void)
 {
-  log_append (": abort");
+  log_append ("abort");
   leave (EXIT_STATUS_ABORTED, "abort function called");
 }
 
@@ -1606,6 +1608,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 4:                             // TICKS_PORT control
     case 5: case 6:                     // Performance metering
     case 7:                             // Logging values
+    case 8:                             // similar to reading TICKS_PORT
       do_syscall (sysno, get_word_reg_raw (24));
       break;
     }

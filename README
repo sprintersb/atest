@@ -30,9 +30,8 @@ Special features
 ================
 
 The simulator has builtin capability of writing to stdout of the host
-computer (the machine that runs the simulator) when a value is written
-to a destinct memory location.  For example, an easy hello world
-program for AVR could look like this:
+computer (the machine that runs the simulator).  For example, an easy
+hello world program for AVR could look like this:
 
 
 #include <stdio.h>
@@ -50,25 +49,25 @@ C source as hello.c and compile it with, e.g.
 
     avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
-The exit-*.o object arranges the putchar function to write to the mentioned
-location.  avrtest will pick the value and print it to standard output of
-your host computer.  To start the program, run
+The exit-*.o object implements sudout as a stream writing through to the
+host computer.  Running the program
 
-    avrtest -mmcu=avr51 hello.elf
+    avrtest hello.elf
 
-This will print something like
+will print something like
 
 
 Hallo World!
 
  exit status: EXIT
-      reason: exit function called
+      reason: exit 0 function called
      program: hello.elf
-exit address: 00011c
-total cycles: 806
+exit address: 0001a4
+total cycles: 837
+total instr.: 503
 
 
-You can also write to the magic locations directly:
+You can also use these functions directly:
 
 
 #include "avrtest.h"
@@ -77,37 +76,41 @@ int main (void)
 {
     char c;
     
-    STDOUT_PORT = 'Q';
+    avrtest_putchar ('Q');
 
-    c = STDIN_PORT;
-    STDOUT_PORT = c+1;
+    c = avrtest_getchar();
+    avrtest_putchar (c + 1);
     
     return 0;
 }
 
 
-avrtest.h defines the port locations.  Compile the C source with
+avrtest.h defines avrtest_putchar as a syscall that writes to the host's
+standard output and avrtest_getchar to read from the host's standard input.
+Compile the C source with
 
     avr-gcc inout.c -O -mmcu=atmega128 -o inout.elf -I /someplace/avrtest
 
 When running the program with
 
-    avrtest -mmcu=avr51 inout.elf
+    avrtest inout.elf
 
-The simulator will print a 'Q' on the console and wait for input. 
+hhe simulator will print a 'Q' on the console and wait for input. 
 Type '1<Enter>' and the output will be
+
 
 Q1
 2
  exit status: EXIT
       reason: infinite loop detected (normal exit)
      program: inout.elf
-exit address: 0000b8
-total cycles: 30
+exit address: 0000be
+total cycles: 27
+total instr.: 18
 
 
-There are more magic ports to control logging and help performance
-measurements, see the respective sections below.
+There are more syscalls for program <-> simulator interactions,
+see the respective sections below.
 
 
 =================================================
@@ -128,8 +131,8 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
     make
   
-  inside /someplace/avrtest which will build executables from avrtest.c
-  and avr object file exit-atmega128.o from dejagnuboards/exit.c.
+  inside /someplace/avrtest which will build executables from the avrtest
+  C-sources and AVR object files exit-*.o from dejagnuboards/exit.c.
 
 * To build exit*.o modules, avr-gcc will be used.  If you want a different
   avr-gcc not found in PATH, use:
@@ -169,6 +172,50 @@ Voila!
 
 
 
+============================
+ Syscalls
+============================
+
+avrtest uses a concept called "syscall" to let the program interact
+with the simulator.  A syscall is an instruction sequence that is
+supposed not to occur in any real program, namely:
+
+    CPSE N, N
+    .word 0xffff
+
+i.e. always skipping the invalid opcode 0xffff.  This is referred to as
+
+    SYSCALL N
+
+and allows to implement 32 distinct syscalls SYSCALL 0 ... SYSCALL 31.
+
+Each syscall has a spacific interface associated to the syscall number.
+For example, the syscall to terminate the program by means of EXIT
+has number 30 and expects the exit status in word register R24:
+
+    LDI R24, <exit-status-lsb>
+    LDI R25, <exit-status-msb>
+    SYSCALL 30
+
+avrtest.h defines the following functions as syscalls which are supported
+by avrtest and avrtest_log:
+
+    SYSCALL 31:     void avrtest_abort (void)
+    SYSCALL 30:     void avrtest_exit (int)
+    SYSCALL 29:     void avrtest_putchar (int)
+    SYSCALL 28:     int avrtest_getchar (void)
+
+There are more syscalls to interact with avrtest_log and that have no effect
+on avrtest.
+
+The former approch of avrtest to interact with the simulated program were
+special memory locations called "magic ports".  Writing to or reading from
+such a location triggered specific actions.  The drawback of that approach
+is that for each memory access which avrtest is simulating, it must test
+whether such a special location is being accessed.  These tests are no more
+needed with the syscall approach and make avrtest run faster.
+
+
 =============================================
  -q : Quiet operation
 =============================================
@@ -182,13 +229,12 @@ explicitly requested by:
 The following exit stati will be returned with -q:
 
   -  0  Everything went fine.
-  -  1  Target program called abort()  resp. wrote to ABORT_PORT.
-  -  x  Target program called exit (x) resp. wrote x to EXIT_PORT.
+  -  1  Target program called abort()  resp. called syscall abort
+  -  x  Target program called exit (x) resp. called syscall exit (x).
 
   - 10  Program timeout as set by -m MAXCOUNT.
-  - 11  Executable could not be found / read, is too big or
-        its format is invalid etc.
-  - 12  Out of memory reading symbol table (avrtest_log only).
+  - 11  Executable could not be found / read, is too big or invalid etc.
+  - 12  Out of memory (avrtest_log only).
   - 13  Wrong avrtest usage: Unknown options, etc.
 
   - 42  Fatal error in avrtest.
@@ -198,27 +244,19 @@ The following exit stati will be returned with -q:
  -args ... : passing arguments to the program
 =============================================
 
-* This feature is only supported by avrtest_log and avrtest-xmega_log.
-
 All arguments after -args will be passed to the target program as if the
 program was running from the command line.  This is accomplished by startup
 code from exit.c located in section .init8 right before main is called.
+
 If you have own startup code in .init8 make sure it will be located before
 the code from exit.c, e.g. by appropriate order of the objects passed to
-the linker.
+the linker or by means of a custom linker script.
 
 The first argument (argv[0]) is the program name with directories
 stripped off to save space.  The last argument argv[argc] is set to NULL.
 
-The feature works by writing 3 values to LOG_PORT in exit.c:
-
-    LOG_GET_ARGS_CMD, <ADDR_LOW>, <ADDR_HIGH>
-
-LOG_GET_ARGS_CMD is defined in avrtest.h.  The next two bytes
-are the address where to drop the arguments following -args.
-
-After these 3 bytes are written to LOG_PORT, the simulator transfers the
-arguments to RAM and sets R24 to argc and R22 to argv so that you can write
+The simulator will transfer the arguments to RAM and set R24 to argc,
+R22 to argv and R20 to env so that you can write
 
 
 int main (int argc, char *argv[])
@@ -227,10 +265,19 @@ int main (int argc, char *argv[])
 }
 
 
-and use argc and argv as in any hosted application:  If the program unter
+resp.
+
+
+int main (int argc, char *argv[], char *env[])
+{
+    ...
+}
+
+
+and use argc and argv as in any hosted application:  If the program under
 simulation is main.elf and you run
 
-    avrtest_log main.elf -args hallo "4 2"
+    avrtest main.elf -args hallo "4 2"
 
 then:
 
@@ -240,28 +287,25 @@ then:
     argv[2]    is (the address of) string "4 2"
     argv[3]    is the NULL pointer
 
+env is set to the NULL pointer if the program is executed by avrtest
+and to a non-NULL pointer when executed by avrtest_log.
+
 exit.c:avrtest_init_argc_argv() requests the command args to be put
-starting at <ADDR> = 0xf000.  If you prefer a different location then
-simply adjust exit.c following the source comments.
+starting at RAM address 0xf000.  If you prefer a different location then
+simply adjust exit.c according to your needs following the source comments.
 
 
-========
+============================
 -no-args
-========
+============================
 
-will skip all arguments thereafter and set argc = 0 and argc[0] = NULL.
-
-The start-up code in exit.c detects whether the code is executed by
-avrtest or by avrtest_log.  If avrtest executes the code (and hence
--[no-]args is ignored) the startup code sets argc = 0 and argv[0] = NULL.
-
-Thus you can test in the program what simulator is executing it by
-testing on argc != 0 provided you run the simulator with -args.
+will act as if no -args switch was supplied:  It skip all arguments
+thereafter and sets argc = 0, argv = NULL and env as described above.
 
 
-=========================================
- -no-log and logging control via LOG_PORT
-=========================================
+============================
+ -no-log and logging control
+============================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
@@ -291,18 +335,17 @@ Please notice that this method of switching logging on / off is (low)
 intrusive to the program.  The commands listed above are translated by
 the compiler to machine instructions that might affect code generation
 for the sourrounding code (register allocation, jump offsets, ...).
-The command have low overhead; usually it's just one LDI and one
-OUT instruction to LOG_PORT.
+The commands have low overhead; it's not more than a SYSCALL.
 
 
-===================================================
- Logging values to the host computer using LOG_PORT
-===================================================
+====================================
+ Logging values to the host computer
+====================================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
-In order to get values out of the running program the following commands
-might be useful:
+In order to get values out of the running program the following
+low-overhead, low-intrusive commands might be useful:
 
     LOG_U8 (X);         print X as unsigned 8-bit decimal value
     LOG_S8 (X);         print X as signed 8-bit decimal value
@@ -322,7 +365,7 @@ etc.  Moreover, there are the following commands:
     LOG_ADDR (X);       log address X
 
 
-All of these logging command LOG_XXX have variants that take a custom
+All of these logging commands have variants that take a custom
 printf format string to print the supplied value:
 
     LOG_FMT_XXX (F, X);    log X using format string F located in RAM
@@ -330,7 +373,7 @@ printf format string to print the supplied value:
 
 !!! Please use format strings with care!  You can easily crash avrtest_log
 !!! and make it raise a Segmentation Fault or other undefined behaviour
-!!! by specifying a format string that does not fit the value!
+!!! by specifying a format string that does not match the value!
 
 avrtest_log uses "double" to represent float and "unsigned int" for all
 other values.  The default format strings for the vanilla LOG_XXX are:
@@ -345,13 +388,13 @@ other values.  The default format strings for the vanilla LOG_XXX are:
     " 0x%04x "          for addresses
 
 
-=======================================
- Performance measurement using LOG_PORT
-=======================================
+========================
+ Performance measurement
+========================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
-The simulator supports 7 independently operating performance-meters:
+The simulator supports 7 independently operating performance-meters 1..7:
 
     PERF_START (N);
 
@@ -367,6 +410,7 @@ be dumped at any time to the standard output of the host computer by
     PERF_DUMP (N);
 
 or
+
     PERF_DUMP_ALL;
 
 This will show a summary of the extremal values for the perf-meter(s) and
@@ -399,7 +443,7 @@ instruction cycles, the next START/STOP round can be tagged with a value:
 
 Just like with LOG_XXX(), U16 and U32 are represented internally as
 "unsigned int" and the float as "double".  The default format strings to
-print the tags are "%s", " %u ", " %u " and " %.6f " respectively.
+print the tags are "%s", " %u ", " %u " and " %.6f ", respectively.
 
 Custom format strings can be supplied by
 
@@ -440,7 +484,7 @@ int main (void)
 }
 
 
-Compile as usual, link against exit-*.o and running
+Compiling as usual, linking against exit-*.o and running
 
     avrtest_log ... -no-log -q
 
@@ -473,10 +517,11 @@ produces an output like
     Max:        2.021442e+000       315     x=3.14000 
 
 
-The computation of sin (x) took 1029..1952 cycles for the 315 values it had
-been computed with an average of 1720 cycles.  sin() needs 19 bytes stack
-space.  The maximal difference between sin (x) and the 3rd-order
-approximation  x - x^3 / 6  is 2.02144 and occurred for x = 3.14000.
+The computation of sin (x) took 1029..1952 cycles (with an average
+of 1720 cycles) for the 315 values it had been computed.
+sin() needs 19 bytes stack space.  The maximal difference between
+sin (x) and the 3rd-order approximation  x - x^3 / 6  is 2.02144
+and occurred for x = 3.14000.
 
     PERF_STAT_FLOAT (N, F);
 
@@ -485,7 +530,7 @@ mean (expected value), standard deviation, minimum, maximum, and the
 START/STOP round for which a minimal / maximal value of F has been seen.
 If rounds have been tagged, the tags for the rounds that yielded a minimal
 and maximal value of F are also displayed.  Besides PERF_STAT_FLOAT there
-are also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
+is also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
 32-bit integer values.
     
 In the sample code from above, one is interested in the resource consumption
@@ -510,15 +555,15 @@ with __attribute__((noinline,noclone)).  The additional overhead caused by
 the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
-============================
- Timing data from TICKS_PORT
-============================
+==============================================
+ Timing data and random values from TICKS_PORT
+==============================================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
-TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit value that
-contains the number of instruction cycles since program start.  TICKS_PORT
-can be configured to supply 4 different kinds of values:
+TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit, glitch-free
+value that contains the number of instruction cycles since program start.
+TICKS_PORT can be configured to supply 4 different kinds of values:
 
     TICKS_IS_CYCLES;        Cycles since program start (default)
     TICKS_IS_INSNS;         Number of simulated instructions since start
@@ -533,5 +578,10 @@ as needed.  To reset the value for the currently active TICKS_PORT mode
 
 The values for all modes (except RAND) can be reset at the same time by
 
-  TICKS_RESET_ALL;
+    TICKS_RESET_ALL;
 
+There is also a syscall function defined in avrtest.h that is less intrusive:
+
+    unsigned long avrtest_ticks (void)
+
+which returns the value as would be read from TICKS_PORT.

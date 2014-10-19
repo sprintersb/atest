@@ -166,10 +166,17 @@ log_patch_mnemo (const decoded_t *d, char *buf)
 void
 log_set_func_symbol (int addr, const char *name, int is_func)
 {
-  if (addr % 2 != 0)
-    leave (EXIT_STATUS_ABORTED, "'%s': odd symbol address 0x%x", name, addr);
-  if (addr >= MAX_FLASH_SIZE)
-    leave (EXIT_STATUS_ABORTED, "'%s': odd symbol address 0x%x", name, addr);
+  if (is_func)
+    {
+      if (addr % 2 != 0
+          || addr >= MAX_FLASH_SIZE)
+        leave (EXIT_STATUS_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
+    }
+  else if (addr >= MAX_FLASH_SIZE
+           || addr % 2 != 0)
+    // Something weird, maybe orphan etc.
+    return;
+
   func_symbol[addr/2] = name;
   
   if (0 == strcmp ("__prologue_saves__", name))
@@ -326,9 +333,10 @@ log_add_instr (const decoded_t *d)
   char mnemo_[16];
   const char *fmt, *mnemo = mnemonic[alog.id];
 
-  // SYSCALL might turn on logging: always log them to alog.data[].
+  // SYSCALL 0..3 might turn on logging: always log them to alog.data[].
 
-  int maybe_used = alog.maybe_log || alog.id == ID_SYSCALL;
+  int maybe_used = alog.maybe_log
+                   || (alog.id == ID_SYSCALL && d->op1 <= 3);
 
   if ((alog.unused = !maybe_used))
     return;
@@ -372,7 +380,8 @@ log_add_data_mov (const char *format, int addr, int value)
 
   for (const magic_t *p = named_port; ; p++)
     {
-      if (addr == p->addr)
+      if (addr == p->addr
+          && (p->pon == NULL || *p->pon))
         s_name = p->name;
       else if (p->name == NULL)
         sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
@@ -504,12 +513,23 @@ typedef struct
 
 static ticks_port_t ticks_port;
 
-/* Reading LSB of TICKS port triggeres updating all 4 bytes
-   in order to avoid glitches as the following bytes are read
-   by the program.  avr-gcc emits LSB reads first.  */
 
-void
-flush_ticks_port (int addr)
+static const char*
+s_ti (int mode)
+{
+  switch (mode)
+    {
+    case TI_CYCLES: return ("cycles");
+    case TI_INSNS:  return ("isns");
+    case TI_PRAND:  return ("prand");
+    case TI_RAND:   return ("rand");
+    }
+  return "";
+}
+
+
+unsigned
+log_get_ticks (byte *p)
 {
   uint32_t value = 0;
 
@@ -533,11 +553,20 @@ flush_ticks_port (int addr)
       break;
     }
 
-  byte *p = log_cpu_address (addr, AR_RAM);
   *p++ = value;
   *p++ = value >> 8;
   *p++ = value >> 16;
   *p++ = value >> 24;
+
+  return value;
+}
+
+
+static void
+do_get_ticks (void)
+{
+  unsigned value = log_get_ticks (log_cpu_address (22, AR_REG));
+  log_append ("ticks: %s: R22<-(%u)", s_ti (ticks_port.config), value);
 }
 
 
@@ -552,12 +581,13 @@ do_ticks_cmd (int cfg)
   switch (cfg)
     {
     case TICKS_RESET_CMD:
-      log_append ("reset TICKS_PORT (");
+      r = s_ti (tp->config);
       switch (tp->config)
         {
-        case TI_CYCLES: r = "cycles"; tp->n_cycles = program.n_cycles; break;
-        case TI_INSNS:  r = "insns";  tp->n_insns  = program.n_insns;  break;
-        case TI_PRAND:  r = "prind";  tp->pvalue = 0; break;
+        case TI_CYCLES: tp->n_cycles = program.n_cycles; break;
+        case TI_INSNS:  tp->n_insns  = program.n_insns;  break;
+        case TI_PRAND:  tp->pvalue = 0; break;
+        default: r = NULL; break;
         }
       break;
 
@@ -568,14 +598,14 @@ do_ticks_cmd (int cfg)
       tp->pvalue = 0;
       break;
 
-    case TICKS_IS_CYCLES_CMD: s = "cycles"; tp->config = TI_CYCLES; break;
-    case TICKS_IS_INSNS_CMD:  s = "isnns";  tp->config = TI_INSNS;  break;
-    case TICKS_IS_PRAND_CMD:  s = "prand";  tp->config = TI_PRAND;  break;
-    case TICKS_IS_RAND_CMD:   s = "rand";   tp->config = TI_RAND;   break;
+    case TICKS_IS_CYCLES_CMD: s = s_ti (tp->config = TI_CYCLES); break;
+    case TICKS_IS_INSNS_CMD:  s = s_ti (tp->config = TI_INSNS);  break;
+    case TICKS_IS_PRAND_CMD:  s = s_ti (tp->config = TI_PRAND);  break;
+    case TICKS_IS_RAND_CMD:   s = s_ti (tp->config = TI_RAND);   break;
     }
 
-  if (r) log_append ("reset TICKS_PORT (%s)", r);
-  if (s) log_append ("config TICKS_PORT as %s", s);
+  if (r) log_append ("ticks: reset %s", r);
+  if (s) log_append ("ticks: config as %s", s);
 }
 
 
@@ -793,6 +823,7 @@ do_syscall (int sysno, int val)
     case 5: do_perf_cmd (val);     break;
     case 6: do_perf_tag_cmd (val); break;
     case 7: do_log_dump (val);     break;
+    case 8: do_get_ticks (); break;
     }
 }
 
@@ -1219,8 +1250,6 @@ log_init (unsigned val)
   for (int i = 1; i < NUM_PERFS; i++)
     perfs[i].tag_for_start.cmd = -1;
 
-  // Tell the program whether it's being executed by avrtest or avrtest_log.
-  *(log_cpu_address (MAX_RAM_SIZE-1, AR_RAM)) = 1;
   srand (val);
 }
 

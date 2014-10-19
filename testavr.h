@@ -124,9 +124,9 @@ typedef struct
 {
   int addr;
   int in, out;
-  // False if PUSH, RET etc. are not supposed to change
-  // this port.
-  int any_id;
+  // Points to an int telling whether this address is special.
+  // NULL means "yes".
+  int *pon;
   const char *name;
 } magic_t;
 
@@ -155,7 +155,7 @@ typedef struct
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
 #define do_syscall(...)        (void) 0
-#define flush_ticks_port(...)  (void) 0
+#define log_get_ticks(...)     (void) 0
 #define log_set_func_symbol(...) (void) 0
 
 #else
@@ -168,7 +168,7 @@ extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
 extern void do_syscall (int x, int val);
-extern void flush_ticks_port (int addr);
+extern unsigned log_get_ticks (byte*);
 extern void log_set_func_symbol (int, const char*, int);
 
 #endif  // AVRTEST_LOG
