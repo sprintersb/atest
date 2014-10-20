@@ -4,7 +4,17 @@
                           ============
 
 
-* Show function names from ELF symbol table when logging.  r153  2014-10-09
+* BUGFIX of wrong SBRC / SBRS / SBIC / SBIS / CPSE         r165  2014-10-20
+  skip offset introduced with SVN r157 (2014-10-11).
+
+
+* The magic ports to establish program <-> simulator       r163  2014-10-19
+  interaction have been replaced by the more efficient
+  SYSCALLs.
+
+
+* Show function names from ELF symbol table                r153  2014-10-09
+  when logging. 
 
   - -no-syms       New option to switch that off.
 
@@ -26,9 +36,9 @@
 
   - -no-log        Don't log instructions as they are simulated.
 
-  - -args ...      Pass all following command options to the running
-                   running program ready to use as 'argc' and 'argv'
-                   like in any hosted program:
+  - -args ...      Pass all following command options to the
+                   running program ready to use as 'argc' and
+                   'argv' like in any hosted program:
 
                        int main (int argc, char *argv[])
                        {
@@ -37,6 +47,7 @@
 
   - -no-args ...   Ignore all parameters following -no-args.
                    Set argc=0 and argv=NULL as main is entered.
+
 
 * Improve log output:                                      r135  2014-09-20
 

@@ -37,8 +37,6 @@ typedef struct
   // Instruction might turn on logging, thus log it even if logging is
   // (still) off.  Only ST* and OUT can start logging.
   int maybe_log;
-  // This instruction is OUT or ST*, always log as is might be LOG_ON.
-  int maybe_OUT;
   // Whether this instruction has been logged
   int log_this;
   // ID of current instruction.
@@ -80,7 +78,7 @@ typedef struct
   // Enumerates PERF_DUMP
   int n_dumps;
   
-  // Commands as sent to LOG_PORT
+  // Commands as sent by SYSCALL 5..6
   unsigned cmd[NUM_PERF_CMDS];
   int pending_LOG_TAG_FMT;
   
@@ -164,7 +162,7 @@ typedef struct
 // Information for LOG_<data>
 typedef struct
 {
-  // # Bytes to read from TICKS_PORT
+  // # Bytes to read starting at R20
   int size;
   // Whether the value is signed / loacted in flash (LOG_PSTR etc.)
   int signed_p, in_rom;

@@ -1,0 +1,5 @@
+
+* Wrong SBRC / SBRS / SBIC / SBIS / CPSE skip offset.
+  
+  Affected versions: r157 (2014-10-11) -- r164 (2014-10-20)
+

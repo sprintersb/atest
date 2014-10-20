@@ -58,7 +58,7 @@ enum decoder_operand_masks
     mask_A_6      = 0x060F,    // 6 bit IO port id
 
     mask_JMP_CALL = 0xfe0c,    // identify JMP / CALL (1001 010x xxxx 11xx)
-    mask_LDS_STS  = 0xf30f     // identify LDS / STS  (1001 00xx xxxx 0000)
+    mask_LDS_STS  = 0xfc0f     // identify LDS / STS  (1001 00xx xxxx 0000)
   };
 
 
@@ -239,7 +239,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
   // Read section headers
   if (e_shentsize != sizeof (Elf32_Shdr))
     leave (EXIT_STATUS_FILE, "ELF section headers invalid");
-  shdr = (Elf32_Shdr*) get_mem (e_shnum, sizeof (Elf32_Shdr));
+  shdr = get_mem (e_shnum, sizeof (Elf32_Shdr));
   if (fseek (f, e_shoff, SEEK_SET) != 0
       || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
     leave (EXIT_STATUS_FILE, "ELF section headers truncated");
@@ -262,8 +262,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 
       // Read symbol table
       size_t n_syms = sh_size / sh_entsize;
-      Elf32_Sym *symtab = (Elf32_Sym*) get_mem ((unsigned) n_syms,
-                                                sizeof (Elf32_Sym));
+      Elf32_Sym *symtab = get_mem ((unsigned) n_syms, sizeof (Elf32_Sym));
       if (fseek (f, sh_offset, SEEK_SET) != 0
           || fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
         leave (EXIT_STATUS_FILE, "ELF symbol table truncated");
@@ -278,7 +277,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
       // Read string table
       sh_offset = get_elf32_word (&shdr[sh_link].sh_offset);
       sh_size   = get_elf32_word (&shdr[sh_link].sh_size);
-      char *strtab = (char*) get_mem (sh_size, sizeof (char));
+      char *strtab = get_mem (sh_size, sizeof (char));
       if (fseek (f, sh_offset, SEEK_SET) != 0
           || fread (strtab, sh_size, 1, f) != 1)
         leave (EXIT_STATUS_FILE, "ELF string table truncated");
@@ -670,6 +669,8 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
       // BSET takes care of SE{C,Z,N,V,S,H,T,I}
       case 0x9488: return ID_BCLR;        // 1001 0100 1sss 1000 | BCLR
       case 0x9408: return ID_BSET;        // 1001 0100 0sss 1000 | BSET
+      case 0x948b: d->op1 |= 0x8;
+      case 0x940b: return ID_DES;         // 1001 0100 KKKK 1011 | DES
       }
     }
 
@@ -748,12 +749,17 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
     }
   }
 
-  d->op2 = opcode1;
+  d->op2 = 0;
   return ID_ILLEGAL;
 
   // Map ID_CPSE to ID_CPSE2 if CPSE has to skip 2 words.
   // Dito for SBRC, SBRS, SBIC, SBIS.
 do_skip:;
+
+  if (index == ID_CPSE
+      && d->op1 == d->op2 && opcode2 == invalid_opcode)
+    // Always skipping invalid opcode 0xffff represents a syscall
+    return ID_SYSCALL;        //  0001 00xX XXXX xxxx | CPSE X X = SYSCALL X
 
   if ((opcode2 & mask_LDS_STS) == 0x9000)
     return 1 + index;

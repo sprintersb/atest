@@ -81,6 +81,8 @@ const int io_base = IOBASE;
 #define IN_AVRTEST
 #include "avrtest.h"
 
+const unsigned invalid_opcode = AVRTEST_INVALID_OPCODE;
+
 
 // ----------------------------------------------------------------------------
 // holds simulator state and program information.
@@ -126,7 +128,7 @@ typedef struct
   int quiet_value;
 } exit_status_t;
 
-static byte exit_value;
+static int exit_value;
 
 static const exit_status_t exit_status[] = 
   {
@@ -229,7 +231,8 @@ leave (int n, const char *reason, ...)
   va_list args;
 
   // make sure we print the last log line before leaving
-  log_dump_line (0);
+  if (EXIT_SUCCESS == status->failure)
+    log_dump_line (0);
 
   qprintf ("\n");
 
@@ -249,12 +252,15 @@ leave (int n, const char *reason, ...)
       printf ("\n"
               "     program: %s\n",
               options.program_name ? options.program_name : "-not set-");
-      if (program.entry_point != 0)
-        printf (" entry point: %06x\n", program.entry_point);
-      printf ("exit address: %06x\n"
-              "total cycles: %u\n"
-              "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
-              program.n_insns);
+      if (EXIT_SUCCESS == status->failure)
+        {
+          if (program.entry_point != 0)
+            printf (" entry point: %06x\n", program.entry_point);
+          printf ("exit address: %06x\n"
+                  "total cycles: %u\n"
+                  "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
+                  program.n_insns);
+        }
 
       va_end (args);
       fflush (stdout);
@@ -282,57 +288,6 @@ leave (int n, const char *reason, ...)
 
 // ----------------------------------------------------------------------------
 //     ioport / ram / flash, read / write entry points
-
-// Adding magic to some I/O ports as we read from or write to them
-
-static NOINLINE void
-data_write_magic_port (int address, int value)
-{
-  // add code here to handle special events
-  switch (address)
-    {
-    case STDOUT_PORT:
-      if (options.do_stdout)
-        putchar (0xff & value);
-      else
-        // default action, just store the value
-        cpu_data[address] = value;
-      break;
-    case EXIT_PORT:
-      log_add_data_mov ("(%s)<-%02x ", address, value & 0xff);
-      leave (EXIT_STATUS_EXIT, "exit(%d) function called", exit_value = value);
-      break;
-    case ABORT_PORT:
-      log_add_data_mov ("(%s)<-%02x ", address, value & 0xff);
-      leave (EXIT_STATUS_ABORTED, "abort function called");
-      break;
-    case LOG_PORT:
-      if (IS_AVRTEST_LOG)
-        do_log_port_cmd (value);
-      else
-        cpu_data[address] = value;
-      break;
-    default:
-      cpu_data[address] = value;
-      break;
-    }
-}
-
-static NOINLINE int
-data_read_magic_port (int address)
-{
-  // add code here to handle special events
-
-  if (address == STDIN_PORT && options.do_stdin)
-    return getchar();
-
-  if (address == TICKS_PORT && options.do_ticks)
-    // update TICKS_PORT only on access of first byte to avoid glitches
-    flush_ticks_port (address);
-
-  // default action, just read the value
-  return cpu_data[address];
-}
 
 // Lowest level vanilla memory accessors, no magic, no logging.
 
@@ -363,13 +318,14 @@ flash_read_byte (int address)
 static INLINE int
 data_read_magic_byte (int address)
 {
-  int ret;
-  if (address == STDIN_PORT
-      || (IS_AVRTEST_LOG && address == TICKS_PORT))
-    ret = data_read_magic_port (address);
-  else
-    // default action, just read the value
-    ret = cpu_data[address];
+  // add code here to handle special events
+
+  if (address == TICKS_PORT && options.do_ticks)
+    // update TICKS_PORT only on access of first byte to avoid glitches
+    log_get_ticks (cpu_data + TICKS_PORT);
+
+  // default action, just read the value
+  int ret = cpu_data[address];
 
   log_add_data_mov (address == SREG ? "(SREG)->'%s'" : "(%s)->%02x ",
                     address, ret);
@@ -379,14 +335,11 @@ data_read_magic_byte (int address)
 static INLINE void
 data_write_magic_byte (int address, int value)
 {
-  if (address <= LAST_MAGIC_OUT_PORT && address >= FIRST_MAGIC_OUT_PORT)
-    data_write_magic_port (address, value);
-  else
-    // default action, just store the value
-    cpu_data[address] = value;
+  // add code here to handle special events
 
   log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
                     address, value & 0xff);
+  cpu_data[address] = value;
 }
 
 
@@ -431,9 +384,15 @@ put_reg (int regno, byte value)
 }
 
 static INLINE int
+get_word_reg_raw (int regno)
+{
+  return cpu_reg[regno] | (cpu_reg[regno + 1] << 8);
+}
+
+static INLINE int
 get_word_reg (int regno)
 {
-  int ret = cpu_reg[regno] | (cpu_reg[regno + 1] << 8);
+  int ret = get_word_reg_raw (regno);
   log_append ("(R%d)->%04x ", regno, ret);
   return ret;
 }
@@ -471,77 +430,35 @@ data_write_word (int address, int value)
 // ----------------------------------------------------------------------------
 // extern functions to make logging.c independent of ISA_XMEGA
 
-const int addr_SREG       = SREG;
-const int addr_TICKS_PORT = TICKS_PORT;
+const int addr_SREG = SREG;
 
 const magic_t named_port[] =
   {
-    { SPL,   1, 1, 1, "SPL"   },
-    { SPH,   1, 1, 0, "SPH"   },
-    { EIND,  1, 1, 0, "EIND"  },
-    { RAMPZ, 1, 1, 0, "RAMPZ" },
+    { SPL,   1, 1, NULL, "SPL"   },
+    { SPH,   1, 1, NULL, "SPH"   },
+    { EIND,  1, 1, &arch.has_eind, "EIND" },
+    { RAMPZ, 1, 1, NULL, "RAMPZ" },
 
-    { LOG_PORT,       0, 1, 0, "LOG_PORT" },
-    { TICKS_PORT,     1, 1, 0, "TICKS_PORT"   },
-    { TICKS_PORT + 1, 1, 1, 0, "TICKS_PORT+1" },
-    { TICKS_PORT + 2, 1, 1, 0, "TICKS_PORT+2" },
-    { TICKS_PORT + 3, 1, 1, 0, "TICKS_PORT+3" },
+    { TICKS_PORT,     1, 1, &options.do_ticks, "TICKS_PORT"   },
+    { TICKS_PORT + 1, 1, 1, &options.do_ticks, "TICKS_PORT+1" },
+    { TICKS_PORT + 2, 1, 1, &options.do_ticks, "TICKS_PORT+2" },
+    { TICKS_PORT + 3, 1, 1, &options.do_ticks, "TICKS_PORT+3" },
 
-    { STDOUT_PORT, 0, 1, 0, "STDOUT_PORT" },
-    { STDIN_PORT,  1, 0, 0, "STDIN_PORT" },
-    { EXIT_PORT,   0, 1, 0, "EXIT_PORT" },
-    { ABORT_PORT,  0, 1, 0, "ABORT_PORT" },
     { 0, 0, 0, 0, NULL }
   };
   
-int log_data_read_SP (void)
+byte* log_cpu_address (int address, int where)
 {
-  return data_read_byte_raw (SPL) | (data_read_byte_raw (SPH) << 8);
-}
-
-byte* log_cpu_address (int address, int flash)
-{
-  return flash
-    ? cpu_flash + address
-    : cpu_data + address;
-}
-
-byte log_data_read_byte (int address, int nraw)
-{
-  return (nraw)
-    ? data_read_byte (address)
-    : data_read_byte_raw (address);
-}
-
-void log_data_write_byte (int address, int value, int nraw)
-{
-  if (nraw)
-    data_write_byte (address, value);
-  else
-    data_write_byte_raw (address, value);
-}
-
-void log_put_word_reg (int regno, int value, int nraw)
-{
-  if (nraw)
-    put_word_reg (regno, value);
-  else
+  switch (where)
     {
-      cpu_reg[regno] = value;
-      cpu_reg[regno + 1] = value >> 8;
+    case AR_REG:    return cpu_reg + address;
+    case AR_RAM:    return cpu_data + address;
+    case AR_FLASH:  return cpu_flash + address;
+    case AR_EEPROM: return cpu_eeprom + address;
+    case AR_SP:         return cpu_data + SPL;
+    case AR_TICKS_PORT: return cpu_data + TICKS_PORT;
     }
-}
-
-void log_data_write_word (int address, int value, int nraw)
-{
-  if (nraw)
-    data_write_word (address, value);
-  else
-    {
-      value &= 0xffff;
-      data_write_byte_raw (address, value & 0xFF);
-      data_write_byte_raw (address + 1, value >> 8);
-    }
+  leave (EXIT_STATUS_FATAL, "code must be unreachable");
 }
 
 void set_function_symbol (int addr, const char *fname, int is_func)
@@ -817,9 +734,12 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
   put_word_reg (0, result);
 }
 
-// handle illegal instructions
+// handle illegal opcodes
 static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
 {
+  byte *f = cpu_flash + 2 * (cpu_PC + rr);
+  rr = f[0] + (f[1] << 8);
+
   log_append (".word 0x%04x", rr);
   leave (EXIT_STATUS_ABORTED, "illegal opcode 0x%04x", rr);
 }
@@ -838,32 +758,24 @@ static OP_FUNC_TYPE func_BREAK (int rd, int rr)
 /* 1001 0101 0001 1001 | EICALL */
 static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 {
-  if (arch.has_eind)
-    {
-      push_PC();
-      cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
-      if (cpu_PC >= MAX_FLASH_SIZE / 2)
-        bad_PC (cpu_PC);
-    }
-  else
-    {
-      func_ILLEGAL (0, 0x9519);
-    }
+  if (!arch.has_eind)
+    func_ILLEGAL (0, -1);
+
+  push_PC();
+  cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
+  if (cpu_PC >= MAX_FLASH_SIZE / 2)
+    bad_PC (cpu_PC);
 }
 
 /* 1001 0100 0001 1001 | EIJMP */
 static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
 {
-  if (arch.has_eind)
-    {
-      cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
-      if (cpu_PC >= MAX_FLASH_SIZE / 2)
-        bad_PC (cpu_PC);
-    }
-  else
-    {
-      func_ILLEGAL (0, 0x9419);
-    }
+  if (!arch.has_eind)
+    func_ILLEGAL (0, -1);
+
+  cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
+  if (cpu_PC >= MAX_FLASH_SIZE / 2)
+    bad_PC (cpu_PC);
 }
 
 /* 1001 0101 1101 1000 | ELPM */
@@ -875,7 +787,7 @@ static OP_FUNC_TYPE func_ELPM (int rd, int rr)
 /* 1001 0101 1111 1000 | ESPM */
 static OP_FUNC_TYPE func_ESPM (int rd, int rr)
 {
-  func_ILLEGAL (0, 0x95F8);
+  func_ILLEGAL (0, -1);
   //TODO
 }
 
@@ -928,7 +840,14 @@ static OP_FUNC_TYPE func_SLEEP (int rd, int rr)
 /* 1001 0101 1110 1000 | SPM */
 static OP_FUNC_TYPE func_SPM (int rd, int rr)
 {
-  func_ILLEGAL (0, 0x95E8);
+  func_ILLEGAL (0, -1);
+  //TODO
+}
+
+/* 1001 0100 KKKK 1011 | DES */
+static OP_FUNC_TYPE func_DES (int rd, int rr)
+{
+  func_ILLEGAL (0, -1);
   //TODO
 }
 
@@ -1175,10 +1094,10 @@ static OP_FUNC_TYPE func_POP (int rd, int rr)
 }
 
 static INLINE void
-xmega_atomic (int regno, int op, const char *mnemo, int magic_p)
+xmega_atomic (int regno, int op, int magic_p)
 {
 #ifndef ISA_XMEGA
-  leave (EXIT_STATUS_ABORTED, "illegal instruction %s", mnemo);
+  func_ILLEGAL (0, -1);
 #endif
 
   int mask = get_reg (regno);
@@ -1206,25 +1125,25 @@ xmega_atomic (int regno, int op, const char *mnemo, int magic_p)
 /* 1001 001d dddd 0100 | XCH */
 static OP_FUNC_TYPE func_XCH (int rd, int rr)
 {
-  xmega_atomic (rd, ID_XCH, "XCH", 1);
+  xmega_atomic (rd, ID_XCH, 1);
 }
 
 /* 1001 001d dddd 0101 | LAS */
 static OP_FUNC_TYPE func_LAS (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAS, "LAS", 0);
+  xmega_atomic (rd, ID_LAS, 0);
 }
 
 /* 1001 001d dddd 0110 | LAC */
 static OP_FUNC_TYPE func_LAC (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAC, "LAC", 0);
+  xmega_atomic (rd, ID_LAC, 0);
 }
 
 /* 1001 001d dddd 0111 | LAT */
 static OP_FUNC_TYPE func_LAT (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAT, "LAT", 0);
+  xmega_atomic (rd, ID_LAT, 0);
 }
 
 /* 1001 001d dddd 1111 | PUSH */
@@ -1606,12 +1525,98 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 }
 
 
-static OP_FUNC_TYPE func__null (int rd, int rr)
+static void do_argc_argv (void)
 {
-  leave (EXIT_STATUS_FATAL, "function must be unreachable");
+  if (!options.do_args)
+    {
+      log_append ("-no-args ");
+      put_word_reg (20, IS_AVRTEST_LOG);
+      put_word_reg (22, 0);
+      put_word_reg (24, 0);
+    }
+  else
+    {
+      log_append ("-args ... ");
+      int addr = get_word_reg (24);
+      put_argv (addr, cpu_data + addr);
+
+      put_word_reg (20, IS_AVRTEST_LOG);
+      put_word_reg (22, args.avr_argv);
+      put_word_reg (24, args.avr_argc);
+    }
 }
 
-#define func__last_fast  func__null
+static void do_stdin (void)
+{
+  if (options.do_stdin)
+    {
+      log_append ("stdin ");
+      if (IS_AVRTEST_LOG)
+        fflush (stdout);
+      put_word_reg (24, getchar());
+    }
+  else
+    log_append ("-no-stdin");
+}
+
+static void do_stdout (void)
+{
+  if (options.do_stdout)
+    {
+      log_append ("stdout ");
+      putchar ((char) get_reg (24));
+    }
+  else
+    log_append ("-no-stdout");
+}
+
+static void do_exit (void)
+{
+  int r24 = (int16_t) get_word_reg_raw (24);
+
+  log_append ("exit %d: ", r24);
+  get_word_reg (24);
+  leave (EXIT_STATUS_EXIT, "exit %d function called", exit_value = r24);
+}
+
+static void do_abort (void)
+{
+  log_append ("abort");
+  leave (EXIT_STATUS_ABORTED, "abort function called");
+}
+
+// 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
+static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
+{
+  log_append ("#%d: ", sysno);
+
+  switch (sysno)
+    {
+    default:
+      log_append ("not implemented ");
+      return;
+
+    case 27: do_argc_argv();  break;
+    case 28: do_stdin();      break;
+    case 29: do_stdout();     break;
+    case 30: do_exit();       break;
+    case 31: do_abort();      break;
+
+    case 0: case 1: case 2: case 3:     // Logging control
+    case 4:                             // TICKS_PORT control
+    case 5: case 6:                     // Performance metering
+    case 7:                             // Logging values
+    case 8:                             // similar to reading TICKS_PORT
+      do_syscall (sysno, get_word_reg_raw (24));
+      break;
+    }
+}
+
+static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
+{
+  bad_PC (cpu_PC);
+}
+
 
 // ----------------------------------------------------------------------------
 // AVR opcodes
@@ -1629,26 +1634,11 @@ const opcode_t opcodes[] =
 //     main execution loop
 
 static INLINE void
-do_fast (byte id, int op1, int op2)
-{
-  // Some instructions are used so frequently and are so easy to simulate
-  // (not more than 4 instructions) that they are not worth a function call.
-  switch (id)
-    {
-    case ID_LDI:  func_LDI  (op1, op2); break;
-    case ID_MOV:  func_MOV  (op1, op2); break;
-    case ID_MOVW: func_MOVW (op1, op2); break;
-    }
-}
-    
-static INLINE void
 do_step (void)
 {
   // fetch decoded instruction
   decoded_t d = decoded_flash[cpu_PC];
   byte id = d.id;
-  if (!id)
-    bad_PC (cpu_PC);
 
   // execute instruction
   const opcode_t *insn = &opcodes[id];
@@ -1657,10 +1647,7 @@ do_step (void)
   add_program_cycles (insn->cycles);
   int op1 = d.op1;
   int op2 = d.op2;
-  if (id >= ID__last_fast)
-    insn->func (op1, op2);
-  else
-    do_fast (id, op1, op2);
+  insn->func (op1, op2);
   log_dump_line (id);
 }
 
@@ -1668,7 +1655,6 @@ static INLINE void
 execute (void)
 {
   dword max_insns = program.max_insns;
-  program.n_cycles = 0;
 
   for (;;)
     {

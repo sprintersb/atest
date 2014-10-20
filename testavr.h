@@ -86,6 +86,7 @@ extern unsigned cpu_PC;
 extern const int is_xmega;
 extern const int io_base;
 extern const int is_avrtest_log;
+extern const unsigned invalid_opcode;
 
 #define INLINE inline ALWAYS_INLINE
 
@@ -101,27 +102,30 @@ enum
     EXIT_STATUS_FATAL
   };
 
-extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
+enum
+  {
+    AR_REG,
+    AR_RAM,
+    AR_FLASH,
+    AR_EEPROM,
+    AR_SP,
+    AR_TICKS_PORT
+  };
 
-extern int log_data_read_SP (void);
-extern byte log_data_read_byte (int, int);
-extern void log_put_word_reg (int, int, int);
-extern void log_data_write_byte (int, int, int);
-extern void log_data_write_word (int, int, int);
-extern byte* log_cpu_address (int, int);
+extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
 extern void qprintf (const char *fmt, ...);
+extern byte* log_cpu_address (int, int);
 extern void* get_mem (unsigned, size_t);
 
 extern const int addr_SREG;
-extern const int addr_TICKS_PORT;
 
 typedef struct
 {
   int addr;
   int in, out;
-  // False if PUSH, RET etc. are not supposed to change
-  // this port.
-  int any_id;
+  // Points to an int telling whether this address is special.
+  // NULL means "yes".
+  int *pon;
   const char *name;
 } magic_t;
 
@@ -149,8 +153,8 @@ typedef struct
 #define log_add_data_mov(...)  (void) 0
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
-#define do_log_port_cmd(...)   (void) 0
-#define flush_ticks_port(...)  (void) 0
+#define do_syscall(...)        (void) 0
+#define log_get_ticks(...)     (void) 0
 #define log_set_func_symbol(...) (void) 0
 
 #else
@@ -162,8 +166,8 @@ extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
-extern void do_log_port_cmd (int x);
-extern void flush_ticks_port (int addr);
+extern void do_syscall (int x, int val);
+extern unsigned log_get_ticks (byte*);
 extern void log_set_func_symbol (int, const char*, int);
 
 #endif  // AVRTEST_LOG
@@ -171,6 +175,7 @@ extern void log_set_func_symbol (int, const char*, int);
 extern void load_to_flash (const char*, byte[], byte[], byte[]);
 extern void decode_flash (decoded_t[], const byte[]);
 extern void set_function_symbol (int, const char*, int);
+extern void put_argv (int, byte*);
 
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
