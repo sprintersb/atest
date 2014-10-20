@@ -4,6 +4,10 @@
                           ============
 
 
+* BUGFIX of wrong SBRC / SBRS / SBIC / SBIS / CPSE         r165  2014-10-20
+  skip offset introduced with SVN r157 (2014-10-11).
+
+
 * The magic ports to establish program <-> simulator       r163  2014-10-19
   interaction have been replaced by the more efficient
   SYSCALLs.

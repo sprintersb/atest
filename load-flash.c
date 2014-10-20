@@ -58,7 +58,7 @@ enum decoder_operand_masks
     mask_A_6      = 0x060F,    // 6 bit IO port id
 
     mask_JMP_CALL = 0xfe0c,    // identify JMP / CALL (1001 010x xxxx 11xx)
-    mask_LDS_STS  = 0xf30f     // identify LDS / STS  (1001 00xx xxxx 0000)
+    mask_LDS_STS  = 0xfc0f     // identify LDS / STS  (1001 00xx xxxx 0000)
   };
 
 

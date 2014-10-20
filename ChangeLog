@@ -1,3 +1,11 @@
+2014-10-20  Georg-Johann Lay  <avr@gjlay.de>
+
+	BUGFIX: Wrong SBRC / SBRS / SBIC / SBIS / CPSE skip offset
+	        introduced 2014-10-11 SVN r157.
+
+	* load-flash.c (mask_LDS_STS): Fix mask.
+	* BUGS: New file.
+
 2014-10-19  Georg-Johann Lay  <avr@gjlay.de>
 
 	Implement __vector_default to call abort.
