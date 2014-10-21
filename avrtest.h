@@ -48,7 +48,8 @@ enum
 
 enum
   {
-    PERF_TAG_STR_CMD, PERF_TAG_U16_CMD, PERF_TAG_U32_CMD,
+    PERF_TAG_STR_CMD, PERF_TAG_S32_CMD, PERF_TAG_U32_CMD,
+    PERF_TAG_S16_CMD, PERF_TAG_U16_CMD,
     PERF_TAG_FLOAT_CMD,
     PERF_LABEL_CMD, PERF_PLABEL_CMD,
     PERF_TAG_FMT_CMD, PERF_TAG_PFMT_CMD
@@ -62,9 +63,9 @@ enum
 #define TICKS_PORT  TICKS_PORT_ADDR
 
 // bits 5..3
-#define PERF_CMD(n) (7 & ((n) >> 3))
+#define PERF_CMD(n) (0xf & ((n) >> 4))
 
-#define PERF_TAG_CMD(n) (7 & ((n) >> 3))
+#define PERF_TAG_CMD(n) (0xf & ((n) >> 4))
 
 // bits 2..0 (LOG_CMD = 0)
 // bits 2..0 (LOG_CMD = LOG_TAG_PERF)
@@ -81,10 +82,10 @@ enum
 #define TICKS_PORT  (*((volatile unsigned long*) TICKS_PORT_ADDR))
 
 /* Logging Control */
-#define LOG_TAG_CMD(N,T) ((((PERF_## T ##_CMD) & 7) << 3) | ((N) & 7))
+#define LOG_TAG_CMD(N,T) ((((PERF_## T ##_CMD) & 0xf) << 4) | ((N) & 7))
 
 /* Performance Measurement */
-#define PERF_CMD_(n,c)       (((n) & 7) | (PERF_## c ##_CMD << 3))
+#define PERF_CMD_(n,c)       (((n) & 7) | (PERF_## c ##_CMD << 4))
 
 /* Convenience */
 
@@ -172,6 +173,8 @@ enum
 
 /* Tagging using default format string */
 #define PERF_TAG_STR(N,X)   avrtest_syscall_6_s ((X), LOG_TAG_CMD (N, TAG_STR))
+#define PERF_TAG_S16(N,X)   avrtest_syscall_6_i ((X), LOG_TAG_CMD (N, TAG_S16))
+#define PERF_TAG_S32(N,X)   avrtest_syscall_6_l ((X), LOG_TAG_CMD (N, TAG_S32))
 #define PERF_TAG_U16(N,X)   avrtest_syscall_6_u ((X), LOG_TAG_CMD (N, TAG_U16))
 #define PERF_TAG_U32(N,X)   avrtest_syscall_6_ul((X), LOG_TAG_CMD (N, TAG_U32))
 #define PERF_TAG_FLOAT(N,X) avrtest_syscall_6_f ((X), LOG_TAG_CMD (N, TAG_FLOAT))
@@ -186,12 +189,16 @@ enum
 
 /* Tagging with custom format string (from RAM) */
 #define PERF_TAG_FMT_STR(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_s,  TAG_STR)
+#define PERF_TAG_FMT_S16(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_i,  TAG_S16)
+#define PERF_TAG_FMT_S32(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_l,  TAG_S32)
 #define PERF_TAG_FMT_U16(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_u,  TAG_U16)
 #define PERF_TAG_FMT_U32(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_ul, TAG_U32)
 #define PERF_TAG_FMT_FLOAT(N,F,X) PERF_TAG_F_((F), (X), (N), _6_f,  TAG_STR)
 
 /* Tagging with custom format string (from Flash) */
 #define PERF_TAG_PFMT_STR(N,F,X)   PERF_TAG_PF_((F), (X), (N), _6_s,  TAG_STR)
+#define PERF_TAG_PFMT_S16(N,F,X)   PERF_TAG_PF_((F), (X), (N), _6_i   TAG_S16)
+#define PERF_TAG_PFMT_S32(N,F,X)   PERF_TAG_PF_((F), (X), (N), _6_l   TAG_S32)
 #define PERF_TAG_PFMT_U16(N,F,X)   PERF_TAG_PF_((F), (X), (N), _6_u,  TAG_U16)
 #define PERF_TAG_PFMT_U32(N,F,X)   PERF_TAG_PF_((F), (X), (N), _6_ul, TAG_U32)
 #define PERF_TAG_PFMT_FLOAT(N,F,X) PERF_TAG_PF_((F), (X), (N), _6_f,  TAG_FLOAT)
@@ -318,7 +325,9 @@ AVRTEST_DEF_SYSCALL2 (_5_f, 5, float,         20, unsigned char, 24)
 
 /* PERF_TAG */
 AVRTEST_DEF_SYSCALL2 (_6_s, 6, const volatile char*, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_6_i, 6, int, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_u, 6, unsigned, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_6_l, 6, long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_ul, 6, unsigned long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_f,  6, float, 20, unsigned char, 24)
 

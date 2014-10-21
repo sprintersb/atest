@@ -755,6 +755,8 @@ do_perf_tag_cmd (int x)
   switch (tag_cmd)
     {
     case PERF_TAG_STR_CMD: s = "_TAG string";  cmd = LOG_STR_CMD;   break;
+    case PERF_TAG_S16_CMD:   s = "_TAG s16";   cmd = LOG_S16_CMD;   break;
+    case PERF_TAG_S32_CMD:   s = "_TAG s32";   cmd = LOG_S32_CMD;   break;
     case PERF_TAG_U16_CMD:   s = "_TAG u16";   cmd = LOG_U16_CMD;   break;
     case PERF_TAG_U32_CMD:   s = "_TAG u32";   cmd = LOG_U32_CMD;   break;
     case PERF_TAG_FLOAT_CMD: s = "_TAG float"; cmd = LOG_FLOAT_CMD; break;
