@@ -1,3 +1,13 @@
+2014-10-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support PERF_TAG_S16, PERF_TAG_S32.
+
+	* avrtest.h (PERF_TAG_S16, PERF_TAG_S32): New.
+	(PERF_TAG_FMT_S16, PERF_TAG_FMT_S32): New.
+	(PERF_TAG_PFMT_S16, PERF_TAG_PFMT_S32): New.
+	* logging.c (do_perf_tag_cmd): Handle PERF_TAG_S16_CMD,
+	PERF_TAG_S32_CMD.
+
 2014-10-20  Georg-Johann Lay  <avr@gjlay.de>
 
 	BUGFIX: Wrong SBRC / SBRS / SBIC / SBIS / CPSE skip offset

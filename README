@@ -438,23 +438,22 @@ instruction cycles, the next START/STOP round can be tagged with a value:
 
     PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR
     PERF_TAG_U16 (N, U);        ... with a 16-bit unsigned integer U
+    PERF_TAG_S16 (N, U);        ... with a 16-bit signed integer U
     PERF_TAG_U32 (N, U);        ... with a 32-bit unsigned integer U
+    PERF_TAG_S32 (N, U);        ... with a 32-bit signed integer U
     PERF_TAG_FLOAT (N, F);      ... with float F
 
-Just like with LOG_XXX(), U16 and U32 are represented internally as
-"unsigned int" and the float as "double".  The default format strings to
-print the tags are "%s", " %u ", " %u " and " %.6f ", respectively.
+Just like with LOG_XXX(), S16 and S32 are represented internally as "int",
+U16 and U32 as "unsigned" and float as "double".  The default format strings
+to print the tags are "%s" for string, " %u " for the unsigned versions,
+" %d " for the signed ones and " %.6f " for float.
 
 Custom format strings can be supplied by
 
     PERF_TAG_FMT_U16 (N, FMT, U);
-    PERF_TAG_PFMT_U16 (N, FMT, U);
+    PERF_TAG_PFMT_S32 (N, FMT, U);
 
-with a format string FMT located in RAM resp. Flash.  Thus, the
-command to use a signed 32-bit value as tag for the respective
-round of perf-meter 1 could read
-
-    PERF_TAG_FMT_U32 (1, " %d ", n);
+etc. with a format string FMT located in RAM resp. Flash.
 
 Example:
 
