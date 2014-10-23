@@ -34,6 +34,10 @@
 #define MAX_FLASH_SIZE  (256 * 1024)  // Must be at least 128KB
 #define MAX_EEPROM_SIZE  (16 * 1024)  // .eeprom is read from ELF but unused
 
+#define REGX    26
+#define REGY    28
+#define REGZ    30
+
 // PC is used as array index into decoded_flash[].
 // If PC has bits outside the following mask, something went really wrong,
 // e.g. in pop_PC.
@@ -93,14 +97,14 @@ extern const unsigned invalid_opcode;
 
 enum
   {
-    EXIT_STATUS_EXIT,
-    EXIT_STATUS_ABORTED,
-    EXIT_STATUS_TIMEOUT,
+    LEAVE_EXIT,
+    LEAVE_ABORTED,
+    LEAVE_TIMEOUT,
+    LEAVE_FILE,
     // Something went badly wrong
-    EXIT_STATUS_USAGE,
-    EXIT_STATUS_FILE,
-    EXIT_STATUS_MEMORY,
-    EXIT_STATUS_FATAL
+    LEAVE_USAGE,
+    LEAVE_MEMORY,
+    LEAVE_FATAL
   };
 
 enum
@@ -111,6 +115,13 @@ enum
     AR_EEPROM,
     AR_SP,
     AR_TICKS_PORT
+  };
+
+enum
+  {
+    IL_ILL,
+    IL_ARCH,
+    IL_TODO
   };
 
 extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
@@ -139,6 +150,7 @@ typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 typedef struct
 {
   opcode_func func;
+  const char *mnemonic;
   short size;
   short cycles;
 } opcode_t;

@@ -37,10 +37,6 @@
 // ---------------------------------------------------------------------------
 // register and port definitions
 
-#define REGX    26
-#define REGY    28
-#define REGZ    30
-
 #define SREG    (0x3F + IOBASE)
 #define SPH     (0x3E + IOBASE)
 #define SPL     (0x3D + IOBASE)
@@ -133,15 +129,15 @@ static int exit_value;
 static const exit_status_t exit_status[] = 
   {
     // "EXIT" and "ABORTED" are keywords scanned by board descriptions.
-    // -1 : Use exit_value (only set to != 0 with EXIT_STATUS_EXIT)
-    [EXIT_STATUS_EXIT]    = { "EXIT",    NULL, EXIT_SUCCESS, -1 },
-    [EXIT_STATUS_ABORTED] = { "ABORTED", NULL, EXIT_SUCCESS, EXIT_FAILURE },
-    [EXIT_STATUS_TIMEOUT] = { "TIMEOUT", NULL, EXIT_SUCCESS, 10 },
+    // -1 : Use exit_value (only set to != 0 with LEAVE_EXIT)
+    [LEAVE_EXIT]    = { "EXIT",    NULL, EXIT_SUCCESS, -1 },
+    [LEAVE_ABORTED] = { "ABORTED", NULL, EXIT_SUCCESS, EXIT_FAILURE },
+    [LEAVE_TIMEOUT] = { "TIMEOUT", NULL, EXIT_SUCCESS, 10 },
+    [LEAVE_FILE]    = { "ABORTED", NULL, EXIT_SUCCESS, 11 },
     // Something went badly wrong
-    [EXIT_STATUS_FILE]    = { "ABORTED", "file",        EXIT_FAILURE, 11 },
-    [EXIT_STATUS_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 12 },
-    [EXIT_STATUS_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 13 },
-    [EXIT_STATUS_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
+    [LEAVE_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 20 },
+    [LEAVE_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 21 },
+    [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 
 
@@ -246,7 +242,7 @@ leave (int n, const char *reason, ...)
 
       printf (" exit status: %s\n"
               "      reason: ", exit_value
-              ? exit_status[EXIT_STATUS_ABORTED].text
+              ? exit_status[LEAVE_ABORTED].text
               : status->text);
       vprintf (reason, args);
       printf ("\n"
@@ -283,7 +279,7 @@ leave (int n, const char *reason, ...)
       va_end (args);
     }
 
-  exit (n == EXIT_STATUS_EXIT ? exit_value : status->quiet_value);
+  exit (n == LEAVE_EXIT ? exit_value : status->quiet_value);
 }
 
 // ----------------------------------------------------------------------------
@@ -458,7 +454,7 @@ byte* log_cpu_address (int address, int where)
     case AR_SP:         return cpu_data + SPL;
     case AR_TICKS_PORT: return cpu_data + TICKS_PORT;
     }
-  leave (EXIT_STATUS_FATAL, "code must be unreachable");
+  leave (LEAVE_FATAL, "code must be unreachable");
 }
 
 void set_function_symbol (int addr, const char *fname, int is_func)
@@ -473,11 +469,11 @@ void* get_mem (unsigned n, size_t size)
 #ifdef AVRTEST_LOG
   void *p = calloc (n, size);
   if (p == NULL)
-    leave (EXIT_STATUS_MEMORY, "out of memory allocating %u bytes",
+    leave (LEAVE_MEMORY, "out of memory allocating %u bytes",
            (unsigned) (n * size));
   return p;
 #else
-  leave (EXIT_STATUS_FATAL, "alloc_mem must be unreachable");
+  leave (LEAVE_FATAL, "alloc_mem must be unreachable");
   return NULL;
 #endif
 }
@@ -535,7 +531,7 @@ push_byte (int value)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
+    leave (LEAVE_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp--, value);
   data_write_word (SPL, sp);
 }
@@ -555,7 +551,7 @@ push_PC (void)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
+    leave (LEAVE_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp--, cpu_PC);
   data_write_byte (sp--, cpu_PC >> 8);
   if (arch.pc_3bytes)
@@ -566,7 +562,7 @@ push_PC (void)
 static NOINLINE NORETURN void
 bad_PC (unsigned pc)
 {
-  leave (EXIT_STATUS_ABORTED, "program counter 0x%x out of bounds "
+  leave (LEAVE_ABORTED, "program counter 0x%x out of bounds "
          "(0x%x--0x%x)", 2 * pc, program.code_start, program.code_end - 1);
 }
 
@@ -642,33 +638,33 @@ store_logical_result (int rd, int result)
 /* 10q0 qq0d dddd 1qqq | LDD */
 
 static INLINE void
-load_indirect (int rd, int ind_register, int adjust, int displacement_bits)
+load_indirect (int rd, int r_addr, int adjust, int offset)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
-  int ind_value = get_word_reg (ind_register);
+  int addr = get_word_reg (r_addr);
 
   if (adjust < 0)
-    ind_value += adjust;
-  put_reg (rd, data_read_magic_byte (ind_value + displacement_bits));
+    addr += adjust;
+  put_reg (rd, data_read_magic_byte (addr + offset));
   if (adjust > 0)
-    ind_value += adjust;
+    addr += adjust;
   if (adjust)
-    put_word_reg (ind_register, ind_value);
+    put_word_reg (r_addr, addr);
 }
 
 static INLINE void 
-store_indirect (int rd, int ind_register, int adjust, int displacement_bits)
+store_indirect (int rd, int r_addr, int adjust, int offset)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
-  int ind_value = get_word_reg (ind_register);
+  int addr = get_word_reg (r_addr);
 
   if (adjust < 0)
-    ind_value += adjust;
-  data_write_magic_byte (ind_value + displacement_bits, get_reg (rd));
+    addr += adjust;
+  data_write_magic_byte (addr + offset, get_reg (rd));
   if (adjust > 0)
-    ind_value += adjust;
+    addr += adjust;
   if (adjust)
-    put_word_reg (ind_register, ind_value);
+    put_word_reg (r_addr, addr);
 }
 
 static INLINE void
@@ -735,13 +731,22 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 }
 
 // handle illegal opcodes
-static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
+static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
 {
-  byte *f = cpu_flash + 2 * (cpu_PC + rr);
-  rr = f[0] + (f[1] << 8);
+  cpu_PC -= size;
+  byte *f = cpu_flash + 2 * cpu_PC;
+  unsigned code = f[0] + (f[1] << 8);
 
-  log_append (".word 0x%04x", rr);
-  leave (EXIT_STATUS_ABORTED, "illegal opcode 0x%04x", rr);
+  log_append (".word 0x%04x", code);
+  switch (ill)
+    {
+    case IL_ILL:  leave (LEAVE_ABORTED, "illegal opcode 0x%04x", code);
+    case IL_ARCH: leave (LEAVE_ABORTED, "opcode 0x%04x illegal on %s",
+                         code, arch.name);
+    case IL_TODO: leave (LEAVE_FATAL, "opcode 0x%04x not yet supported", code);
+    }
+
+  leave (LEAVE_FATAL, "in func_ILLEGAL");
 }
 
 // ----------------------------------------------------------------------------
@@ -759,7 +764,7 @@ static OP_FUNC_TYPE func_BREAK (int rd, int rr)
 static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 {
   if (!arch.has_eind)
-    func_ILLEGAL (0, -1);
+    func_ILLEGAL (IL_ARCH, 1);
 
   push_PC();
   cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
@@ -771,7 +776,7 @@ static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
 {
   if (!arch.has_eind)
-    func_ILLEGAL (0, -1);
+    func_ILLEGAL (IL_ARCH, 1);
 
   cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
   if (cpu_PC >= MAX_FLASH_SIZE / 2)
@@ -787,8 +792,7 @@ static OP_FUNC_TYPE func_ELPM (int rd, int rr)
 /* 1001 0101 1111 1000 | ESPM */
 static OP_FUNC_TYPE func_ESPM (int rd, int rr)
 {
-  func_ILLEGAL (0, -1);
-  //TODO
+  func_ILLEGAL (IL_TODO, 1);
 }
 
 /* 1001 0101 0000 1001 | ICALL */
@@ -840,15 +844,13 @@ static OP_FUNC_TYPE func_SLEEP (int rd, int rr)
 /* 1001 0101 1110 1000 | SPM */
 static OP_FUNC_TYPE func_SPM (int rd, int rr)
 {
-  func_ILLEGAL (0, -1);
-  //TODO
+  func_ILLEGAL (IL_TODO, 1);
 }
 
 /* 1001 0100 KKKK 1011 | DES */
 static OP_FUNC_TYPE func_DES (int rd, int rr)
 {
-  func_ILLEGAL (0, -1);
-  //TODO
+  func_ILLEGAL (IL_TODO, 1);
 }
 
 /* 1001 0101 1010 1000 | WDR */
@@ -1097,7 +1099,7 @@ static INLINE void
 xmega_atomic (int regno, int op, int magic_p)
 {
 #ifndef ISA_XMEGA
-  func_ILLEGAL (0, -1);
+  func_ILLEGAL (IL_ARCH, 1);
 #endif
 
   int mask = get_reg (regno);
@@ -1467,7 +1469,7 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
   int delta = (int16_t) rr;
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
-    leave (EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
+    leave (LEAVE_EXIT, "infinite loop detected (normal exit)");
   cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
 }
 
@@ -1576,13 +1578,13 @@ static void do_exit (void)
 
   log_append ("exit %d: ", r24);
   get_word_reg (24);
-  leave (EXIT_STATUS_EXIT, "exit %d function called", exit_value = r24);
+  leave (LEAVE_EXIT, "exit %d function called", exit_value = r24);
 }
 
 static void do_abort (void)
 {
   log_append ("abort");
-  leave (EXIT_STATUS_ABORTED, "abort function called");
+  leave (LEAVE_ABORTED, "abort function called");
 }
 
 // 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
@@ -1617,6 +1619,14 @@ static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
   bad_PC (cpu_PC);
 }
 
+static OP_FUNC_TYPE func_UNDEF (int rd, int id)
+{
+  const char *mnemo = opcodes[id].mnemonic;
+  const char *s_addr = mnemo + strlen (mnemo) - 2;
+
+  log_append ("%s R%d", mnemo, rd);
+  leave (LEAVE_ABORTED, "address register %s overlaps R%d", s_addr, rd);
+}
 
 // ----------------------------------------------------------------------------
 // AVR opcodes
@@ -1625,7 +1635,7 @@ static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
 const opcode_t opcodes[] =
   {
 #define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)            \
-    [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
+    [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
 #include "avr-opcode.def"
 #undef AVR_OPCODE
   };
@@ -1662,7 +1672,7 @@ execute (void)
 
       program.n_insns++;
       if (max_insns && program.n_insns >= max_insns)
-        leave (EXIT_STATUS_TIMEOUT, "instruction count limit reached");
+        leave (LEAVE_TIMEOUT, "instruction count limit reached");
     }
 }
 

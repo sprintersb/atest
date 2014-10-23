@@ -42,14 +42,6 @@ const char s_SREG[] = "CZNVSHTI";
 
 static const char *func_symbol[MAX_FLASH_SIZE/2];
 
-static const char* const mnemonic[] =
-  {
-#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)  \
-    [ID_ ## ID] = NAME,
-#include "avr-opcode.def"
-#undef AVR_OPCODE
-  };
-
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
 #include "avrtest.h"
@@ -170,7 +162,7 @@ log_set_func_symbol (int addr, const char *name, int is_func)
     {
       if (addr % 2 != 0
           || addr >= MAX_FLASH_SIZE)
-        leave (EXIT_STATUS_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
+        leave (LEAVE_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
     }
   else if (addr >= MAX_FLASH_SIZE
            || addr % 2 != 0)
@@ -316,7 +308,7 @@ set_call_depth (const decoded_t *d)
           break;
 
         default:
-          leave (EXIT_STATUS_FATAL, "problem in set_call_depth");
+          leave (LEAVE_FATAL, "problem in set_call_depth");
         }
     }
 
@@ -331,7 +323,7 @@ log_add_instr (const decoded_t *d)
   alog.id = d->id;
 
   char mnemo_[16];
-  const char *fmt, *mnemo = mnemonic[alog.id];
+  const char *fmt, *mnemo = opcodes[alog.id].mnemonic;
 
   // SYSCALL 0..3 might turn on logging: always log them to alog.data[].
 
@@ -1273,7 +1265,7 @@ log_dump_line (int id)
       alog.maybe_log = 1;
       puts (alog.data);
       if (log_this && alog.unused)
-        leave (EXIT_STATUS_FATAL, "problem in log_dump_line");
+        leave (LEAVE_FATAL, "problem in log_dump_line");
     }
   else
     alog.maybe_log = 0;

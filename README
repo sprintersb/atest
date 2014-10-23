@@ -23,15 +23,16 @@ XCH, LAS, LAC and LAT.
 
 In the remainder, avrtest is explained.  avrtest-xmega works similar.
 avrtest does not simulate internal peripherals like timers, I/O ports,
-interrupts, etc. 
+interrupts, etc.
+
 
 ================
 Special features
 ================
 
-The simulator has builtin capability of writing to stdout of the host
-computer (the machine that runs the simulator).  For example, an easy
-hello world program for AVR could look like this:
+The simulated program can communicate with the simulator: It can write to
+the host's standard output and it can read from the host's standard input.
+For example, an easy hello world program for AVR could look like this:
 
 
 #include <stdio.h>
@@ -43,13 +44,13 @@ int main (void)
 }
 
 
-Compile this program as usual but link against exit-atmega128.o. 
+Compile this program as usual but link against exit-atmega128.o.
 How to build that object is explained in the next chapter.  Store the
 C source as hello.c and compile it with, e.g.
 
     avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
-The exit-*.o object implements sudout as a stream writing through to the
+The exit-*.o object implements stdout as a stream writing through to the
 host computer.  Running the program
 
     avrtest hello.elf
@@ -67,7 +68,7 @@ total cycles: 837
 total instr.: 503
 
 
-You can also use these functions directly:
+You can also use the respective primitive functions directly:
 
 
 #include "avrtest.h"
@@ -85,8 +86,11 @@ int main (void)
 }
 
 
-avrtest.h defines avrtest_putchar as a syscall that writes to the host's
-standard output and avrtest_getchar to read from the host's standard input.
+The avrtest_putchar and avrtest_getchar functions are defined in avrtest.h
+and act like putcher resp. getchar in an ordinary, hosted program:
+putchar writes a character to the host's standard output and getchar reads
+a character from the host's standard input.
+
 Compile the C source with
 
     avr-gcc inout.c -O -mmcu=atmega128 -o inout.elf -I /someplace/avrtest
@@ -95,7 +99,7 @@ When running the program with
 
     avrtest inout.elf
 
-hhe simulator will print a 'Q' on the console and wait for input. 
+the simulator will print a 'Q' on the console and wait for input.
 Type '1<Enter>' and the output will be
 
 
@@ -109,7 +113,7 @@ total cycles: 27
 total instr.: 18
 
 
-There are more syscalls for program <-> simulator interactions,
+There are more functions available for program <-> simulator interaction,
 see the respective sections below.
 
 
@@ -130,13 +134,13 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 * Run
 
     make
-  
+
   inside /someplace/avrtest which will build executables from the avrtest
   C-sources and AVR object files exit-*.o from dejagnuboards/exit.c.
 
 * To build exit*.o modules, avr-gcc will be used.  If you want a different
   avr-gcc not found in PATH, use:
-  
+
     make clean-exit all CC_FOR_AVR=/some-compiler-path/avr-gcc
 
 * Copy /someplace/avrtest/.dejagnurc to your $HOME and change the path
@@ -231,11 +235,12 @@ The following exit stati will be returned with -q:
   -  0  Everything went fine.
   -  1  Target program called abort()  resp. called syscall abort
   -  x  Target program called exit (x) resp. called syscall exit (x).
-
   - 10  Program timeout as set by -m MAXCOUNT.
-  - 11  Executable could not be found / read, is too big or invalid etc.
-  - 12  Out of memory (avrtest_log only).
-  - 13  Wrong avrtest usage: Unknown options, etc.
+  - 11  Problem with the program file: Could not be found / read,
+        is too big or invalid etc.
+
+  - 20  Out of memory (avrtest_log only).
+  - 21  Wrong avrtest usage: Unknown options, etc.
 
   - 42  Fatal error in avrtest.
 
@@ -531,7 +536,7 @@ If rounds have been tagged, the tags for the rounds that yielded a minimal
 and maximal value of F are also displayed.  Besides PERF_STAT_FLOAT there
 is also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
 32-bit integer values.
-    
+
 In the sample code from above, one is interested in the resource consumption
 of the sin function.  In order to supply that function with a value x and to
 store the result y, additional instructions are needed:
