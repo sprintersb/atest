@@ -594,7 +594,8 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
         }
       if (ill & (1u << rd))
         {
-          d->op2 = index;
+          d->op1 = index;
+          d->op2 = opcode1;
           return ID_UNDEF;
         }
 

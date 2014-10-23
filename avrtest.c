@@ -743,7 +743,9 @@ static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
     case IL_ILL:  leave (LEAVE_ABORTED, "illegal opcode 0x%04x", code);
     case IL_ARCH: leave (LEAVE_ABORTED, "opcode 0x%04x illegal on %s",
                          code, arch.name);
-    case IL_TODO: leave (LEAVE_FATAL, "opcode 0x%04x not yet supported", code);
+    case IL_TODO:
+      log_dump_line (0);
+      leave (LEAVE_FATAL, "opcode 0x%04x not yet supported", code);
     }
 
   leave (LEAVE_FATAL, "in func_ILLEGAL");
@@ -1619,13 +1621,16 @@ static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
   bad_PC (cpu_PC);
 }
 
-static OP_FUNC_TYPE func_UNDEF (int rd, int id)
+static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
 {
+  int rd = (opcode1 >> 4) & 0x1F;
   const char *mnemo = opcodes[id].mnemonic;
   const char *s_addr = mnemo + strlen (mnemo) - 2;
 
-  log_append ("%s R%d", mnemo, rd);
-  leave (LEAVE_ABORTED, "address register %s overlaps R%d", s_addr, rd);
+  log_append ("%-7s .word 0x%04x: undefined operand combination: %s overlaps R%d",
+              mnemo, opcode1, s_addr, rd);
+  leave (LEAVE_ABORTED, "opcode 0x%04x has undefined result "
+         "(%s overlaps R%d)", opcode1, mnemo, rd);
 }
 
 // ----------------------------------------------------------------------------

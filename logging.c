@@ -333,6 +333,12 @@ log_add_instr (const decoded_t *d)
   if ((alog.unused = !maybe_used))
     return;
 
+  if (alog.id == ID_UNDEF)
+    {
+      log_append (arch.pc_3bytes ? "%06x: " : "%04x: ", cpu_PC * 2);
+      return;
+    }
+  
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (d, mnemo_ + strlen (mnemo));
   fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
