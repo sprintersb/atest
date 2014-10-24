@@ -59,7 +59,7 @@ AVR_OPCODE (BAD_PC, 0, 0, "bad PC")
 AVR_OPCODE (ILLEGAL, 0, 0, "ILLEGAL")
 
 // An instruction with undefined result, e.g. LD R26,X+
-AVR_OPCODE (UNDEF, 0, 0, "<>")
+AVR_OPCODE (UNDEF, 0, 0, "")
 
 /* SYSCALL N (N = 0..31) is the special code sequence that unconditionally
    skips the invalid opcode 0xffff:

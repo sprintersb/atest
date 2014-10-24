@@ -1627,8 +1627,9 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
   const char *mnemo = opcodes[id].mnemonic;
   const char *s_addr = mnemo + strlen (mnemo) - 2;
 
-  log_append ("%-7s .word 0x%04x: undefined operand combination: %s overlaps R%d",
-              mnemo, opcode1, s_addr, rd);
+  (void) s_addr;
+  log_append ("%-7s .word 0x%04x: undefined operand combination: "
+              "%s overlaps R%d", mnemo, opcode1, s_addr, rd);
   leave (LEAVE_ABORTED, "opcode 0x%04x has undefined result "
          "(%s overlaps R%d)", opcode1, mnemo, rd);
 }
