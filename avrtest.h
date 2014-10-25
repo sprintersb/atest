@@ -1,18 +1,7 @@
 #ifndef AVRTEST_H
 #define AVRTEST_H
 
-#ifndef IN_AVRTEST
-#ifdef __AVR_SFR_OFFSET__
-#define IOBASE __AVR_SFR_OFFSET__
-#else
-#define IOBASE 0x20
-#endif
-#endif /* !IN_AVRTEST */
-
 #define AVRTEST_INVALID_OPCODE 0xffff
-
-/* In- and Outputs */
-#define TICKS_PORT_ADDR  (0x24 + IOBASE) /* 4 Inputs (only 1st byte is magic) */
 
 enum
   {
@@ -82,9 +71,6 @@ enum
 #else /* IN_AVRTEST */
 
 /* This defines can be used in the AVR application.  */
-
-/* Magic Ports */
-#define TICKS_PORT  (*((volatile unsigned long*) TICKS_PORT_ADDR))
 
 /* Logging Control */
 #define LOG_TAG_CMD(N,T) ((((PERF_## T ##_CMD) & 0xf) << 4) | ((N) & 7))

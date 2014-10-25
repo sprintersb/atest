@@ -133,14 +133,13 @@ extern const int addr_SREG;
 typedef struct
 {
   int addr;
-  int in, out;
+  const char *name;
   // Points to an int telling whether this address is special.
   // NULL means "yes".
   int *pon;
-  const char *name;
-} magic_t;
+} sfr_t;
 
-extern const magic_t named_port[];
+extern const sfr_t named_sfr[];
 
 #define OP_FUNC_TYPE void FASTCALL
 

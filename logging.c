@@ -376,12 +376,12 @@ log_add_data_mov (const char *format, int addr, int value)
       return;
     }
 
-  for (const magic_t *p = named_port; ; p++)
+  for (const sfr_t *sfr = named_sfr; ; sfr++)
     {
-      if (addr == p->addr
-          && (p->pon == NULL || *p->pon))
-        s_name = p->name;
-      else if (p->name == NULL)
+      if (addr == sfr->addr
+          && (sfr->pon == NULL || *sfr->pon))
+        s_name = sfr->name;
+      else if (sfr->name == NULL)
         sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
       else
         continue;

@@ -1,5 +1,14 @@
 2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
 
+	Remove last remains of "magic" paradigm.
+
+	* testavr.h (magic_t): Rename to sfr_t.
+	(named_port): Rename to named_sfr.
+	* avrtest.c (data_read_magic_byte, data_write_magic_byte): Remove.
+	Adjust callers to use data_read_byte / data_write_byte instead.
+
+2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
+
 	Switch from TICKS_PORT to SYSCALL.
 
 	* avrtest.h (TICKS_PORT): Remove define.

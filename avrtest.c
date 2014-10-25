@@ -285,7 +285,7 @@ leave (int n, const char *reason, ...)
 // ----------------------------------------------------------------------------
 //     ioport / ram / flash, read / write entry points
 
-// Lowest level vanilla memory accessors, no magic, no logging.
+// Lowest level vanilla memory accessors, no logging.
 
 static INLINE int
 data_read_byte_raw (int address)
@@ -307,37 +307,7 @@ flash_read_byte (int address)
   return cpu_flash[address];
 }
 
-// Memory accessors: with logging and with magic
-// Used by memory accessing instructions like IN, OUT,
-// LD*, ST* ... that might trigger magic.
-
-static INLINE int
-data_read_magic_byte (int address)
-{
-  // add code here to handle special events
-
-  // default action, just read the value
-  int ret = cpu_data[address];
-
-  log_add_data_mov (address == SREG ? "(SREG)->'%s'" : "(%s)->%02x ",
-                    address, ret);
-  return ret;
-}
-
-static INLINE void
-data_write_magic_byte (int address, int value)
-{
-  // add code here to handle special events
-
-  log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
-                    address, value & 0xff);
-  cpu_data[address] = value;
-}
-
-
-// Memory accessors: with logging but no magic
-// Used by PUSH, POP, CALL, RET ...  These instrucion should
-// never ever need or do magic actions.
+// Memory accessors with logging.
 
 static INLINE int
 data_read_byte (int address)
@@ -424,14 +394,14 @@ data_write_word (int address, int value)
 
 const int addr_SREG = SREG;
 
-const magic_t named_port[] =
+const sfr_t named_sfr[] =
   {
-    { SPL,   1, 1, NULL, "SPL"   },
-    { SPH,   1, 1, NULL, "SPH"   },
-    { EIND,  1, 1, &arch.has_eind, "EIND" },
-    { RAMPZ, 1, 1, NULL, "RAMPZ" },
+    { SPL,   "SPL",   NULL },
+    { SPH,   "SPH",   NULL },
+    { RAMPZ, "RAMPZ", NULL },
+    { EIND,  "EIND",  &arch.has_eind },
 
-    { 0, 0, 0, 0, NULL }
+    { 0, NULL, NULL }
   };
   
 byte* log_cpu_address (int address, int where)
@@ -442,7 +412,7 @@ byte* log_cpu_address (int address, int where)
     case AR_RAM:    return cpu_data + address;
     case AR_FLASH:  return cpu_flash + address;
     case AR_EEPROM: return cpu_eeprom + address;
-    case AR_SP:         return cpu_data + SPL;
+    case AR_SP:     return cpu_data + SPL;
     }
   leave (LEAVE_FATAL, "code must be unreachable");
 }
@@ -635,7 +605,7 @@ load_indirect (int rd, int r_addr, int adjust, int offset)
 
   if (adjust < 0)
     addr += adjust;
-  put_reg (rd, data_read_magic_byte (addr + offset));
+  put_reg (rd, data_read_byte (addr + offset));
   if (adjust > 0)
     addr += adjust;
   if (adjust)
@@ -650,7 +620,7 @@ store_indirect (int rd, int r_addr, int adjust, int offset)
 
   if (adjust < 0)
     addr += adjust;
-  data_write_magic_byte (addr + offset, get_reg (rd));
+  data_write_byte (addr + offset, get_reg (rd));
   if (adjust > 0)
     addr += adjust;
   if (adjust)
@@ -1012,7 +982,7 @@ static OP_FUNC_TYPE func_INC (int rd, int rr)
 static OP_FUNC_TYPE func_LDS (int rd, int rr)
 {
   //TODO:RAMPD
-  put_reg (rd, data_read_magic_byte (rr));
+  put_reg (rd, data_read_byte (rr));
 }
 
 /* 1001 000d dddd 1100 | LD */
@@ -1088,7 +1058,7 @@ static OP_FUNC_TYPE func_POP (int rd, int rr)
 }
 
 static INLINE void
-xmega_atomic (int regno, int op, int magic_p)
+xmega_atomic (int regno, int op)
 {
 #ifndef ISA_XMEGA
   func_ILLEGAL (IL_ARCH, 1);
@@ -1096,9 +1066,7 @@ xmega_atomic (int regno, int op, int magic_p)
 
   int mask = get_reg (regno);
   int address = get_word_reg (REGZ);
-  int val = (magic_p
-             ? data_read_magic_byte (address)
-             : data_read_byte (address));
+  int val = data_read_byte (address);
 
   put_reg (regno, val);
 
@@ -1110,34 +1078,31 @@ xmega_atomic (int regno, int op, int magic_p)
     case ID_LAT: val ^=  mask; break;
     }
 
-  if (magic_p)
-    data_write_magic_byte (address, val);
-  else
-    data_write_byte (address, val);
+  data_write_byte (address, val);
 }
 
 /* 1001 001d dddd 0100 | XCH */
 static OP_FUNC_TYPE func_XCH (int rd, int rr)
 {
-  xmega_atomic (rd, ID_XCH, 1);
+  xmega_atomic (rd, ID_XCH);
 }
 
 /* 1001 001d dddd 0101 | LAS */
 static OP_FUNC_TYPE func_LAS (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAS, 0);
+  xmega_atomic (rd, ID_LAS);
 }
 
 /* 1001 001d dddd 0110 | LAC */
 static OP_FUNC_TYPE func_LAC (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAC, 0);
+  xmega_atomic (rd, ID_LAC);
 }
 
 /* 1001 001d dddd 0111 | LAT */
 static OP_FUNC_TYPE func_LAT (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAT, 0);
+  xmega_atomic (rd, ID_LAT);
 }
 
 /* 1001 001d dddd 1111 | PUSH */
@@ -1156,7 +1121,7 @@ static OP_FUNC_TYPE func_ROR (int rd, int rr)
 static OP_FUNC_TYPE func_STS (int rd, int rr)
 {
   //TODO:RAMPD
-  data_write_magic_byte (rr, get_reg (rd));
+  data_write_byte (rr, get_reg (rd));
 }
 
 /* 1001 001d dddd 1100 | ST */
@@ -1406,37 +1371,37 @@ static OP_FUNC_TYPE func_SBIW (int rd, int rr)
 /* 1001 1000 AAAA Abbb | CBI */
 static OP_FUNC_TYPE func_CBI (int rd, int rr)
 {
-  data_write_magic_byte (rd, data_read_magic_byte (rd) & ~(rr));
+  data_write_byte (rd, data_read_byte (rd) & ~(rr));
 }
 
 /* 1001 1010 AAAA Abbb | SBI */
 static OP_FUNC_TYPE func_SBI (int rd, int rr)
 {
-  data_write_magic_byte (rd, data_read_magic_byte (rd) | rr);
+  data_write_byte (rd, data_read_byte (rd) | rr);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC skipping 1 word */
 static OP_FUNC_TYPE func_SBIC (int rd, int rr)
 {
-  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 1);
+  skip_instruction_on_condition (!(data_read_byte (rd) & rr), 1);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC skipping 2 words */
 static OP_FUNC_TYPE func_SBIC2 (int rd, int rr)
 {
-  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 2);
+  skip_instruction_on_condition (!(data_read_byte (rd) & rr), 2);
 }
 
 /* 1001 1011 AAAA Abbb | SBIS skipping 1 word */
 static OP_FUNC_TYPE func_SBIS (int rd, int rr)
 {
-  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 1);
+  skip_instruction_on_condition (data_read_byte (rd) & rr, 1);
 }
 
 /* 1001 1011 AAAA Abbb | SBIS skipping 2 words */
 static OP_FUNC_TYPE func_SBIS2 (int rd, int rr)
 {
-  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 2);
+  skip_instruction_on_condition (data_read_byte (rd) & rr, 2);
 }
 
 
@@ -1444,13 +1409,13 @@ static OP_FUNC_TYPE func_SBIS2 (int rd, int rr)
 /* 1011 0AAd dddd AAAA | IN */
 static OP_FUNC_TYPE func_IN (int rd, int rr)
 {
-  put_reg (rd, data_read_magic_byte (rr));
+  put_reg (rd, data_read_byte (rr));
 }
 
 /* 1011 1AAd dddd AAAA | OUT */
 static OP_FUNC_TYPE func_OUT (int rd, int rr)
 {
-  data_write_magic_byte (rr, get_reg (rd));
+  data_write_byte (rr, get_reg (rd));
 }
 
 
