@@ -111,7 +111,7 @@ usage (const char *fmt, ...)
   va_end (args);
 
   qprintf ("\n");
-  leave (EXIT_STATUS_USAGE, "%s%s", reason,
+  leave (LEAVE_USAGE, "%s%s", reason,
          options.do_quiet ? ", use -h for help" : "");
 }
 
