@@ -37,10 +37,6 @@
 // ---------------------------------------------------------------------------
 // register and port definitions
 
-#define REGX    26
-#define REGY    28
-#define REGZ    30
-
 #define SREG    (0x3F + IOBASE)
 #define SPH     (0x3E + IOBASE)
 #define SPL     (0x3D + IOBASE)
@@ -133,15 +129,15 @@ static int exit_value;
 static const exit_status_t exit_status[] = 
   {
     // "EXIT" and "ABORTED" are keywords scanned by board descriptions.
-    // -1 : Use exit_value (only set to != 0 with EXIT_STATUS_EXIT)
-    [EXIT_STATUS_EXIT]    = { "EXIT",    NULL, EXIT_SUCCESS, -1 },
-    [EXIT_STATUS_ABORTED] = { "ABORTED", NULL, EXIT_SUCCESS, EXIT_FAILURE },
-    [EXIT_STATUS_TIMEOUT] = { "TIMEOUT", NULL, EXIT_SUCCESS, 10 },
+    // -1 : Use exit_value (only set to != 0 with LEAVE_EXIT)
+    [LEAVE_EXIT]    = { "EXIT",    NULL, EXIT_SUCCESS, -1 },
+    [LEAVE_ABORTED] = { "ABORTED", NULL, EXIT_SUCCESS, EXIT_FAILURE },
+    [LEAVE_TIMEOUT] = { "TIMEOUT", NULL, EXIT_SUCCESS, 10 },
+    [LEAVE_FILE]    = { "ABORTED", NULL, EXIT_SUCCESS, 11 },
     // Something went badly wrong
-    [EXIT_STATUS_FILE]    = { "ABORTED", "file",        EXIT_FAILURE, 11 },
-    [EXIT_STATUS_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 12 },
-    [EXIT_STATUS_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 13 },
-    [EXIT_STATUS_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
+    [LEAVE_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 20 },
+    [LEAVE_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 21 },
+    [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 
 
@@ -246,7 +242,7 @@ leave (int n, const char *reason, ...)
 
       printf (" exit status: %s\n"
               "      reason: ", exit_value
-              ? exit_status[EXIT_STATUS_ABORTED].text
+              ? exit_status[LEAVE_ABORTED].text
               : status->text);
       vprintf (reason, args);
       printf ("\n"
@@ -283,13 +279,13 @@ leave (int n, const char *reason, ...)
       va_end (args);
     }
 
-  exit (n == EXIT_STATUS_EXIT ? exit_value : status->quiet_value);
+  exit (n == LEAVE_EXIT ? exit_value : status->quiet_value);
 }
 
 // ----------------------------------------------------------------------------
 //     ioport / ram / flash, read / write entry points
 
-// Lowest level vanilla memory accessors, no magic, no logging.
+// Lowest level vanilla memory accessors, no logging.
 
 static INLINE int
 data_read_byte_raw (int address)
@@ -311,41 +307,7 @@ flash_read_byte (int address)
   return cpu_flash[address];
 }
 
-// Memory accessors: with logging and with magic
-// Used by memory accessing instructions like IN, OUT,
-// LD*, ST* ... that might trigger magic.
-
-static INLINE int
-data_read_magic_byte (int address)
-{
-  // add code here to handle special events
-
-  if (address == TICKS_PORT && options.do_ticks)
-    // update TICKS_PORT only on access of first byte to avoid glitches
-    log_get_ticks (cpu_data + TICKS_PORT);
-
-  // default action, just read the value
-  int ret = cpu_data[address];
-
-  log_add_data_mov (address == SREG ? "(SREG)->'%s'" : "(%s)->%02x ",
-                    address, ret);
-  return ret;
-}
-
-static INLINE void
-data_write_magic_byte (int address, int value)
-{
-  // add code here to handle special events
-
-  log_add_data_mov (address == SREG ? "(SREG)<-'%s' " : "(%s)<-%02x ",
-                    address, value & 0xff);
-  cpu_data[address] = value;
-}
-
-
-// Memory accessors: with logging but no magic
-// Used by PUSH, POP, CALL, RET ...  These instrucion should
-// never ever need or do magic actions.
+// Memory accessors with logging.
 
 static INLINE int
 data_read_byte (int address)
@@ -432,19 +394,14 @@ data_write_word (int address, int value)
 
 const int addr_SREG = SREG;
 
-const magic_t named_port[] =
+const sfr_t named_sfr[] =
   {
-    { SPL,   1, 1, NULL, "SPL"   },
-    { SPH,   1, 1, NULL, "SPH"   },
-    { EIND,  1, 1, &arch.has_eind, "EIND" },
-    { RAMPZ, 1, 1, NULL, "RAMPZ" },
+    { SPL,   "SPL",   NULL },
+    { SPH,   "SPH",   NULL },
+    { RAMPZ, "RAMPZ", NULL },
+    { EIND,  "EIND",  &arch.has_eind },
 
-    { TICKS_PORT,     1, 1, &options.do_ticks, "TICKS_PORT"   },
-    { TICKS_PORT + 1, 1, 1, &options.do_ticks, "TICKS_PORT+1" },
-    { TICKS_PORT + 2, 1, 1, &options.do_ticks, "TICKS_PORT+2" },
-    { TICKS_PORT + 3, 1, 1, &options.do_ticks, "TICKS_PORT+3" },
-
-    { 0, 0, 0, 0, NULL }
+    { 0, NULL, NULL }
   };
   
 byte* log_cpu_address (int address, int where)
@@ -455,10 +412,9 @@ byte* log_cpu_address (int address, int where)
     case AR_RAM:    return cpu_data + address;
     case AR_FLASH:  return cpu_flash + address;
     case AR_EEPROM: return cpu_eeprom + address;
-    case AR_SP:         return cpu_data + SPL;
-    case AR_TICKS_PORT: return cpu_data + TICKS_PORT;
+    case AR_SP:     return cpu_data + SPL;
     }
-  leave (EXIT_STATUS_FATAL, "code must be unreachable");
+  leave (LEAVE_FATAL, "code must be unreachable");
 }
 
 void set_function_symbol (int addr, const char *fname, int is_func)
@@ -473,11 +429,11 @@ void* get_mem (unsigned n, size_t size)
 #ifdef AVRTEST_LOG
   void *p = calloc (n, size);
   if (p == NULL)
-    leave (EXIT_STATUS_MEMORY, "out of memory allocating %u bytes",
+    leave (LEAVE_MEMORY, "out of memory allocating %u bytes",
            (unsigned) (n * size));
   return p;
 #else
-  leave (EXIT_STATUS_FATAL, "alloc_mem must be unreachable");
+  leave (LEAVE_FATAL, "alloc_mem must be unreachable");
   return NULL;
 #endif
 }
@@ -535,7 +491,7 @@ push_byte (int value)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
+    leave (LEAVE_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp--, value);
   data_write_word (SPL, sp);
 }
@@ -555,7 +511,7 @@ push_PC (void)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (EXIT_STATUS_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
+    leave (LEAVE_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp--, cpu_PC);
   data_write_byte (sp--, cpu_PC >> 8);
   if (arch.pc_3bytes)
@@ -566,7 +522,7 @@ push_PC (void)
 static NOINLINE NORETURN void
 bad_PC (unsigned pc)
 {
-  leave (EXIT_STATUS_ABORTED, "program counter 0x%x out of bounds "
+  leave (LEAVE_ABORTED, "program counter 0x%x out of bounds "
          "(0x%x--0x%x)", 2 * pc, program.code_start, program.code_end - 1);
 }
 
@@ -642,33 +598,33 @@ store_logical_result (int rd, int result)
 /* 10q0 qq0d dddd 1qqq | LDD */
 
 static INLINE void
-load_indirect (int rd, int ind_register, int adjust, int displacement_bits)
+load_indirect (int rd, int r_addr, int adjust, int offset)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
-  int ind_value = get_word_reg (ind_register);
+  int addr = get_word_reg (r_addr);
 
   if (adjust < 0)
-    ind_value += adjust;
-  put_reg (rd, data_read_magic_byte (ind_value + displacement_bits));
+    addr += adjust;
+  put_reg (rd, data_read_byte (addr + offset));
   if (adjust > 0)
-    ind_value += adjust;
+    addr += adjust;
   if (adjust)
-    put_word_reg (ind_register, ind_value);
+    put_word_reg (r_addr, addr);
 }
 
 static INLINE void 
-store_indirect (int rd, int ind_register, int adjust, int displacement_bits)
+store_indirect (int rd, int r_addr, int adjust, int offset)
 {
   //TODO: use RAMPx registers to address more than 64kb of RAM
-  int ind_value = get_word_reg (ind_register);
+  int addr = get_word_reg (r_addr);
 
   if (adjust < 0)
-    ind_value += adjust;
-  data_write_magic_byte (ind_value + displacement_bits, get_reg (rd));
+    addr += adjust;
+  data_write_byte (addr + offset, get_reg (rd));
   if (adjust > 0)
-    ind_value += adjust;
+    addr += adjust;
   if (adjust)
-    put_word_reg (ind_register, ind_value);
+    put_word_reg (r_addr, addr);
 }
 
 static INLINE void
@@ -735,13 +691,24 @@ do_multiply (int rd, int rr, int signed1, int signed2, int shift)
 }
 
 // handle illegal opcodes
-static OP_FUNC_TYPE func_ILLEGAL (int rd, int rr)
+static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
 {
-  byte *f = cpu_flash + 2 * (cpu_PC + rr);
-  rr = f[0] + (f[1] << 8);
+  cpu_PC -= size;
+  byte *f = cpu_flash + 2 * cpu_PC;
+  unsigned code = f[0] + (f[1] << 8);
 
-  log_append (".word 0x%04x", rr);
-  leave (EXIT_STATUS_ABORTED, "illegal opcode 0x%04x", rr);
+  log_append (".word 0x%04x", code);
+  switch (ill)
+    {
+    case IL_ILL:  leave (LEAVE_ABORTED, "illegal opcode 0x%04x", code);
+    case IL_ARCH: leave (LEAVE_ABORTED, "opcode 0x%04x illegal on %s",
+                         code, arch.name);
+    case IL_TODO:
+      log_dump_line (0);
+      leave (LEAVE_FATAL, "opcode 0x%04x not yet supported", code);
+    }
+
+  leave (LEAVE_FATAL, "in func_ILLEGAL");
 }
 
 // ----------------------------------------------------------------------------
@@ -759,7 +726,7 @@ static OP_FUNC_TYPE func_BREAK (int rd, int rr)
 static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 {
   if (!arch.has_eind)
-    func_ILLEGAL (0, -1);
+    func_ILLEGAL (IL_ARCH, 1);
 
   push_PC();
   cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
@@ -771,7 +738,7 @@ static OP_FUNC_TYPE func_EICALL (int rd, int rr)
 static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
 {
   if (!arch.has_eind)
-    func_ILLEGAL (0, -1);
+    func_ILLEGAL (IL_ARCH, 1);
 
   cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
   if (cpu_PC >= MAX_FLASH_SIZE / 2)
@@ -787,8 +754,7 @@ static OP_FUNC_TYPE func_ELPM (int rd, int rr)
 /* 1001 0101 1111 1000 | ESPM */
 static OP_FUNC_TYPE func_ESPM (int rd, int rr)
 {
-  func_ILLEGAL (0, -1);
-  //TODO
+  func_ILLEGAL (IL_TODO, 1);
 }
 
 /* 1001 0101 0000 1001 | ICALL */
@@ -840,15 +806,13 @@ static OP_FUNC_TYPE func_SLEEP (int rd, int rr)
 /* 1001 0101 1110 1000 | SPM */
 static OP_FUNC_TYPE func_SPM (int rd, int rr)
 {
-  func_ILLEGAL (0, -1);
-  //TODO
+  func_ILLEGAL (IL_TODO, 1);
 }
 
 /* 1001 0100 KKKK 1011 | DES */
 static OP_FUNC_TYPE func_DES (int rd, int rr)
 {
-  func_ILLEGAL (0, -1);
-  //TODO
+  func_ILLEGAL (IL_TODO, 1);
 }
 
 /* 1001 0101 1010 1000 | WDR */
@@ -1018,7 +982,7 @@ static OP_FUNC_TYPE func_INC (int rd, int rr)
 static OP_FUNC_TYPE func_LDS (int rd, int rr)
 {
   //TODO:RAMPD
-  put_reg (rd, data_read_magic_byte (rr));
+  put_reg (rd, data_read_byte (rr));
 }
 
 /* 1001 000d dddd 1100 | LD */
@@ -1094,17 +1058,15 @@ static OP_FUNC_TYPE func_POP (int rd, int rr)
 }
 
 static INLINE void
-xmega_atomic (int regno, int op, int magic_p)
+xmega_atomic (int regno, int op)
 {
 #ifndef ISA_XMEGA
-  func_ILLEGAL (0, -1);
+  func_ILLEGAL (IL_ARCH, 1);
 #endif
 
   int mask = get_reg (regno);
   int address = get_word_reg (REGZ);
-  int val = (magic_p
-             ? data_read_magic_byte (address)
-             : data_read_byte (address));
+  int val = data_read_byte (address);
 
   put_reg (regno, val);
 
@@ -1116,34 +1078,31 @@ xmega_atomic (int regno, int op, int magic_p)
     case ID_LAT: val ^=  mask; break;
     }
 
-  if (magic_p)
-    data_write_magic_byte (address, val);
-  else
-    data_write_byte (address, val);
+  data_write_byte (address, val);
 }
 
 /* 1001 001d dddd 0100 | XCH */
 static OP_FUNC_TYPE func_XCH (int rd, int rr)
 {
-  xmega_atomic (rd, ID_XCH, 1);
+  xmega_atomic (rd, ID_XCH);
 }
 
 /* 1001 001d dddd 0101 | LAS */
 static OP_FUNC_TYPE func_LAS (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAS, 0);
+  xmega_atomic (rd, ID_LAS);
 }
 
 /* 1001 001d dddd 0110 | LAC */
 static OP_FUNC_TYPE func_LAC (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAC, 0);
+  xmega_atomic (rd, ID_LAC);
 }
 
 /* 1001 001d dddd 0111 | LAT */
 static OP_FUNC_TYPE func_LAT (int rd, int rr)
 {
-  xmega_atomic (rd, ID_LAT, 0);
+  xmega_atomic (rd, ID_LAT);
 }
 
 /* 1001 001d dddd 1111 | PUSH */
@@ -1162,7 +1121,7 @@ static OP_FUNC_TYPE func_ROR (int rd, int rr)
 static OP_FUNC_TYPE func_STS (int rd, int rr)
 {
   //TODO:RAMPD
-  data_write_magic_byte (rr, get_reg (rd));
+  data_write_byte (rr, get_reg (rd));
 }
 
 /* 1001 001d dddd 1100 | ST */
@@ -1412,37 +1371,37 @@ static OP_FUNC_TYPE func_SBIW (int rd, int rr)
 /* 1001 1000 AAAA Abbb | CBI */
 static OP_FUNC_TYPE func_CBI (int rd, int rr)
 {
-  data_write_magic_byte (rd, data_read_magic_byte (rd) & ~(rr));
+  data_write_byte (rd, data_read_byte (rd) & ~(rr));
 }
 
 /* 1001 1010 AAAA Abbb | SBI */
 static OP_FUNC_TYPE func_SBI (int rd, int rr)
 {
-  data_write_magic_byte (rd, data_read_magic_byte (rd) | rr);
+  data_write_byte (rd, data_read_byte (rd) | rr);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC skipping 1 word */
 static OP_FUNC_TYPE func_SBIC (int rd, int rr)
 {
-  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 1);
+  skip_instruction_on_condition (!(data_read_byte (rd) & rr), 1);
 }
 
 /* 1001 1001 AAAA Abbb | SBIC skipping 2 words */
 static OP_FUNC_TYPE func_SBIC2 (int rd, int rr)
 {
-  skip_instruction_on_condition (!(data_read_magic_byte (rd) & rr), 2);
+  skip_instruction_on_condition (!(data_read_byte (rd) & rr), 2);
 }
 
 /* 1001 1011 AAAA Abbb | SBIS skipping 1 word */
 static OP_FUNC_TYPE func_SBIS (int rd, int rr)
 {
-  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 1);
+  skip_instruction_on_condition (data_read_byte (rd) & rr, 1);
 }
 
 /* 1001 1011 AAAA Abbb | SBIS skipping 2 words */
 static OP_FUNC_TYPE func_SBIS2 (int rd, int rr)
 {
-  skip_instruction_on_condition (data_read_magic_byte (rd) & rr, 2);
+  skip_instruction_on_condition (data_read_byte (rd) & rr, 2);
 }
 
 
@@ -1450,13 +1409,13 @@ static OP_FUNC_TYPE func_SBIS2 (int rd, int rr)
 /* 1011 0AAd dddd AAAA | IN */
 static OP_FUNC_TYPE func_IN (int rd, int rr)
 {
-  put_reg (rd, data_read_magic_byte (rr));
+  put_reg (rd, data_read_byte (rr));
 }
 
 /* 1011 1AAd dddd AAAA | OUT */
 static OP_FUNC_TYPE func_OUT (int rd, int rr)
 {
-  data_write_magic_byte (rr, get_reg (rd));
+  data_write_byte (rr, get_reg (rd));
 }
 
 
@@ -1467,7 +1426,7 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
   int delta = (int16_t) rr;
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
-    leave (EXIT_STATUS_EXIT, "infinite loop detected (normal exit)");
+    leave (LEAVE_EXIT, "infinite loop detected (normal exit)");
   cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
 }
 
@@ -1576,13 +1535,13 @@ static void do_exit (void)
 
   log_append ("exit %d: ", r24);
   get_word_reg (24);
-  leave (EXIT_STATUS_EXIT, "exit %d function called", exit_value = r24);
+  leave (LEAVE_EXIT, "exit %d function called", exit_value = r24);
 }
 
 static void do_abort (void)
 {
   log_append ("abort");
-  leave (EXIT_STATUS_ABORTED, "abort function called");
+  leave (LEAVE_ABORTED, "abort function called");
 }
 
 // 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
@@ -1602,11 +1561,10 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 30: do_exit();       break;
     case 31: do_abort();      break;
 
-    case 0: case 1: case 2: case 3:     // Logging control
-    case 4:                             // TICKS_PORT control
-    case 5: case 6:                     // Performance metering
-    case 7:                             // Logging values
-    case 8:                             // similar to reading TICKS_PORT
+    case 0: case 1: case 2: case 3:  // Logging control
+    case 4:                          // Get / reset cycles, insns, rand ...
+    case 5: case 6:                  // Performance metering
+    case 7:                          // Logging values
       do_syscall (sysno, get_word_reg_raw (24));
       break;
     }
@@ -1617,6 +1575,18 @@ static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
   bad_PC (cpu_PC);
 }
 
+static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
+{
+  int rd = (opcode1 >> 4) & 0x1F;
+  const char *mnemo = opcodes[id].mnemonic;
+  const char *s_addr = mnemo + strlen (mnemo) - 2;
+
+  (void) s_addr;
+  log_append ("%-7s .word 0x%04x: undefined operand combination: "
+              "%s overlaps R%d", mnemo, opcode1, s_addr, rd);
+  leave (LEAVE_ABORTED, "opcode 0x%04x has undefined result "
+         "(%s overlaps R%d)", opcode1, mnemo, rd);
+}
 
 // ----------------------------------------------------------------------------
 // AVR opcodes
@@ -1625,7 +1595,7 @@ static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
 const opcode_t opcodes[] =
   {
 #define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)            \
-    [ID_ ## ID] = { func_ ## ID, N_WORDS, N_TICKS },
+    [ID_ ## ID] = { func_ ## ID, NAME, N_WORDS, N_TICKS },
 #include "avr-opcode.def"
 #undef AVR_OPCODE
   };
@@ -1662,7 +1632,7 @@ execute (void)
 
       program.n_insns++;
       if (max_insns && program.n_insns >= max_insns)
-        leave (EXIT_STATUS_TIMEOUT, "instruction count limit reached");
+        leave (LEAVE_TIMEOUT, "instruction count limit reached");
     }
 }
 

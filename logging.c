@@ -42,14 +42,6 @@ const char s_SREG[] = "CZNVSHTI";
 
 static const char *func_symbol[MAX_FLASH_SIZE/2];
 
-static const char* const mnemonic[] =
-  {
-#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)  \
-    [ID_ ## ID] = NAME,
-#include "avr-opcode.def"
-#undef AVR_OPCODE
-  };
-
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
 #include "avrtest.h"
@@ -170,7 +162,7 @@ log_set_func_symbol (int addr, const char *name, int is_func)
     {
       if (addr % 2 != 0
           || addr >= MAX_FLASH_SIZE)
-        leave (EXIT_STATUS_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
+        leave (LEAVE_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
     }
   else if (addr >= MAX_FLASH_SIZE
            || addr % 2 != 0)
@@ -316,7 +308,7 @@ set_call_depth (const decoded_t *d)
           break;
 
         default:
-          leave (EXIT_STATUS_FATAL, "problem in set_call_depth");
+          leave (LEAVE_FATAL, "problem in set_call_depth");
         }
     }
 
@@ -331,7 +323,7 @@ log_add_instr (const decoded_t *d)
   alog.id = d->id;
 
   char mnemo_[16];
-  const char *fmt, *mnemo = mnemonic[alog.id];
+  const char *fmt, *mnemo = opcodes[alog.id].mnemonic;
 
   // SYSCALL 0..3 might turn on logging: always log them to alog.data[].
 
@@ -341,6 +333,12 @@ log_add_instr (const decoded_t *d)
   if ((alog.unused = !maybe_used))
     return;
 
+  if (alog.id == ID_UNDEF)
+    {
+      log_append (arch.pc_3bytes ? "%06x: " : "%04x: ", cpu_PC * 2);
+      return;
+    }
+  
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (d, mnemo_ + strlen (mnemo));
   fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
@@ -378,12 +376,12 @@ log_add_data_mov (const char *format, int addr, int value)
       return;
     }
 
-  for (const magic_t *p = named_port; ; p++)
+  for (const sfr_t *sfr = named_sfr; ; sfr++)
     {
-      if (addr == p->addr
-          && (p->pon == NULL || *p->pon))
-        s_name = p->name;
-      else if (p->name == NULL)
+      if (addr == sfr->addr
+          && (sfr->pon == NULL || *sfr->pon))
+        s_name = sfr->name;
+      else if (sfr->name == NULL)
         sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
       else
         continue;
@@ -485,25 +483,9 @@ get_r20_value (const layout_t *lay)
   return val;
 }
 
-enum
-{
-  TI_CYCLES,
-  TI_INSNS,
-  TI_RAND,
-  TI_PRAND
-};
-
-// a prime m
-static uint32_t prand_m = 0xfffffffb;
-// phi (m)
-// uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
-// a primitive root of (Z/m*Z)^*
-static uint32_t prand_root = 0xcafebabe;
 
 typedef struct
 {
-  // What value will be read from TICKS_PORT.
-  int config;
   // Offset set by RESET.
   dword n_insns;
   dword n_cycles;
@@ -511,101 +493,77 @@ typedef struct
   uint32_t pvalue;
 } ticks_port_t;
 
-static ticks_port_t ticks_port;
 
-
-static const char*
-s_ti (int mode)
+static void
+do_ticks_cmd (int cfg)
 {
-  switch (mode)
+  static ticks_port_t ticks_port;
+
+  // a prime m
+  const uint32_t prand_m = 0xfffffffb;
+  // phi (m)
+  // uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
+  // a primitive root of (Z/m*Z)^*
+  const uint32_t prand_root = 0xcafebabe;
+
+  cfg &= 0xff;
+  ticks_port_t *tp = &ticks_port;
+
+  if (cfg & TICKS_RESET_ALL_CMD)
     {
-    case TI_CYCLES: return ("cycles");
-    case TI_INSNS:  return ("isns");
-    case TI_PRAND:  return ("prand");
-    case TI_RAND:   return ("rand");
+      log_append ("ticks reset:");
+      if (cfg & TICKS_RESET_CYCLES_CMD)
+        {
+          log_append (" cycles");
+          tp->n_cycles = program.n_cycles;
+        }
+      if (cfg & TICKS_RESET_INSNS_CMD)
+        {
+          log_append (" insns");
+          tp->n_insns = program.n_insns;
+        }
+      if (cfg & TICKS_RESET_PRAND_CMD)
+        {
+          log_append (" prand");
+          tp->pvalue = 0;
+        }
+      return;
     }
-  return "";
-}
 
-
-unsigned
-log_get_ticks (byte *p)
-{
+  const char *what = "???";
   uint32_t value = 0;
 
-  switch (ticks_port.config)
+  switch (cfg)
     {
-    case TI_CYCLES:
-      value = program.n_cycles - ticks_port.n_cycles;
+    case TICKS_GET_CYCLES_CMD:
+      what = "cycles";
+      value = program.n_cycles - tp->n_cycles;
       break;
-    case TI_INSNS:
-      value = program.n_insns - ticks_port.n_insns;
+    case TICKS_GET_INSNS_CMD:
+      what = "insn";
+      value = program.n_insns - tp->n_insns;
       break;
-    case TI_RAND:
+    case TICKS_GET_PRAND_CMD:
+      what = "prand";
+      value = tp->pvalue ? tp->pvalue : 1;
+      value = ((uint64_t) value * prand_root) % prand_m;
+      tp->pvalue = value;
+      break;
+    case TICKS_GET_RAND_CMD:
+      what = "rand";
       value = rand();
       value ^= (unsigned) rand() << 11;
       value ^= (unsigned) rand() << 22;
       break;
-    case TI_PRAND:
-      value = ticks_port.pvalue ? ticks_port.pvalue : 1;
-      value = ((uint64_t) value * prand_root) % prand_m;
-      ticks_port.pvalue = value;
-      break;
     }
+
+  log_append ("ticks get %s: R22<-(%08x) = %u", what, value, value);
+  byte *p = log_cpu_address (22, AR_REG);
 
   *p++ = value;
   *p++ = value >> 8;
   *p++ = value >> 16;
   *p++ = value >> 24;
-
-  return value;
-}
-
-
-static void
-do_get_ticks (void)
-{
-  unsigned value = log_get_ticks (log_cpu_address (22, AR_REG));
-  log_append ("ticks: %s: R22<-(%u)", s_ti (ticks_port.config), value);
-}
-
-
-static void
-do_ticks_cmd (int cfg)
-{
-  const char *r = NULL;
-  const char *s = NULL;
-  ticks_port_t *tp = &ticks_port;
-  cfg &= 0xff;
-
-  switch (cfg)
-    {
-    case TICKS_RESET_CMD:
-      r = s_ti (tp->config);
-      switch (tp->config)
-        {
-        case TI_CYCLES: tp->n_cycles = program.n_cycles; break;
-        case TI_INSNS:  tp->n_insns  = program.n_insns;  break;
-        case TI_PRAND:  tp->pvalue = 0; break;
-        default: r = NULL; break;
-        }
-      break;
-
-    case TICKS_RESET_ALL_CMD:
-      r = "all";
-      tp->n_cycles = program.n_cycles;
-      tp->n_insns  = program.n_insns;
-      tp->pvalue = 0;
-      break;
-
-    case TICKS_IS_CYCLES_CMD: s = s_ti (tp->config = TI_CYCLES); break;
-    case TICKS_IS_INSNS_CMD:  s = s_ti (tp->config = TI_INSNS);  break;
-    case TICKS_IS_PRAND_CMD:  s = s_ti (tp->config = TI_PRAND);  break;
-    case TICKS_IS_RAND_CMD:   s = s_ti (tp->config = TI_RAND);   break;
-    }
-
-  if (r) log_append ("ticks: reset %s", r);
-  if (s) log_append ("ticks: config as %s", s);
 }
 
 
@@ -755,6 +713,8 @@ do_perf_tag_cmd (int x)
   switch (tag_cmd)
     {
     case PERF_TAG_STR_CMD: s = "_TAG string";  cmd = LOG_STR_CMD;   break;
+    case PERF_TAG_S16_CMD:   s = "_TAG s16";   cmd = LOG_S16_CMD;   break;
+    case PERF_TAG_S32_CMD:   s = "_TAG s32";   cmd = LOG_S32_CMD;   break;
     case PERF_TAG_U16_CMD:   s = "_TAG u16";   cmd = LOG_U16_CMD;   break;
     case PERF_TAG_U32_CMD:   s = "_TAG u32";   cmd = LOG_U32_CMD;   break;
     case PERF_TAG_FLOAT_CMD: s = "_TAG float"; cmd = LOG_FLOAT_CMD; break;
@@ -823,7 +783,6 @@ do_syscall (int sysno, int val)
     case 5: do_perf_cmd (val);     break;
     case 6: do_perf_tag_cmd (val); break;
     case 7: do_log_dump (val);     break;
-    case 8: do_get_ticks (); break;
     }
 }
 
@@ -1271,7 +1230,7 @@ log_dump_line (int id)
       alog.maybe_log = 1;
       puts (alog.data);
       if (log_this && alog.unused)
-        leave (EXIT_STATUS_FATAL, "problem in log_dump_line");
+        leave (LEAVE_FATAL, "problem in log_dump_line");
     }
   else
     alog.maybe_log = 0;

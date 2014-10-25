@@ -1,3 +1,54 @@
+2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	Remove last remains of "magic" paradigm.
+
+	* testavr.h (magic_t): Rename to sfr_t.
+	(named_port): Rename to named_sfr.
+	* avrtest.c (data_read_magic_byte, data_write_magic_byte): Remove.
+	Adjust callers to use data_read_byte / data_write_byte instead.
+
+2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	Switch from TICKS_PORT to SYSCALL.
+
+	* avrtest.h (TICKS_PORT): Remove define.
+	(TICKS_IS_CYCLES, TICKS_IS_INSNS, TICKS_IS_PRAND, TICKS_IS_RAND)
+	(TICKS_RESET, TICKS_RESET_ALL): Remove.
+	(avrtest_syscall_8): Remove.
+	(DEF_SYSCALL1_0, DEF_SYSCALL1_1, AT_INLINE): New.
+	(avrtest_cycles, avrtest_insns, avrtest_rand, avrtest_prand)
+	(avrtest_reset_cycles, avrtest_reset_insns, avrtest_reset_prand)
+	(avrtest_reset_all): New.
+	* testavr.h (AR_TICKS_PORT, log_get_ticks): Remove.
+	* avrtest.c (named_port) [TICKS_PORT]: Remove entries.
+	(log_cpu_address) [AR_TICKS_PORT]: Remove.
+	(func_SYSCALL) [8]: Don't handle.
+	* logging.c (do_ticks_cmd): Rewrite.
+	(s_ti, log_get_ticks, do_get_ticks): Remove.
+	(do_syscall) [8]: Don't handle.
+
+2014-10-23  Georg-Johann Lay  <avr@gjlay.de>
+
+	Fail on undefined pre-decrement / post-increment Operations.
+
+	* avr-opcode.def (UNDEF): New.
+	* load_flash.c (decode_opcode) [X+, Y+, Z+, -X, -Y, -Z]: Map
+	instructions with these addressing modes to ID_UNDEF if register
+	overlaps it.
+	* avrtest.c (func_UNDEF): New.
+	* logging.c (mnemonic): Move to...
+	* testavr.h (opcode_t.mnemonic): ... here.
+
+2014-10-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support PERF_TAG_S16, PERF_TAG_S32.
+
+	* avrtest.h (PERF_TAG_S16, PERF_TAG_S32): New.
+	(PERF_TAG_FMT_S16, PERF_TAG_FMT_S32): New.
+	(PERF_TAG_PFMT_S16, PERF_TAG_PFMT_S32): New.
+	* logging.c (do_perf_tag_cmd): Handle PERF_TAG_S16_CMD,
+	PERF_TAG_S32_CMD.
+
 2014-10-20  Georg-Johann Lay  <avr@gjlay.de>
 
 	BUGFIX: Wrong SBRC / SBRS / SBIC / SBIS / CPSE skip offset

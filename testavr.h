@@ -36,6 +36,10 @@
 #define MAX_FLASH_SIZE  (256 * 1024)  // Must be at least 128KB
 #define MAX_EEPROM_SIZE  (16 * 1024)  // .eeprom is read from ELF but unused
 
+#define REGX    26
+#define REGY    28
+#define REGZ    30
+
 // PC is used as array index into decoded_flash[].
 // If PC has bits outside the following mask, something went really wrong,
 // e.g. in pop_PC.
@@ -92,14 +96,14 @@ extern const unsigned invalid_opcode;
 
 enum
   {
-    EXIT_STATUS_EXIT,
-    EXIT_STATUS_ABORTED,
-    EXIT_STATUS_TIMEOUT,
+    LEAVE_EXIT,
+    LEAVE_ABORTED,
+    LEAVE_TIMEOUT,
+    LEAVE_FILE,
     // Something went badly wrong
-    EXIT_STATUS_USAGE,
-    EXIT_STATUS_FILE,
-    EXIT_STATUS_MEMORY,
-    EXIT_STATUS_FATAL
+    LEAVE_USAGE,
+    LEAVE_MEMORY,
+    LEAVE_FATAL
   };
 
 enum
@@ -108,8 +112,14 @@ enum
     AR_RAM,
     AR_FLASH,
     AR_EEPROM,
-    AR_SP,
-    AR_TICKS_PORT
+    AR_SP
+  };
+
+enum
+  {
+    IL_ILL,
+    IL_ARCH,
+    IL_TODO
   };
 
 extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
@@ -122,14 +132,13 @@ extern const int addr_SREG;
 typedef struct
 {
   int addr;
-  int in, out;
+  const char *name;
   // Points to an int telling whether this address is special.
   // NULL means "yes".
   int *pon;
-  const char *name;
-} magic_t;
+} sfr_t;
 
-extern const magic_t named_port[];
+extern const sfr_t named_sfr[];
 
 #define OP_FUNC_TYPE void FASTCALL
 
@@ -138,6 +147,7 @@ typedef OP_FUNC_TYPE (*opcode_func)(int,int);
 typedef struct
 {
   opcode_func func;
+  const char *mnemonic;
   short size;
   short cycles;
 } opcode_t;
@@ -154,7 +164,6 @@ typedef struct
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
 #define do_syscall(...)        (void) 0
-#define log_get_ticks(...)     (void) 0
 #define log_set_func_symbol(...) (void) 0
 
 #else
@@ -167,7 +176,6 @@ extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
 extern void do_syscall (int x, int val);
-extern unsigned log_get_ticks (byte*);
 extern void log_set_func_symbol (int, const char*, int);
 
 #endif  // AVRTEST_LOG
