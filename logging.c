@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <math.h>
 
@@ -54,7 +55,6 @@ static const char *func_symbol[MAX_FLASH_SIZE/2];
 #define LEN_SYMBOL_STACK    100
 
 #define NUM_PERFS 8
-#define NUM_PERF_CMDS 8
 
 #include "logging.h"
 
@@ -674,29 +674,32 @@ do_log_config (int cmd, int val)
 static void
 do_perf_cmd (int x)
 {
-  const char *s = "";
+  const char *s = "???";
   int n = PERF_N (x);
   int cmd = PERF_CMD(x);
 
-  switch (cmd)
+  if (!alog.unused)
     {
-    case PERF_START_CMD: s = "start"; break;
-    case PERF_STOP_CMD:  s = "stop"; break;
-    case PERF_DUMP_CMD:  s = "dump"; break;
-    case PERF_STAT_U32_CMD:   s = "stat u32"; break;
-    case PERF_STAT_S32_CMD:   s = "stat s32"; break;
-    case PERF_STAT_FLOAT_CMD: s = "stat float"; break;
-    case PERF_START_CALL_CMD: s = "start on call"; break;
-    }
+      switch (cmd)
+        {
+        case PERF_START_CMD: s = "start"; break;
+        case PERF_STOP_CMD:  s = "stop"; break;
+        case PERF_DUMP_CMD:  s = "dump"; break;
+        case PERF_STAT_U32_CMD:   s = "stat u32"; break;
+        case PERF_STAT_S32_CMD:   s = "stat s32"; break;
+        case PERF_STAT_FLOAT_CMD: s = "stat float"; break;
+        case PERF_START_CALL_CMD: s = "start on call"; break;
+        }
 
-  if (n) log_append ("PERF %d %s", n, s);
-  else   log_append ("PERF all %s", s);
+      if (n) log_append ("PERF %d %s", n, s);
+      else   log_append ("PERF all %s", s);
+    }
 
   // Do perf-meter stuff only in avrtest*_log in order
   // to avoid impact on execution speed.
-  perf.cmd[cmd] = n ? 1 << n : PERF_ALL;
-  perf.will_be_on = perf.cmd[PERF_START_CMD]
-                    || perf.cmd[PERF_START_CALL_CMD];
+  perf.pmask = n ? 1 << n : PERF_ALL;
+  perf.will_be_on = cmd == PERF_START_CMD || cmd == PERF_START_CALL_CMD;
+  perf.cmd = cmd;
 }
 
 
@@ -852,16 +855,16 @@ minmax_init (minmax_t *mm, long at_start)
 }
 
 static int
-perf_verbose_start (perfs_t *p, int i, int mode)
+perf_verbose_start (perfs_t *p, int i, int cmd)
 {
   qprintf ("\n--- ");
 
   if (!p->valid)
     {
-      if (PERF_START_CMD == mode)
+      if (PERF_START_CMD == cmd)
         qprintf ("Start T%d (round 1", i);
     }
-  else if (PERF_START_CMD == mode)
+  else if (PERF_START_CMD == cmd)
     {
       if (PERF_STAT_CMD == p->valid)
         qprintf ("Start T%d ignored: T%d in Stat mode (%d values",
@@ -879,15 +882,15 @@ perf_verbose_start (perfs_t *p, int i, int mode)
   // Finishing --- message is perf_stat() resp. perf_start()
 
   return (!p->valid
-          || (mode >= PERF_STAT_CMD
+          || (cmd >= PERF_STAT_CMD
               && p->valid == PERF_STAT_CMD)
-          || (mode == PERF_START_CMD
+          || (cmd == PERF_START_CMD
               && p->valid == PERF_START_CMD && !p->on));
 }
 
 // PERF_STAT_XXX (i, x)
 static void
-perf_stat (perfs_t *p, int i, int stat)
+perf_stat (perfs_t *p, int i, int cmd)
 {
   if (p->tag_for_start.cmd >= 0)
     p->tag = p->tag_for_start;
@@ -907,9 +910,9 @@ perf_stat (perfs_t *p, int i, int stat)
   double dval;
   signed sraw = get_r20_value (& layout[LOG_S32_CMD]);
   unsigned uraw = (unsigned) sraw & 0xffffffff;
-  if (PERF_STAT_U32_CMD == stat)
+  if (PERF_STAT_U32_CMD == cmd)
     dval = (double) uraw;
-  else if (PERF_STAT_S32_CMD == stat)
+  else if (PERF_STAT_S32_CMD == cmd)
     dval = (double) sraw;
   else
     dval = decode_avr_float (uraw).x;
@@ -972,9 +975,9 @@ perf_start (perfs_t *p, int i)
 
 // PERF_STOP (i)
 static void
-perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
+perf_stop (perfs_t *p, int i, bool dump_all, int cmd, int sp)
 {
-  if (!dump)
+  if (cmd != PERF_DUMP_CMD)
     {
       int ret = 1;
       if (!p->valid)
@@ -1020,7 +1023,7 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
       minmax_update (& p->tick, ticks, p);
 
       qprintf ("%sStop T%d (round %d",
-               dumps == PERF_ALL ? "  " : "\n--- ", i, p->n);
+               dump_all ? "  " : "\n--- ", i, p->n);
       if (!options.do_quiet)
         print_tag (& p->tag, "", ", ");
 
@@ -1032,11 +1035,11 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
 
 // PERF_DUMP (i)
 static void
-perf_dump (perfs_t *p, int i, int dumps)
+perf_dump (perfs_t *p, int i, bool dump_all)
 {
   if (!p->valid)
     {
-      if (dumps != PERF_ALL)
+      if (!dump_all)
         printf (" Timer T%d \"%s\": -unused-\n\n", i, p->label);
       return;
     }
@@ -1119,40 +1122,42 @@ perf_instruction (int id)
   perf.id = id;
   perf.will_be_on = 0;
 
+  int sp = pSP[0] | (pSP[1] << 8);
+
   // actions requested by perf SYSCALLs 5..6
 
-  int dumps  = perf.cmd[PERF_DUMP_CMD];
-  int starts = perf.cmd[PERF_START_CMD];
-  int stops  = perf.cmd[PERF_STOP_CMD];
-  int starts_call = perf.cmd[PERF_START_CALL_CMD];
-  int stats_u32   = perf.cmd[PERF_STAT_U32_CMD];
-  int stats_s32   = perf.cmd[PERF_STAT_S32_CMD];
-  int stats_float = perf.cmd[PERF_STAT_FLOAT_CMD];
-  int stats = stats_u32 | stats_s32 | stats_float;
+  int pmask = perf.pmask;
 
-  byte *psp = log_cpu_address (0, AR_SP);
-  int sp = psp[0] | (psp[1] << 8);
-  int cmd = starts || starts_call || stops || dumps || stats;
-
-  if (!perf.on && !cmd)
+  if (!perf.on && !pmask)
     goto done;
 
+  perf.pmask = 0;
   perf.on = 0;
 
-  if (dumps)
+  int cmd = perf.cmd;
+  if (cmd == PERF_DUMP_CMD)
     printf ("\n--- Dump # %d:\n", ++perf.n_dumps);
+
+  bool dump_all = cmd == PERF_DUMP_CMD  &&  pmask == PERF_ALL;
 
   for (int i = 1; i < NUM_PERFS; i++)
     {
+      int imask = (1 << i) & pmask;
+      int start = 0, stat = 0, stop = 0, dump = 0;
+
+      if (imask)
+        switch (cmd)
+          {
+          case PERF_START_CMD:
+          case PERF_START_CALL_CMD: start = imask; break;
+          case PERF_STOP_CMD:       stop  = imask; break;
+          case PERF_DUMP_CMD:       dump  = imask; break;
+          case PERF_STAT_U32_CMD:
+          case PERF_STAT_S32_CMD:
+          case PERF_STAT_FLOAT_CMD: stat  = imask; break;
+          }
+
       perfs_t *p = &perfs[i];
-      int start = ((starts | starts_call) & (1 << i)) ? PERF_START_CMD : 0;
-      int stop  = stops & (1 << i);
-      int dump  = dumps & (1 << i);
-      int start_call = starts_call  & (1 << i);
-      int stat_u32   = (stats_u32   & (1 << i)) ? PERF_STAT_U32_CMD : 0;
-      int stat_s32   = (stats_s32   & (1 << i)) ? PERF_STAT_S32_CMD : 0;
-      int stat_float = (stats_float & (1 << i)) ? PERF_STAT_FLOAT_CMD : 0;
-      int stat_val = stat_u32 | stat_s32 | stat_float;
 
       if (p->on
           // PERF_START_CALL:  Only account costs (including CALL+RET)
@@ -1164,11 +1169,11 @@ perf_instruction (int id)
           p->call_only.ticks += program.n_cycles - perf.tick;
         }
 
-      if (stop | dump)
-        perf_stop (p, i, dumps, dump, sp);
+      if (stop || dump)
+        perf_stop (p, i, dump_all, cmd, sp);
 
       if (dump)
-        perf_dump (p, i, dumps);
+        perf_dump (p, i, dump_all);
 
       if (p->on)
         {
@@ -1176,19 +1181,18 @@ perf_instruction (int id)
           minmax_update (& p->calls, perf.calls, p);
         }
 
-      if (start && perf_verbose_start (p, i, start))
+      if (start && perf_verbose_start (p, i, PERF_START_CMD))
         {
           perf_start (p, i);
-          if (start_call)
+          if (cmd == PERF_START_CALL_CMD)
             p->call_only.sp = sp;
         }
-      else if (stat_val && perf_verbose_start (p, i, stat_val))
-        perf_stat (p, i, stat_val);
+      else if (stat && perf_verbose_start (p, i, cmd))
+        perf_stat (p, i, cmd);
 
       perf.on |= p->on;
     }
 
-  memset (perf.cmd, 0, sizeof (perf.cmd));
  done:;
   // Store for the next call of ours.  Needed because log_dump_line()
   // must run after the instruction has performed and we might need

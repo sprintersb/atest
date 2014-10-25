@@ -79,7 +79,8 @@ typedef struct
   int n_dumps;
   
   // Commands as sent by SYSCALL 5..6
-  unsigned cmd[NUM_PERF_CMDS];
+  unsigned cmd;
+  unsigned pmask;
   int pending_LOG_TAG_FMT;
   
   // From PERF_STOP_XXX()

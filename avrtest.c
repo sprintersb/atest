@@ -393,6 +393,7 @@ data_write_word (int address, int value)
 // extern functions to make logging.c independent of ISA_XMEGA
 
 const int addr_SREG = SREG;
+byte* const pSP = cpu_data + SPL;
 
 const sfr_t named_sfr[] =
   {
@@ -412,7 +413,6 @@ byte* log_cpu_address (int address, int where)
     case AR_RAM:    return cpu_data + address;
     case AR_FLASH:  return cpu_flash + address;
     case AR_EEPROM: return cpu_eeprom + address;
-    case AR_SP:     return cpu_data + SPL;
     }
   leave (LEAVE_FATAL, "code must be unreachable");
 }
@@ -422,7 +422,7 @@ void set_function_symbol (int addr, const char *fname, int is_func)
   log_set_func_symbol (addr, fname, is_func);
 }
 
-// Memory allocation that never fails (returns NULL).
+// Memory allocation that never fails (never returns NULL).
 
 void* get_mem (unsigned n, size_t size)
 {

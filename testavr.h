@@ -112,8 +112,7 @@ enum
     AR_REG,
     AR_RAM,
     AR_FLASH,
-    AR_EEPROM,
-    AR_SP
+    AR_EEPROM
   };
 
 enum
@@ -129,6 +128,7 @@ extern byte* log_cpu_address (int, int);
 extern void* get_mem (unsigned, size_t);
 
 extern const int addr_SREG;
+extern byte* const pSP;
 
 typedef struct
 {

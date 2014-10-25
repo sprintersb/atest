@@ -1,3 +1,16 @@
+2014-10-26  Georg-Johann Lay  <avr@gjlay.de>
+
+	Fix PERF_TAG_[P]FMT_FLOAT.  Tidy perf_instruction.
+
+	* avrtest.h (PERF_TAG_FMT_FLOAT, PERF_TAG_PFMT_FLOAT): Fix.
+	* testavr.h (AR_SP): Remove and use...
+	(pSP): ...this instead.
+	* avrtest.c: Same.
+	* logging.h (perf_t.cmd): Turn from array to scalar.
+	* logginc.c: Adjust.
+	(perf_instruction, do_log_config, perf_verbose_start): Tidy.
+	(perf_start, perf_stat, perf_dump, perf_stop): Tidy.
+
 2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
 
 	Fix options.o <- testavr.h dependency.

@@ -36,8 +36,8 @@ enum
 
 enum
   {
-    PERF_STOP_CMD, PERF_START_CMD, PERF_START_CALL_CMD,
-    PERF_DUMP_CMD,
+    PERF_STOP_CMD, PERF_DUMP_CMD,
+    PERF_START_CMD, PERF_START_CALL_CMD,
     PERF_STAT_U32_CMD, PERF_STAT_S32_CMD, PERF_STAT_FLOAT_CMD,
 
     PERF_STAT_CMD = PERF_STAT_U32_CMD
@@ -184,7 +184,7 @@ enum
 #define PERF_TAG_FMT_S32(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_l,  TAG_S32)
 #define PERF_TAG_FMT_U16(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_u,  TAG_U16)
 #define PERF_TAG_FMT_U32(N,F,X)   PERF_TAG_F_((F), (X), (N), _6_ul, TAG_U32)
-#define PERF_TAG_FMT_FLOAT(N,F,X) PERF_TAG_F_((F), (X), (N), _6_f,  TAG_STR)
+#define PERF_TAG_FMT_FLOAT(N,F,X) PERF_TAG_F_((F), (X), (N), _6_f,  TAG_FLOAT)
 
 /* Tagging with custom format string (from Flash) */
 #define PERF_TAG_PFMT_STR(N,F,X)   PERF_TAG_PF_((F), (X), (N), _6_s,  TAG_STR)
