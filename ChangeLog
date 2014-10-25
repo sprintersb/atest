@@ -1,5 +1,12 @@
 2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
 
+	Fix options.o <- testavr.h dependency.
+
+	* Makefile (options.o): Depend on testavr.h.
+	* options.c (usage): Fix LEAVE_USAGE.
+
+2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
+
 	Remove last remains of "magic" paradigm.
 
 	* testavr.h (magic_t): Rename to sfr_t.
