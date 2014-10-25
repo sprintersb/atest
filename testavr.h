@@ -113,8 +113,7 @@ enum
     AR_RAM,
     AR_FLASH,
     AR_EEPROM,
-    AR_SP,
-    AR_TICKS_PORT
+    AR_SP
   };
 
 enum
@@ -167,7 +166,6 @@ typedef struct
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
 #define do_syscall(...)        (void) 0
-#define log_get_ticks(...)     (void) 0
 #define log_set_func_symbol(...) (void) 0
 
 #else
@@ -180,7 +178,6 @@ extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (int id);
 extern void do_syscall (int x, int val);
-extern unsigned log_get_ticks (byte*);
 extern void log_set_func_symbol (int, const char*, int);
 
 #endif  // AVRTEST_LOG

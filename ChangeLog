@@ -1,3 +1,23 @@
+2014-10-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	Switch from TICKS_PORT to SYSCALL.
+
+	* avrtest.h (TICKS_PORT): Remove define.
+	(TICKS_IS_CYCLES, TICKS_IS_INSNS, TICKS_IS_PRAND, TICKS_IS_RAND)
+	(TICKS_RESET, TICKS_RESET_ALL): Remove.
+	(avrtest_syscall_8): Remove.
+	(DEF_SYSCALL1_0, DEF_SYSCALL1_1, AT_INLINE): New.
+	(avrtest_cycles, avrtest_insns, avrtest_rand, avrtest_prand)
+	(avrtest_reset_cycles, avrtest_reset_insns, avrtest_reset_prand)
+	(avrtest_reset_all): New.
+	* testavr.h (AR_TICKS_PORT, log_get_ticks): Remove.
+	* avrtest.c (named_port) [TICKS_PORT]: Remove entries.
+	(log_cpu_address) [AR_TICKS_PORT]: Remove.
+	(func_SYSCALL) [8]: Don't handle.
+	* logging.c (do_ticks_cmd): Rewrite.
+	(s_ti, log_get_ticks, do_get_ticks): Remove.
+	(do_syscall) [8]: Don't handle.
+
 2014-10-23  Georg-Johann Lay  <avr@gjlay.de>
 
 	Fail on undefined pre-decrement / post-increment Operations.

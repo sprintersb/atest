@@ -316,10 +316,6 @@ data_read_magic_byte (int address)
 {
   // add code here to handle special events
 
-  if (address == TICKS_PORT && options.do_ticks)
-    // update TICKS_PORT only on access of first byte to avoid glitches
-    log_get_ticks (cpu_data + TICKS_PORT);
-
   // default action, just read the value
   int ret = cpu_data[address];
 
@@ -435,11 +431,6 @@ const magic_t named_port[] =
     { EIND,  1, 1, &arch.has_eind, "EIND" },
     { RAMPZ, 1, 1, NULL, "RAMPZ" },
 
-    { TICKS_PORT,     1, 1, &options.do_ticks, "TICKS_PORT"   },
-    { TICKS_PORT + 1, 1, 1, &options.do_ticks, "TICKS_PORT+1" },
-    { TICKS_PORT + 2, 1, 1, &options.do_ticks, "TICKS_PORT+2" },
-    { TICKS_PORT + 3, 1, 1, &options.do_ticks, "TICKS_PORT+3" },
-
     { 0, 0, 0, 0, NULL }
   };
   
@@ -452,7 +443,6 @@ byte* log_cpu_address (int address, int where)
     case AR_FLASH:  return cpu_flash + address;
     case AR_EEPROM: return cpu_eeprom + address;
     case AR_SP:         return cpu_data + SPL;
-    case AR_TICKS_PORT: return cpu_data + TICKS_PORT;
     }
   leave (LEAVE_FATAL, "code must be unreachable");
 }
@@ -1606,11 +1596,10 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 30: do_exit();       break;
     case 31: do_abort();      break;
 
-    case 0: case 1: case 2: case 3:     // Logging control
-    case 4:                             // TICKS_PORT control
-    case 5: case 6:                     // Performance metering
-    case 7:                             // Logging values
-    case 8:                             // similar to reading TICKS_PORT
+    case 0: case 1: case 2: case 3:  // Logging control
+    case 4:                          // Get / reset cycles, insns, rand ...
+    case 5: case 6:                  // Performance metering
+    case 7:                          // Logging values
       do_syscall (sysno, get_word_reg_raw (24));
       break;
     }

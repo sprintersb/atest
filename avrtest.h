@@ -32,9 +32,17 @@ enum
 
 enum
   {
-    TICKS_RESET_CMD, TICKS_RESET_ALL_CMD,
-    TICKS_IS_RAND_CMD, TICKS_IS_CYCLES_CMD,
-    TICKS_IS_PRAND_CMD, TICKS_IS_INSNS_CMD
+    TICKS_GET_CYCLES_CMD,
+    TICKS_GET_INSNS_CMD,
+    TICKS_GET_RAND_CMD, 
+    TICKS_GET_PRAND_CMD, 
+
+    TICKS_RESET_CYCLES_CMD = 1 << 2,
+    TICKS_RESET_INSNS_CMD  = 1 << 3,
+    TICKS_RESET_PRAND_CMD  = 1 << 4,
+    TICKS_RESET_ALL_CMD = TICKS_RESET_CYCLES_CMD
+                          | TICKS_RESET_INSNS_CMD
+                          | TICKS_RESET_PRAND_CMD
   };
 
 enum
@@ -58,9 +66,6 @@ enum
 #ifdef IN_AVRTEST
 
 /* This defines are for avrtest itself.  */
-
-// Inputs
-#define TICKS_PORT  TICKS_PORT_ADDR
 
 // bits 5..3
 #define PERF_CMD(n) (0xf & ((n) >> 4))
@@ -232,14 +237,7 @@ enum
 #define PERF_STAT_S32(n,x)   avrtest_syscall_5_s ((x), PERF_CMD_((n),STAT_S32))
 #define PERF_STAT_FLOAT(n,x) avrtest_syscall_5_f ((x), PERF_CMD_((n),STAT_FLOAT))
 
-/* Controlling what slot of TICKS_PORT will be accessable */
-#define TICKS_IS_CYCLES  avrtest_syscall_4 (TICKS_IS_CYCLES_CMD)  /* default */
-#define TICKS_IS_INSNS   avrtest_syscall_4 (TICKS_IS_INSNS_CMD)
-#define TICKS_IS_PRAND   avrtest_syscall_4 (TICKS_IS_PRAND_CMD)
-#define TICKS_IS_RAND    avrtest_syscall_4 (TICKS_IS_RAND_CMD)
-#define TICKS_RESET      avrtest_syscall_4 (TICKS_RESET_CMD)
-#define TICKS_RESET_ALL  avrtest_syscall_4 (TICKS_RESET_ALL_CMD)
-
+#define AT_INLINE __inline__ __attribute__((__always_inline__))
 
 #define CPSE_rr_(r)                         \
   (((0UL + AVRTEST_INVALID_OPCODE) << 16)   \
@@ -263,7 +261,7 @@ enum
 };
 
 #define AVRTEST_DEF_SYSCALL0(S, N)                          \
-  static __inline__ __attribute__((__always_inline__))      \
+  static AT_INLINE                                          \
   void avrtest_syscall ## S (void)                          \
   {                                                         \
     __asm __volatile__ (".long %1 ;; SYSCALL %0"            \
@@ -271,7 +269,7 @@ enum
   }
 
 #define AVRTEST_DEF_SYSCALL1(S, N, T1, R1)                  \
-  static __inline__ __attribute__((__always_inline__))      \
+  static AT_INLINE                                          \
   void avrtest_syscall ## S (T1 _v1_)                       \
   {                                                         \
     register T1 r##R1 __asm (#R1) = _v1_;                   \
@@ -281,7 +279,7 @@ enum
   }
 
 #define AVRTEST_DEF_SYSCALL2(S, N, T1, R1, T2, R2)          \
-  static __inline__ __attribute__((__always_inline__))      \
+  static AT_INLINE                                          \
   void avrtest_syscall ## S (T1 _v1_, T2 _v2_)              \
   {                                                         \
     register T1 r##R1 __asm (#R1) = _v1_;                   \
@@ -291,31 +289,47 @@ enum
                         "r" (r##R1), "r" (r##R2));          \
   }
 
+#define AVRTEST_DEF_SYSCALL1_0(S, N, T0, R0)                \
+  static AT_INLINE                                          \
+  T0 avrtest_syscall ## S (void)                            \
+  {                                                         \
+    register T0 r##R0 __asm (#R0);                          \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "=r" (r##R0)                      \
+                        : "n" (N), "n" (SYSCo_ ## N));      \
+    return r##R0;                                           \
+  }
 
-static __inline__ __attribute__((__always_inline__))
-int avrtest_syscall_28 (void)
-{
-  register int r24 __asm ("24");
-  __asm __volatile__ (".long %2 ;; SYSCALL %1"
-                      : "=r" (r24)
-                      : "n" (28), "n" (SYSCo_28));
-  return r24;
-}
+#define AVRTEST_DEF_SYSCALL1_1(S, N, T0, R0, T1, R1)        \
+  static AT_INLINE                                          \
+  T0 avrtest_syscall ## S (T1 _v1_)                         \
+  {                                                         \
+    register T0 r##R0 __asm (#R0);                          \
+    register T1 r##R1 __asm (#R1) = _v1_;                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "=r" (r##R0)                      \
+                        : "n" (N), "n" (SYSCo_ ## N),       \
+                          "r" (r##R1));                     \
+    return r##R0;                                           \
+  }
+
 
 AVRTEST_DEF_SYSCALL1 (_27, 27, void*, 24)
+AVRTEST_DEF_SYSCALL1_0 (_28, 28, int, 24)
 AVRTEST_DEF_SYSCALL1 (_29, 29, char, 24)
 AVRTEST_DEF_SYSCALL1 (_30, 30, int, 24)
 AVRTEST_DEF_SYSCALL0 (_31, 31)
 
-AVRTEST_DEF_SYSCALL0 (_0, 0) // LOG_OFFI
+AVRTEST_DEF_SYSCALL0 (_0, 0) // LOG_OFF
 AVRTEST_DEF_SYSCALL0 (_1, 1) // LOG_ON
 AVRTEST_DEF_SYSCALL0 (_2, 2) // LOG_PERF
 
 /* LOG_SET (N) */
 AVRTEST_DEF_SYSCALL1 (_3, 3, unsigned, 24)
 
-/* TICKS_PORT config & reset */
-AVRTEST_DEF_SYSCALL1 (_4, 4, unsigned char, 24)
+/* Cycle count, instruction cound, (pseudo) random number */
+AVRTEST_DEF_SYSCALL1   (_4_r, 4, unsigned char, 24)
+AVRTEST_DEF_SYSCALL1_1 (_4_g, 4, unsigned long, 22, unsigned char, 24)
 
 /* Perf-meter control */
 AVRTEST_DEF_SYSCALL1 (_5, 5, unsigned char, 24)
@@ -350,51 +364,86 @@ AVRTEST_DEF_SYSCALL2 (_7_u24, 7, unsigned long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_s24, 7,   signed long, 20, unsigned char, 24)
 #endif
 
-/* Get ticks / insns / (pseudo) random value */
-
-static __inline__ __attribute__((__always_inline__))
-unsigned long avrtest_syscall_8 (void)
-{
-  register unsigned long r22 __asm ("22");
-  __asm __volatile__ (".long %2 ;; SYSCALL %1"
-                      : "=r" (r22)
-                      : "n" (8), "n" (SYSCo_8));
-  return r22;
-}
 
 #undef AVRTEST_DEF_SYSCALL0
 #undef AVRTEST_DEF_SYSCALL1
 #undef AVRTEST_DEF_SYSCALL2
+#undef AVRTEST_DEF_SYSCALL1_0
+#undef AVRTEST_DEF_SYSCALL1_1
 
-static __inline__ __attribute__((__always_inline__))
-void avrtest_abort (void)
+static AT_INLINE void
+avrtest_abort (void)
 {
   avrtest_syscall_31 ();
 }
 
-static __inline__ __attribute__((__always_inline__))
-void avrtest_exit (int _status)
+static AT_INLINE void
+avrtest_exit (int _status)
 {
   avrtest_syscall_30 (_status);
 }
 
-static __inline__ __attribute__((__always_inline__))
-void avrtest_putchar (int _c)
+static AT_INLINE void
+avrtest_putchar (int _c)
 {
   avrtest_syscall_29 (_c);
 }
 
-static __inline__ __attribute__((__always_inline__))
-int avrtest_getchar (void)
+static AT_INLINE int
+avrtest_getchar (void)
 {
   return avrtest_syscall_28 ();
 }
 
-static __inline__ __attribute__((__always_inline__))
-unsigned long avrtest_ticks (void)
+static AT_INLINE unsigned long
+avrtest_cycles (void)
 {
-  return avrtest_syscall_8 ();
+  return avrtest_syscall_4_g (TICKS_GET_CYCLES_CMD);
 }
+
+static AT_INLINE unsigned long
+avrtest_insns (void)
+{
+  return avrtest_syscall_4_g (TICKS_GET_INSNS_CMD);
+}
+
+static AT_INLINE unsigned long
+avrtest_rand (void)
+{
+  return avrtest_syscall_4_g (TICKS_GET_RAND_CMD);
+}
+
+static AT_INLINE unsigned long
+avrtest_prand (void)
+{
+  return avrtest_syscall_4_g (TICKS_GET_PRAND_CMD);
+}
+
+static AT_INLINE void
+avrtest_reset_cycles (void)
+{
+  avrtest_syscall_4_r (TICKS_RESET_CYCLES_CMD);
+}
+
+static AT_INLINE void
+avrtest_reset_insns (void)
+{
+  avrtest_syscall_4_r (TICKS_RESET_INSNS_CMD);
+}
+
+static AT_INLINE void
+avrtest_reset_prand (void)
+{
+  avrtest_syscall_4_r (TICKS_RESET_PRAND_CMD);
+}
+
+static AT_INLINE void
+avrtest_reset_all (void)
+{
+  avrtest_syscall_4_r (TICKS_RESET_ALL_CMD);
+}
+
+#undef AT_INLINE
 
 #endif /* IN_AVRTEST */
 

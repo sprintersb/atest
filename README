@@ -212,6 +212,8 @@ by avrtest and avrtest_log:
 There are more syscalls to interact with avrtest_log and that have no effect
 on avrtest.
 
+The simulator accounts no cycles to executing syscall pseudo instructions.
+
 The former approch of avrtest to interact with the simulated program were
 special memory locations called "magic ports".  Writing to or reading from
 such a location triggered specific actions.  The drawback of that approach
@@ -559,33 +561,27 @@ with __attribute__((noinline,noclone)).  The additional overhead caused by
 the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
-==============================================
- Timing data and random values from TICKS_PORT
-==============================================
+==============================
+ Timing data and random values
+==============================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
-TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit, glitch-free
-value that contains the number of instruction cycles since program start.
-TICKS_PORT can be configured to supply 4 different kinds of values:
+Following functions return a 32-bit value:
 
-    TICKS_IS_CYCLES;        Cycles since program start (default)
-    TICKS_IS_INSNS;         Number of simulated instructions since start
-    TICKS_IS_PRAND;         A 32-bit pseudo randum number
-    TICKS_IS_RAND;          A 32-bit randum number
+    avrtest_cycles();       Program cycles of simulated instructions
+    avrtest_insns();        Number of simulated instructions
+    avrtest_prand();        A 32-bit pseudo random number
+    avrtest_rand();         A 32-bit random number
 
-You can switch back and forth between the different modes of operation
-as needed.  To reset the value for the currently active TICKS_PORT mode
-(except RAND) use
+The values are "owned" by the program and are distinct from the 
+counters used by performance meters or that are displayed when avrtest
+terminates.  Except rand, the values can be reset to their value at
+program start:
 
-    TICKS_RESET;
+    avrtest_reset_cycles();       Set cycles of simulated instructions to 0
+    avrtest_reset_insns();        Set number of simulated instructions to 0
+    avrtest_reset_prand();        Reset the pseudo random number genrator
+    avrtest_reset_all();          Reset all of them
 
-The values for all modes (except RAND) can be reset at the same time by
-
-    TICKS_RESET_ALL;
-
-There is also a syscall function defined in avrtest.h that is less intrusive:
-
-    unsigned long avrtest_ticks (void)
-
-which returns the value as would be read from TICKS_PORT.
+The simulator does not account cycles to syscalls.

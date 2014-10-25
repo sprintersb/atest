@@ -68,7 +68,7 @@ AVR_OPCODE (UNDEF, 0, 0, "")
       .word 0xffff
 
    This sequence is unlikely to be seen in real programs and is used to
-   trigger special target program <-> avrtest intsractions:
+   trigger special target program <-> avrtest interactions:
 
    SYSCALL 31       raise abort
    SYSCALL 30       raise exit
@@ -80,13 +80,12 @@ AVR_OPCODE (UNDEF, 0, 0, "")
 
    SYSCALL 7        dumping values to PC's stdout
    SYSCALL 6..5     performance meters
-   SYSCALL 4        TICKS_PORT control
+   SYSCALL 4        get / reset cycle count, instruction count, (pseudo) rand
    SYSCALL 3..0     logging control
 
-   Remaining syscalls are unused.
-*/
+   Remaining syscalls are unused.  */
 
-AVR_OPCODE (SYSCALL, 2, 0,  "*** SYSCALL")
+AVR_OPCODE (SYSCALL, 2, 0, "*** SYSCALL")
 
 AVR_OPCODE (ADC,         1, 1,    "ADC"    )
 AVR_OPCODE (ADD,         1, 1,    "ADD"    )
