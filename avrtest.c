@@ -823,7 +823,7 @@ static OP_FUNC_TYPE func_WDR (int rd, int rr)
 
 
 /* opcodes with two 5-bit register (Rd and Rr) operands */
-/* 0001 11rd dddd rrrr | ADC or ROL */
+/* 0001 11rd dddd rrrr | ADC */
 static OP_FUNC_TYPE func_ADC (int rd, int rr)
 {
   do_addition_8 (rd, rr, get_carry());
@@ -835,7 +835,7 @@ static OP_FUNC_TYPE func_ROL (int rd, int rr)
   do_shift_8 (rd, get_carry());
 }
 
-/* 0000 11rd dddd rrrr | ADD or LSL */
+/* 0000 11rd dddd rrrr | ADD */
 static OP_FUNC_TYPE func_ADD (int rd, int rr)
 {
   do_addition_8 (rd, rr, 0);
@@ -850,7 +850,9 @@ static OP_FUNC_TYPE func_LSL (int rd, int rr)
 /* 0010 00rd dddd rrrr | AND or TST */
 static OP_FUNC_TYPE func_AND (int rd, int rr)
 {
-  int result = get_reg (rd) & get_reg (rr);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  int result = r1 & r2;
   store_logical_result (rd, result);
 }
 
@@ -865,31 +867,41 @@ static OP_FUNC_TYPE func_TST (int rd, int rr)
 /* 0001 01rd dddd rrrr | CP */
 static OP_FUNC_TYPE func_CP (int rd, int rr)
 {
-  do_subtraction_8 (0, get_reg (rd), get_reg (rr), 0, 0, 0);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  do_subtraction_8 (0, r1, r2, 0, 0, 0);
 }
 
 /* 0000 01rd dddd rrrr | CPC */
 static OP_FUNC_TYPE func_CPC (int rd, int rr)
 {
-  do_subtraction_8 (0, get_reg (rd), get_reg (rr), get_carry(), 1, 0);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  do_subtraction_8 (0, r1, r2, get_carry(), 1, 0);
 }
 
 /* 0001 00rd dddd rrrr | CPSE skipping 1 word */
 static OP_FUNC_TYPE func_CPSE (int rd, int rr)
 {
-  skip_instruction_on_condition (get_reg (rd) == get_reg (rr), 1);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  skip_instruction_on_condition (r1 == r2, 1);
 }
 
 /* 0001 00rd dddd rrrr | CPSE skipping 2 words */
 static OP_FUNC_TYPE func_CPSE2 (int rd, int rr)
 {
-  skip_instruction_on_condition (get_reg (rd) == get_reg (rr), 2);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  skip_instruction_on_condition (r1 == r2, 2);
 }
 
-/* 0010 01rd dddd rrrr | EOR or CLR */
+/* 0010 01rd dddd rrrr | EOR */
 static OP_FUNC_TYPE func_EOR (int rd, int rr)
 {
-  int result = get_reg (rd) ^ get_reg (rr);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  int result = r1 ^ r2;
   store_logical_result (rd, result);
 }
 
@@ -914,20 +926,26 @@ static OP_FUNC_TYPE func_MUL (int rd, int rr)
 /* 0010 10rd dddd rrrr | OR */
 static OP_FUNC_TYPE func_OR (int rd, int rr)
 {
-  int result = get_reg (rd) | get_reg (rr);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  int result = r1 | r2;
   store_logical_result (rd, result);
 }
 
 /* 0000 10rd dddd rrrr | SBC */
 static OP_FUNC_TYPE func_SBC (int rd, int rr)
 {
-  do_subtraction_8 (rd, get_reg (rd), get_reg (rr), get_carry(), 1, 1);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  do_subtraction_8 (rd, r1, r2, get_carry(), 1, 1);
 }
 
 /* 0001 10rd dddd rrrr | SUB */
 static OP_FUNC_TYPE func_SUB (int rd, int rr)
 {
-  do_subtraction_8 (rd, get_reg (rd), get_reg (rr), 0, 0, 1);
+  int r1 = get_reg (rd);
+  int r2 = get_reg (rr);
+  do_subtraction_8 (rd, r1, r2, 0, 0, 1);
 }
 
 
