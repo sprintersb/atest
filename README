@@ -17,7 +17,7 @@ avrtest is an instruction set simulator for AVR core families
 avrtest-xmega is an instruction set simulator for AVR XMEGA core families
     avrxmega6: ATXmega128*, ...
 
-The exectuable that supports AVR XMEGA cores is named avrtest-xmega.
+The executable that supports AVR XMEGA cores is named avrtest-xmega.
 In addition to the avrtest simulator, it supports the XMEGA instructions
 XCH, LAS, LAC and LAT.
 
@@ -87,7 +87,7 @@ int main (void)
 
 
 The avrtest_putchar and avrtest_getchar functions are defined in avrtest.h
-and act like putcher resp. getchar in an ordinary, hosted program:
+and act like putchar resp. getchar in an ordinary, hosted program:
 putchar writes a character to the host's standard output and getchar reads
 a character from the host's standard input.
 
@@ -214,7 +214,7 @@ on avrtest.
 
 The simulator accounts no cycles to executing syscall pseudo instructions.
 
-The former approch of avrtest to interact with the simulated program were
+The former approach of avrtest to interact with the simulated program were
 special memory locations called "magic ports".  Writing to or reading from
 such a location triggered specific actions.  The drawback of that approach
 is that for each memory access which avrtest is simulating, it must test
@@ -341,7 +341,7 @@ if any timer is in a START / STOP round.
 Please notice that this method of switching logging on / off is (low)
 intrusive to the program.  The commands listed above are translated by
 the compiler to machine instructions that might affect code generation
-for the sourrounding code (register allocation, jump offsets, ...).
+for the surrounding code (register allocation, jump offsets, ...).
 The commands have low overhead; it's not more than a SYSCALL.
 
 
@@ -581,7 +581,7 @@ program start:
 
     avrtest_reset_cycles();       Set cycles of simulated instructions to 0
     avrtest_reset_insns();        Set number of simulated instructions to 0
-    avrtest_reset_prand();        Reset the pseudo random number genrator
+    avrtest_reset_prand();        Reset the pseudo random number generator
     avrtest_reset_all();          Reset all of them
 
 The simulator does not account cycles to syscalls.

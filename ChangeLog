@@ -1,3 +1,10 @@
+2014-10-29  Georg-Johann Lay  <avr@gjlay.de>
+
+	Avoid unspecified order when reading GPRs.
+
+	* avrtest.c (CPSE, AND, OR, EOR, CP, CPC, SUB, SBC): Apply get_reg
+	for first input operand first.
+
 2014-10-26  Georg-Johann Lay  <avr@gjlay.de>
 
 	Fix PERF_TAG_[P]FMT_FLOAT.  Tidy perf_instruction.
