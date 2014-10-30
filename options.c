@@ -34,7 +34,7 @@
 
 static const char USAGE[] =
   "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-q]\n"
-  "                 [-runtime] [-ticks] [-no-log] [-no-stdin] [-no-stdout]\n"
+  "                 [-runtime] [-no-log] [-no-stdin] [-no-stdout]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
   "Options:\n"
@@ -47,12 +47,11 @@ static const char USAGE[] =
   "  -q           Quiet operation.  Only print messages explicitly requested,\n"
   "               e.g. by LOG_U8(42).  Pass exit status from the program.\n"
   "  -runtime     Print avrtest execution time.\n"
-  "  -no-ticks    Disable the 32-bit cycle counter TICKS_PORT and ticks syscalls.\n"
   "  -no-log      Disable logging in avrtest_log.  Useful when capturing\n"
   "               performance data.  Logging can still be cnotrolled by the\n"
   "               running program, cf. README.\n"
-  "  -no-stdin    Using getchar syscall has no effect.\n"
-  "  -no-stdout   Using putchar syscall has no effect.\n"
+  "  -no-stdin    Using avrtest_getchar from avrtest.h has no effect.\n"
+  "  -no-stdout   Using avrtest_putchar from avrtest.h has no effect.\n"
   "  -no-syms     Don't display function names from ELF symbol table when\n"
   "               logging.\n"
   "  -mmcu=ARCH   Select instruction set for ARCH\n"
