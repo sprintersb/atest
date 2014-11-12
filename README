@@ -17,21 +17,22 @@ avrtest is an instruction set simulator for AVR core families
 avrtest-xmega is an instruction set simulator for AVR XMEGA core families
     avrxmega6: ATXmega128*, ...
 
-The exectuable that supports AVR XMEGA cores is named avrtest-xmega.
+The executable that supports AVR XMEGA cores is named avrtest-xmega.
 In addition to the avrtest simulator, it supports the XMEGA instructions
 XCH, LAS, LAC and LAT.
 
 In the remainder, avrtest is explained.  avrtest-xmega works similar.
 avrtest does not simulate internal peripherals like timers, I/O ports,
-interrupts, etc. 
+interrupts, etc.
+
 
 ================
 Special features
 ================
 
-The simulator has builtin capability of writing to stdout of the host
-computer (the machine that runs the simulator).  For example, an easy
-hello world program for AVR could look like this:
+The simulated program can communicate with the simulator: It can write to
+the host's standard output and it can read from the host's standard input.
+For example, an easy hello world program for AVR could look like this:
 
 
 #include <stdio.h>
@@ -43,13 +44,13 @@ int main (void)
 }
 
 
-Compile this program as usual but link against exit-atmega128.o. 
+Compile this program as usual but link against exit-atmega128.o.
 How to build that object is explained in the next chapter.  Store the
 C source as hello.c and compile it with, e.g.
 
     avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
-The exit-*.o object implements sudout as a stream writing through to the
+The exit-*.o object implements stdout as a stream writing through to the
 host computer.  Running the program
 
     avrtest hello.elf
@@ -67,7 +68,7 @@ total cycles: 837
 total instr.: 503
 
 
-You can also use these functions directly:
+You can also use the respective primitive functions directly:
 
 
 #include "avrtest.h"
@@ -85,8 +86,11 @@ int main (void)
 }
 
 
-avrtest.h defines avrtest_putchar as a syscall that writes to the host's
-standard output and avrtest_getchar to read from the host's standard input.
+The avrtest_putchar and avrtest_getchar functions are defined in avrtest.h
+and act like putchar resp. getchar in an ordinary, hosted program:
+putchar writes a character to the host's standard output and getchar reads
+a character from the host's standard input.
+
 Compile the C source with
 
     avr-gcc inout.c -O -mmcu=atmega128 -o inout.elf -I /someplace/avrtest
@@ -95,7 +99,7 @@ When running the program with
 
     avrtest inout.elf
 
-hhe simulator will print a 'Q' on the console and wait for input. 
+the simulator will print a 'Q' on the console and wait for input.
 Type '1<Enter>' and the output will be
 
 
@@ -109,7 +113,7 @@ total cycles: 27
 total instr.: 18
 
 
-There are more syscalls for program <-> simulator interactions,
+There are more functions available for program <-> simulator interaction,
 see the respective sections below.
 
 
@@ -130,13 +134,13 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 * Run
 
     make
-  
+
   inside /someplace/avrtest which will build executables from the avrtest
   C-sources and AVR object files exit-*.o from dejagnuboards/exit.c.
 
 * To build exit*.o modules, avr-gcc will be used.  If you want a different
   avr-gcc not found in PATH, use:
-  
+
     make clean-exit all CC_FOR_AVR=/some-compiler-path/avr-gcc
 
 * Copy /someplace/avrtest/.dejagnurc to your $HOME and change the path
@@ -208,7 +212,9 @@ by avrtest and avrtest_log:
 There are more syscalls to interact with avrtest_log and that have no effect
 on avrtest.
 
-The former approch of avrtest to interact with the simulated program were
+The simulator accounts no cycles to executing syscall pseudo instructions.
+
+The former approach of avrtest to interact with the simulated program were
 special memory locations called "magic ports".  Writing to or reading from
 such a location triggered specific actions.  The drawback of that approach
 is that for each memory access which avrtest is simulating, it must test
@@ -231,11 +237,13 @@ The following exit stati will be returned with -q:
   -  0  Everything went fine.
   -  1  Target program called abort()  resp. called syscall abort
   -  x  Target program called exit (x) resp. called syscall exit (x).
-
   - 10  Program timeout as set by -m MAXCOUNT.
-  - 11  Executable could not be found / read, is too big or invalid etc.
-  - 12  Out of memory (avrtest_log only).
-  - 13  Wrong avrtest usage: Unknown options, etc.
+
+  - 20  Out of memory (avrtest_log only).
+  - 21  Wrong avrtest usage: Unknown options, etc.
+  - 22  Program file could not be found / read.
+  - 23  Problem with the program file: Is too big or in wrong
+        format etc.
 
   - 42  Fatal error in avrtest.
 
@@ -334,7 +342,7 @@ if any timer is in a START / STOP round.
 Please notice that this method of switching logging on / off is (low)
 intrusive to the program.  The commands listed above are translated by
 the compiler to machine instructions that might affect code generation
-for the sourrounding code (register allocation, jump offsets, ...).
+for the surrounding code (register allocation, jump offsets, ...).
 The commands have low overhead; it's not more than a SYSCALL.
 
 
@@ -438,23 +446,22 @@ instruction cycles, the next START/STOP round can be tagged with a value:
 
     PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR
     PERF_TAG_U16 (N, U);        ... with a 16-bit unsigned integer U
+    PERF_TAG_S16 (N, U);        ... with a 16-bit signed integer U
     PERF_TAG_U32 (N, U);        ... with a 32-bit unsigned integer U
+    PERF_TAG_S32 (N, U);        ... with a 32-bit signed integer U
     PERF_TAG_FLOAT (N, F);      ... with float F
 
-Just like with LOG_XXX(), U16 and U32 are represented internally as
-"unsigned int" and the float as "double".  The default format strings to
-print the tags are "%s", " %u ", " %u " and " %.6f ", respectively.
+Just like with LOG_XXX(), S16 and S32 are represented internally as "int",
+U16 and U32 as "unsigned" and float as "double".  The default format strings
+to print the tags are "%s" for string, " %u " for the unsigned versions,
+" %d " for the signed ones and " %.6f " for float.
 
 Custom format strings can be supplied by
 
     PERF_TAG_FMT_U16 (N, FMT, U);
-    PERF_TAG_PFMT_U16 (N, FMT, U);
+    PERF_TAG_PFMT_S32 (N, FMT, U);
 
-with a format string FMT located in RAM resp. Flash.  Thus, the
-command to use a signed 32-bit value as tag for the respective
-round of perf-meter 1 could read
-
-    PERF_TAG_FMT_U32 (1, " %d ", n);
+etc. with a format string FMT located in RAM resp. Flash.
 
 Example:
 
@@ -532,7 +539,7 @@ If rounds have been tagged, the tags for the rounds that yielded a minimal
 and maximal value of F are also displayed.  Besides PERF_STAT_FLOAT there
 is also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
 32-bit integer values.
-    
+
 In the sample code from above, one is interested in the resource consumption
 of the sin function.  In order to supply that function with a value x and to
 store the result y, additional instructions are needed:
@@ -555,33 +562,27 @@ with __attribute__((noinline,noclone)).  The additional overhead caused by
 the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
-==============================================
- Timing data and random values from TICKS_PORT
-==============================================
+==============================
+ Timing data and random values
+==============================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
-TICKS_PORT is a 32-bit magic port.  Reading yields a 32-bit, glitch-free
-value that contains the number of instruction cycles since program start.
-TICKS_PORT can be configured to supply 4 different kinds of values:
+Following functions return a 32-bit value:
 
-    TICKS_IS_CYCLES;        Cycles since program start (default)
-    TICKS_IS_INSNS;         Number of simulated instructions since start
-    TICKS_IS_PRAND;         A 32-bit pseudo randum number
-    TICKS_IS_RAND;          A 32-bit randum number
+    avrtest_cycles();       Program cycles of simulated instructions
+    avrtest_insns();        Number of simulated instructions
+    avrtest_prand();        A 32-bit pseudo random number
+    avrtest_rand();         A 32-bit random number
 
-You can switch back and forth between the different modes of operation
-as needed.  To reset the value for the currently active TICKS_PORT mode
-(except RAND) use
+The values are "owned" by the program and are distinct from the 
+counters used by performance meters or that are displayed when avrtest
+terminates.  Except rand, the values can be reset to their value at
+program start:
 
-    TICKS_RESET;
+    avrtest_reset_cycles();       Set cycles of simulated instructions to 0
+    avrtest_reset_insns();        Set number of simulated instructions to 0
+    avrtest_reset_prand();        Reset the pseudo random number generator
+    avrtest_reset_all();          Reset all of them
 
-The values for all modes (except RAND) can be reset at the same time by
-
-    TICKS_RESET_ALL;
-
-There is also a syscall function defined in avrtest.h that is less intrusive:
-
-    unsigned long avrtest_ticks (void)
-
-which returns the value as would be read from TICKS_PORT.
+The simulator does not account cycles to syscalls.

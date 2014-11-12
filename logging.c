@@ -27,28 +27,20 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <math.h>
 
 #include "testavr.h"
 #include "options.h"
 #include "sreg.h"
+#include "graph.h"
 
 #ifndef AVRTEST_LOG
 #error no function herein is needed without AVRTEST_LOG
 #endif // AVRTEST_LOG
 
 const char s_SREG[] = "CZNVSHTI";
-
-static const char *func_symbol[MAX_FLASH_SIZE/2];
-
-static const char* const mnemonic[] =
-  {
-#define AVR_OPCODE(ID, N_WORDS, N_TICKS, NAME)  \
-    [ID_ ## ID] = NAME,
-#include "avr-opcode.def"
-#undef AVR_OPCODE
-  };
 
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
@@ -59,21 +51,28 @@ static const char* const mnemonic[] =
 #define LEN_PERF_LABEL      100
 #define LEN_LOG_STRING      500
 #define LEN_LOG_XFMT        500
-#define LEN_SYMBOL_STACK    100
 
 #define NUM_PERFS 8
-#define NUM_PERF_CMDS 8
 
 #include "logging.h"
+
+unsigned old_PC, old_old_PC;
+
+// Word address --> string_t that holds the symbol or NULL.
+symbol_t *func_sym[MAX_FLASH_SIZE/2];
+
+static string_table_t string_table;
 
 static alog_t alog;
 static perf_t perf;
 static perfs_t perfs[NUM_PERFS];
 
+bool log_unused;
+
 void
 log_append (const char *fmt, ...)
 {
-  if (alog.unused)
+  if (log_unused)
     return;
 
   va_list args;
@@ -163,184 +162,104 @@ log_patch_mnemo (const decoded_t *d, char *buf)
 }
 
 
+/* Add a symbol; called by ELF loader.
+
+   ADDR  is the value of the symbol.
+   STOFF is the offset into the string table string_table.data[].
+   According to ELF, STOFF is non-null as the first char in
+   the string table is always '\0'.
+   IS_FUNC is 1 if the symbol table type is STT_FUNC,
+   0 otherwise. */
+
 void
-log_set_func_symbol (int addr, const char *name, int is_func)
+log_set_func_symbol (int addr, size_t stoff, bool is_func)
 {
-  if (is_func)
+  string_table_t *stab = & string_table;
+
+  if (!stab->data)
+    leave (LEAVE_FATAL, "symbol table is NULL");
+
+  const char *name = stab->data + stoff;
+
+  if (is_func
+      && (addr % 2 != 0
+          || addr >= MAX_FLASH_SIZE))
+    leave (LEAVE_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
+
+  if (addr % 2 != 0
+      // Something weird, maybe orphan etc.
+      || addr >= MAX_FLASH_SIZE
+      // Ignore internal labels
+      || name[0] == '.')
     {
-      if (addr % 2 != 0
-          || addr >= MAX_FLASH_SIZE)
-        leave (EXIT_STATUS_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
+      stab->n_bad++;
+      return;
     }
-  else if (addr >= MAX_FLASH_SIZE
-           || addr % 2 != 0)
-    // Something weird, maybe orphan etc.
+
+  symbol_t *s = graph_elf_symbol (name, stoff, addr / 2, is_func);
+
+  if (!s)
     return;
 
-  func_symbol[addr/2] = name;
-  
-  if (0 == strcmp ("__prologue_saves__", name))
-    alog.prologue_save.pc = addr/2;
-  if (0 == strcmp ("__epilogue_restores__", name))
-    alog.epilogue_restore.pc = addr/2;
+  stab->n_funcs += is_func;
+  stab->n_vec += s->type == T_VECTOR;
+  stab->n_strings ++; // FIXME (from ELF?)
+  func_sym[addr / 2] = s;
 }
 
 
-static inline
-const char *func_name (int i)
+void
+log_set_string_table (char *stab, size_t size, int n_entries)
 {
-  return i >= 0 && i < LEN_SYMBOL_STACK && alog.symbol_stack[i]
-    ? alog.symbol_stack[i]
-    : "?";
+  string_table_t *s = & string_table;
+
+  s->data = stab;
+  s->size = size;
+  s->n_entries = n_entries;
+
+  graph_set_string_table (stab, size, n_entries);
 }
 
 
-/* Track the current call depth for performance metering and to display
-   during instruction logging as functions are entered / left.
-   Tracking setjmp / longjmp is too painful and would bring hardly
-   any benefit -- for now we are fine with a note in README.  */
-
-static void
-set_call_depth (const decoded_t *d)
+void
+log_finish_string_table (void)
 {
-  int call = 0;
-  int id = d->id;
+  string_table_t *s = & string_table;
 
-  switch (id)
-    {
-    case ID_RCALL:
-      // avr-gcc uses "rcall ." to allocate stack, but an assembler
-      // program might use that instruction just as well for an
-      // ordinary call.  We cannot decide what's going on and take
-      // the case that's more likely: Offset == 0 is allocating stack.
-      call = d->op2 != 0;
-      break;
-    case ID_ICALL: case ID_CALL: case ID_EICALL:
-      call = 1;
-      break;
-    case ID_RET:
-      // GCC might use push/push/ret for indirect jump,
-      // don't account these for call depth
-      if (perf.id != ID_PUSH)
-        call = -1;
-      break;
-    }
+  if (options.do_verbose)
+    printf (">>> strtab[%u] %d entries, %d usable, %d functions, %d other, "
+            "%d bad, %d unused vectors\n", 0U + s->size, s->n_entries,
+            s->n_strings, s->n_funcs, s->n_strings - s->n_funcs, s->n_bad,
+            s->n_vec);
 
-  perf.calls += call;
-
-  if (!options.do_symbols)
-    return;
-
-  int calls = alog.calls = alog.calls + alog.calls_changed;
-  const char *name = func_symbol[cpu_PC], *old_name = NULL;
-
-  // Special handling for __prologue_saves__ and __epilogue_restores__
-  // from libgcc.
-  const char *const prologue_saves = "__prologue_saves__";
-
-  if (alog.prologue_save.func
-      // __prologue_saves__ ends with [E]IJMP
-      && (alog.id == ID_IJMP || alog.id == ID_EIJMP))
-    {
-      name = alog.prologue_save.func;
-      alog.prologue_save.func = NULL;
-      if (calls >= 0 && calls < LEN_SYMBOL_STACK)
-        old_name = prologue_saves;
-    }
-
-  // insn call_prologue_saves: %~jmp __prologue_saves__
-  // insn epilogue_restores:   %~jmp __epilogue_restores__
-  if (alog.id == ID_RJMP || alog.id == ID_JMP)
-    {
-      unsigned off;
-      static char buf[30];
-      // __prologue_saves__ has 18 PUSH entry points
-      if ((off = (unsigned) (cpu_PC - alog.prologue_save.pc)) < 18
-          && alog.prologue_save.pc)
-        {
-          sprintf (buf, "__prologue_saves__ + 2*%u", off);
-          alog.prologue_save.func = func_name (calls);
-          name = buf;
-        }
-      // __epilogue_restores__ has 18 LDD *, Y+q entry points
-      if ((off = (unsigned) (cpu_PC - alog.epilogue_restore.pc)) < 18
-          && alog.epilogue_restore.pc)
-        {
-          sprintf (buf, "__epilogue_restores__ + 2*%u", off);
-          alog.epilogue_restore.func = func_name (calls);
-          name = buf;
-        }
-    }
-
-  // Update symbol stack according to call stack
-  if (calls >= 0 && calls < LEN_SYMBOL_STACK)
-    {
-      if (name)
-        {
-          if (!old_name)
-            old_name = alog.symbol_stack[calls];
-          alog.symbol_stack[calls] = name;
-        }
-      else if (alog.calls_changed == 1)
-        alog.symbol_stack[calls] = "?";
-    }
-
-  if (name || alog.calls_changed)
-    {
-      const char *s0  = func_name (calls);
-      const char *s1  = func_name (calls + 1);
-      const char *s_1 = func_name (calls - 1);
-
-      switch (alog.calls_changed)
-        {
-        case 0:
-          if (!old_name || 0 == strcmp (old_name, s0))
-            log_append ("::: [%d] %s \n", calls, s0);
-          else if (old_name == prologue_saves)
-            log_append ("::: [%d] %s <-- %s \n", calls, s0, old_name);
-          else if (*s0 != '.' || *old_name != '.')
-            log_append ("::: [%d] %s --> %s \n", calls, old_name, s0);
-          break;
-
-        case 1:
-          log_append ("::: [%d]-->[%d] %s --> %s \n", calls-1, calls, s_1, s0);
-          break;
-
-        case -1:
-          if (alog.epilogue_restore.func)
-            log_append ("::: [%d]<--[%d] %s <-- %s <-- __epilogue_restores__"
-                        "\n", calls, calls+1, s0, alog.epilogue_restore.func);
-          else
-            log_append ("::: [%d]<--[%d] %s <-- %s \n", calls, calls+1, s0, s1);
-          alog.epilogue_restore.func = NULL;
-          break;
-
-        default:
-          leave (EXIT_STATUS_FATAL, "problem in set_call_depth");
-        }
-    }
-
-  alog.calls_changed = call;
+  graph_finish_string_table ();
 }
 
 
 void
 log_add_instr (const decoded_t *d)
 {
-  set_call_depth (d);
   alog.id = d->id;
+  old_old_PC = old_PC;
+  old_PC = cpu_PC;
 
   char mnemo_[16];
-  const char *fmt, *mnemo = mnemonic[alog.id];
+  const char *fmt, *mnemo = opcodes[alog.id].mnemonic;
 
   // SYSCALL 0..3 might turn on logging: always log them to alog.data[].
 
-  int maybe_used = alog.maybe_log
-                   || (alog.id == ID_SYSCALL && d->op1 <= 3);
+  bool maybe_used = (alog.maybe_log
+                    || (alog.id == ID_SYSCALL && d->op1 <= 3));
 
-  if ((alog.unused = !maybe_used))
+  if ((log_unused = !maybe_used || !need.logging))
     return;
 
+  if (alog.id == ID_UNDEF)
+    {
+      log_append (arch.pc_3bytes ? "%06x: " : "%04x: ", cpu_PC * 2);
+      return;
+    }
+  
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (d, mnemo_ + strlen (mnemo));
   fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
@@ -351,17 +270,18 @@ log_add_instr (const decoded_t *d)
 void
 log_add_flag_read (int mask, int value)
 {
-  if (alog.unused)
+  if (log_unused)
     return;
 
   int bit = mask_to_bit (mask);
   log_append (" %c->%c", s_SREG[bit], '0' + !!value);
 }
 
+
 void
 log_add_data_mov (const char *format, int addr, int value)
 {
-  if (alog.unused)
+  if (log_unused)
     return;
 
   char name[16];
@@ -378,12 +298,12 @@ log_add_data_mov (const char *format, int addr, int value)
       return;
     }
 
-  for (const magic_t *p = named_port; ; p++)
+  for (const sfr_t *sfr = named_sfr; ; sfr++)
     {
-      if (addr == p->addr
-          && (p->pon == NULL || *p->pon))
-        s_name = p->name;
-      else if (p->name == NULL)
+      if (addr == sfr->addr
+          && (sfr->pon == NULL || *sfr->pon))
+        s_name = sfr->name;
+      else if (sfr->name == NULL)
         sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
       else
         continue;
@@ -452,7 +372,7 @@ decode_avr_float (unsigned val)
 // Copy a string from AVR target to the host, but not more than
 // LEN_MAX characters.
 static char*
-read_string (char *p, unsigned addr, int flash_p, size_t len_max)
+read_string (char *p, unsigned addr, bool flash_p, size_t len_max)
 {
   char c;
   size_t n = 0;
@@ -485,25 +405,9 @@ get_r20_value (const layout_t *lay)
   return val;
 }
 
-enum
-{
-  TI_CYCLES,
-  TI_INSNS,
-  TI_RAND,
-  TI_PRAND
-};
-
-// a prime m
-static uint32_t prand_m = 0xfffffffb;
-// phi (m)
-// uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
-// a primitive root of (Z/m*Z)^*
-static uint32_t prand_root = 0xcafebabe;
 
 typedef struct
 {
-  // What value will be read from TICKS_PORT.
-  int config;
   // Offset set by RESET.
   dword n_insns;
   dword n_cycles;
@@ -511,101 +415,77 @@ typedef struct
   uint32_t pvalue;
 } ticks_port_t;
 
-static ticks_port_t ticks_port;
 
-
-static const char*
-s_ti (int mode)
+static void
+do_ticks_cmd (int cfg)
 {
-  switch (mode)
+  static ticks_port_t ticks_port;
+
+  // a prime m
+  const uint32_t prand_m = 0xfffffffb;
+  // phi (m)
+  // uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
+  // a primitive root of (Z/m*Z)^*
+  const uint32_t prand_root = 0xcafebabe;
+
+  cfg &= 0xff;
+  ticks_port_t *tp = &ticks_port;
+
+  if (cfg & TICKS_RESET_ALL_CMD)
     {
-    case TI_CYCLES: return ("cycles");
-    case TI_INSNS:  return ("isns");
-    case TI_PRAND:  return ("prand");
-    case TI_RAND:   return ("rand");
+      log_append ("ticks reset:");
+      if (cfg & TICKS_RESET_CYCLES_CMD)
+        {
+          log_append (" cycles");
+          tp->n_cycles = program.n_cycles;
+        }
+      if (cfg & TICKS_RESET_INSNS_CMD)
+        {
+          log_append (" insns");
+          tp->n_insns = program.n_insns;
+        }
+      if (cfg & TICKS_RESET_PRAND_CMD)
+        {
+          log_append (" prand");
+          tp->pvalue = 0;
+        }
+      return;
     }
-  return "";
-}
 
-
-unsigned
-log_get_ticks (byte *p)
-{
+  const char *what = "???";
   uint32_t value = 0;
 
-  switch (ticks_port.config)
+  switch (cfg)
     {
-    case TI_CYCLES:
-      value = program.n_cycles - ticks_port.n_cycles;
+    case TICKS_GET_CYCLES_CMD:
+      what = "cycles";
+      value = program.n_cycles - tp->n_cycles;
       break;
-    case TI_INSNS:
-      value = program.n_insns - ticks_port.n_insns;
+    case TICKS_GET_INSNS_CMD:
+      what = "insn";
+      value = program.n_insns - tp->n_insns;
       break;
-    case TI_RAND:
+    case TICKS_GET_PRAND_CMD:
+      what = "prand";
+      value = tp->pvalue ? tp->pvalue : 1;
+      value = ((uint64_t) value * prand_root) % prand_m;
+      tp->pvalue = value;
+      break;
+    case TICKS_GET_RAND_CMD:
+      what = "rand";
       value = rand();
       value ^= (unsigned) rand() << 11;
       value ^= (unsigned) rand() << 22;
       break;
-    case TI_PRAND:
-      value = ticks_port.pvalue ? ticks_port.pvalue : 1;
-      value = ((uint64_t) value * prand_root) % prand_m;
-      ticks_port.pvalue = value;
-      break;
     }
+
+  log_append ("ticks get %s: R22<-(%08x) = %u", what, value, value);
+  byte *p = log_cpu_address (22, AR_REG);
 
   *p++ = value;
   *p++ = value >> 8;
   *p++ = value >> 16;
   *p++ = value >> 24;
-
-  return value;
-}
-
-
-static void
-do_get_ticks (void)
-{
-  unsigned value = log_get_ticks (log_cpu_address (22, AR_REG));
-  log_append ("ticks: %s: R22<-(%u)", s_ti (ticks_port.config), value);
-}
-
-
-static void
-do_ticks_cmd (int cfg)
-{
-  const char *r = NULL;
-  const char *s = NULL;
-  ticks_port_t *tp = &ticks_port;
-  cfg &= 0xff;
-
-  switch (cfg)
-    {
-    case TICKS_RESET_CMD:
-      r = s_ti (tp->config);
-      switch (tp->config)
-        {
-        case TI_CYCLES: tp->n_cycles = program.n_cycles; break;
-        case TI_INSNS:  tp->n_insns  = program.n_insns;  break;
-        case TI_PRAND:  tp->pvalue = 0; break;
-        default: r = NULL; break;
-        }
-      break;
-
-    case TICKS_RESET_ALL_CMD:
-      r = "all";
-      tp->n_cycles = program.n_cycles;
-      tp->n_insns  = program.n_insns;
-      tp->pvalue = 0;
-      break;
-
-    case TICKS_IS_CYCLES_CMD: s = s_ti (tp->config = TI_CYCLES); break;
-    case TICKS_IS_INSNS_CMD:  s = s_ti (tp->config = TI_INSNS);  break;
-    case TICKS_IS_PRAND_CMD:  s = s_ti (tp->config = TI_PRAND);  break;
-    case TICKS_IS_RAND_CMD:   s = s_ti (tp->config = TI_RAND);   break;
-    }
-
-  if (r) log_append ("ticks: reset %s", r);
-  if (s) log_append ("ticks: config as %s", s);
 }
 
 
@@ -674,12 +554,12 @@ do_log_dump (int what)
 
 
 enum
-{
-  LOG_ON_CMD,
-  LOG_OFF_CMD,
-  LOG_SET_CMD,
-  LOG_PERF_CMD,
-};
+  {
+    LOG_ON_CMD,
+    LOG_OFF_CMD,
+    LOG_SET_CMD,
+    LOG_PERF_CMD,
+  };
 
 static void
 do_log_config (int cmd, int val)
@@ -692,20 +572,20 @@ do_log_config (int cmd, int val)
     {
     case LOG_ON_CMD:
       log_append ("log On");
-      SET_LOGGING (1, 0, 0);
+      SET_LOGGING (1, false, 0);
       break;
     case LOG_OFF_CMD:
       log_append ("log Off");
-      SET_LOGGING (0, 0, 0);
+      SET_LOGGING (0, false, 0);
       break;
     case LOG_PERF_CMD:
       log_append ("performance log");
-      SET_LOGGING (0, 1, 0);
+      SET_LOGGING (0, true, 0);
       break;
     case LOG_SET_CMD:
       alog.count_val = val ? val : 0x10000;
       log_append ("start log %u", alog.count_val);
-      SET_LOGGING (1, 0, 1 + alog.count_val);
+      SET_LOGGING (1, false, 1 + alog.count_val);
       break;
     }
 
@@ -716,29 +596,32 @@ do_log_config (int cmd, int val)
 static void
 do_perf_cmd (int x)
 {
-  const char *s = "";
+  const char *s = "???";
   int n = PERF_N (x);
   int cmd = PERF_CMD(x);
 
-  switch (cmd)
+  if (!log_unused)
     {
-    case PERF_START_CMD: s = "start"; break;
-    case PERF_STOP_CMD:  s = "stop"; break;
-    case PERF_DUMP_CMD:  s = "dump"; break;
-    case PERF_STAT_U32_CMD:   s = "stat u32"; break;
-    case PERF_STAT_S32_CMD:   s = "stat s32"; break;
-    case PERF_STAT_FLOAT_CMD: s = "stat float"; break;
-    case PERF_START_CALL_CMD: s = "start on call"; break;
-    }
+      switch (cmd)
+        {
+        case PERF_START_CMD: s = "start"; break;
+        case PERF_STOP_CMD:  s = "stop"; break;
+        case PERF_DUMP_CMD:  s = "dump"; break;
+        case PERF_STAT_U32_CMD:   s = "stat u32"; break;
+        case PERF_STAT_S32_CMD:   s = "stat s32"; break;
+        case PERF_STAT_FLOAT_CMD: s = "stat float"; break;
+        case PERF_START_CALL_CMD: s = "start on call"; break;
+        }
 
-  if (n) log_append ("PERF %d %s", n, s);
-  else   log_append ("PERF all %s", s);
+      if (n) log_append ("PERF %d %s", n, s);
+      else   log_append ("PERF all %s", s);
+    }
 
   // Do perf-meter stuff only in avrtest*_log in order
   // to avoid impact on execution speed.
-  perf.cmd[cmd] = n ? 1 << n : PERF_ALL;
-  perf.will_be_on = perf.cmd[PERF_START_CMD]
-                    || perf.cmd[PERF_START_CALL_CMD];
+  perf.pmask = n ? 1 << n : PERF_ALL;
+  perf.will_be_on = cmd == PERF_START_CMD || cmd == PERF_START_CALL_CMD;
+  perf.cmd = cmd;
 }
 
 
@@ -755,6 +638,8 @@ do_perf_tag_cmd (int x)
   switch (tag_cmd)
     {
     case PERF_TAG_STR_CMD: s = "_TAG string";  cmd = LOG_STR_CMD;   break;
+    case PERF_TAG_S16_CMD:   s = "_TAG s16";   cmd = LOG_S16_CMD;   break;
+    case PERF_TAG_S32_CMD:   s = "_TAG s32";   cmd = LOG_S32_CMD;   break;
     case PERF_TAG_U16_CMD:   s = "_TAG u16";   cmd = LOG_U16_CMD;   break;
     case PERF_TAG_U32_CMD:   s = "_TAG u32";   cmd = LOG_U32_CMD;   break;
     case PERF_TAG_FLOAT_CMD: s = "_TAG float"; cmd = LOG_FLOAT_CMD; break;
@@ -772,7 +657,7 @@ do_perf_tag_cmd (int x)
     {
     case PERF_TAG_FMT_CMD:
     case PERF_TAG_PFMT_CMD:
-      perf.pending_LOG_TAG_FMT = 1;
+      perf.pending_LOG_TAG_FMT = true;
       read_string (perfs[0].tag.fmt, raw, lay->in_rom,
                    sizeof (perfs[0].tag.fmt));
       return;
@@ -801,7 +686,7 @@ do_perf_tag_cmd (int x)
   else
     * t->fmt = '\0';
 
-  perf.pending_LOG_TAG_FMT = 0;
+  perf.pending_LOG_TAG_FMT = false;
 }
 
 
@@ -823,7 +708,6 @@ do_syscall (int sysno, int val)
     case 5: do_perf_cmd (val);     break;
     case 6: do_perf_tag_cmd (val); break;
     case 7: do_log_dump (val);     break;
-    case 8: do_get_ticks (); break;
     }
 }
 
@@ -867,8 +751,8 @@ minmax_update (minmax_t *mm, long x, const perfs_t *p)
 {
   if (x < mm->min && p->tag.cmd >= 0) mm->tag_min = p->tag;
   if (x > mm->max && p->tag.cmd >= 0) mm->tag_max = p->tag;
-  if (x < mm->min) { mm->min = x; mm->min_at = perf.pc; mm->r_min = p->n; }
-  if (x > mm->max) { mm->max = x; mm->max_at = perf.pc; mm->r_max = p->n; }
+  if (x < mm->min) { mm->min = x; mm->min_at = old_PC; mm->r_min = p->n; }
+  if (x > mm->max) { mm->max = x; mm->max_at = old_PC; mm->r_max = p->n; }
 }
 
 static INLINE void
@@ -876,8 +760,8 @@ minmax_update_double (minmax_t *mm, double x, const perfs_t *p)
 {
   if (x < mm->dmin && p->tag.cmd >= 0) mm->tag_min = p->tag;
   if (x > mm->dmax && p->tag.cmd >= 0) mm->tag_max = p->tag;
-  if (x < mm->dmin) { mm->dmin = x; mm->min_at = perf.pc; mm->r_min = p->n; }
-  if (x > mm->dmax) { mm->dmax = x; mm->max_at = perf.pc; mm->r_max = p->n; }
+  if (x < mm->dmin) { mm->dmin = x; mm->min_at = old_PC; mm->r_min = p->n; }
+  if (x > mm->dmax) { mm->dmax = x; mm->max_at = old_PC; mm->r_max = p->n; }
 }
 
 static INLINE void
@@ -893,16 +777,16 @@ minmax_init (minmax_t *mm, long at_start)
 }
 
 static int
-perf_verbose_start (perfs_t *p, int i, int mode)
+perf_verbose_start (perfs_t *p, int i, int cmd)
 {
   qprintf ("\n--- ");
 
   if (!p->valid)
     {
-      if (PERF_START_CMD == mode)
+      if (PERF_START_CMD == cmd)
         qprintf ("Start T%d (round 1", i);
     }
-  else if (PERF_START_CMD == mode)
+  else if (PERF_START_CMD == cmd)
     {
       if (PERF_STAT_CMD == p->valid)
         qprintf ("Start T%d ignored: T%d in Stat mode (%d values",
@@ -920,15 +804,15 @@ perf_verbose_start (perfs_t *p, int i, int mode)
   // Finishing --- message is perf_stat() resp. perf_start()
 
   return (!p->valid
-          || (mode >= PERF_STAT_CMD
+          || (cmd >= PERF_STAT_CMD
               && p->valid == PERF_STAT_CMD)
-          || (mode == PERF_START_CMD
+          || (cmd == PERF_START_CMD
               && p->valid == PERF_START_CMD && !p->on));
 }
 
 // PERF_STAT_XXX (i, x)
 static void
-perf_stat (perfs_t *p, int i, int stat)
+perf_stat (perfs_t *p, int i, int cmd)
 {
   if (p->tag_for_start.cmd >= 0)
     p->tag = p->tag_for_start;
@@ -940,7 +824,8 @@ perf_stat (perfs_t *p, int i, int stat)
     {
       // First value
       p->valid = PERF_STAT_CMD;
-      p->on = p->n = 0;
+      p->on = false;
+      p->n = 0;
       p->val_ev = 0.0;
       minmax_init (& p->val, 0);
     }
@@ -948,9 +833,9 @@ perf_stat (perfs_t *p, int i, int stat)
   double dval;
   signed sraw = get_r20_value (& layout[LOG_S32_CMD]);
   unsigned uraw = (unsigned) sraw & 0xffffffff;
-  if (PERF_STAT_U32_CMD == stat)
+  if (PERF_STAT_U32_CMD == cmd)
     dval = (double) uraw;
-  else if (PERF_STAT_S32_CMD == stat)
+  else if (PERF_STAT_S32_CMD == cmd)
     dval = (double) sraw;
   else
     dval = decode_avr_float (uraw).x;
@@ -970,7 +855,7 @@ perf_stat (perfs_t *p, int i, int stat)
 
 // PERF_START (i)
 static void
-perf_start (perfs_t *p, int i)
+perf_start (perfs_t *p, int i, int call_depth)
 {
   {
     if (p->tag_for_start.cmd >= 0)
@@ -988,13 +873,13 @@ perf_start (perfs_t *p, int i)
       p->insns = p->ticks = 0;
       minmax_init (& p->insn,  program.n_insns);
       minmax_init (& p->tick,  program.n_cycles);
-      minmax_init (& p->calls, perf.calls);
+      minmax_init (& p->calls, call_depth);
       minmax_init (& p->sp,    perf.sp);
       minmax_init (& p->pc,    p->pc_start = cpu_PC);
     }
 
   // (Re)start
-  p->on = 1;
+  p->on = true;
   // Overridden by caller for PERF_START_CALL
   p->call_only.sp = INT_MAX;
   p->call_only.insns = 0;
@@ -1013,9 +898,9 @@ perf_start (perfs_t *p, int i)
 
 // PERF_STOP (i)
 static void
-perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
+perf_stop (perfs_t *p, int i, bool dump_all, int cmd, int call_depth, int sp)
 {
-  if (!dump)
+  if (cmd != PERF_DUMP_CMD)
     {
       int ret = 1;
       if (!p->valid)
@@ -1037,11 +922,11 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
     {
       long ticks;
       int insns;
-      p->on = 0;
-      p->pc.at_end = p->pc_end = perf.pc2;
+      p->on = false;
+      p->pc.at_end = p->pc_end = old_old_PC;
       p->insn.at_end = program.n_insns -1;
       p->tick.at_end = perf.tick;
-      p->calls.at_end = perf.calls;
+      p->calls.at_end = call_depth;
       p->sp.at_end = sp;
       if (p->call_only.sp == LONG_MAX)
         {
@@ -1061,7 +946,7 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
       minmax_update (& p->tick, ticks, p);
 
       qprintf ("%sStop T%d (round %d",
-               dumps == PERF_ALL ? "  " : "\n--- ", i, p->n);
+               dump_all ? "  " : "\n--- ", i, p->n);
       if (!options.do_quiet)
         print_tag (& p->tag, "", ", ");
 
@@ -1073,11 +958,11 @@ perf_stop (perfs_t *p, int i, int dumps, int dump, int sp)
 
 // PERF_DUMP (i)
 static void
-perf_dump (perfs_t *p, int i, int dumps)
+perf_dump (perfs_t *p, int i, bool dump_all)
 {
   if (!p->valid)
     {
-      if (dumps != PERF_ALL)
+      if (!dump_all)
         printf (" Timer T%d \"%s\": -unused-\n\n", i, p->label);
       return;
     }
@@ -1155,45 +1040,46 @@ perf_dump (perfs_t *p, int i, int dumps)
 
 
 static void
-perf_instruction (int id)
+perf_instruction (int id, int call_depth)
 {
-  perf.id = id;
-  perf.will_be_on = 0;
+  perf.will_be_on = false;
+
+  int sp = pSP[0] | (pSP[1] << 8);
 
   // actions requested by perf SYSCALLs 5..6
 
-  int dumps  = perf.cmd[PERF_DUMP_CMD];
-  int starts = perf.cmd[PERF_START_CMD];
-  int stops  = perf.cmd[PERF_STOP_CMD];
-  int starts_call = perf.cmd[PERF_START_CALL_CMD];
-  int stats_u32   = perf.cmd[PERF_STAT_U32_CMD];
-  int stats_s32   = perf.cmd[PERF_STAT_S32_CMD];
-  int stats_float = perf.cmd[PERF_STAT_FLOAT_CMD];
-  int stats = stats_u32 | stats_s32 | stats_float;
+  int pmask = perf.pmask;
 
-  byte *psp = log_cpu_address (0, AR_SP);
-  int sp = psp[0] | (psp[1] << 8);
-  int cmd = starts || starts_call || stops || dumps || stats;
-
-  if (!perf.on && !cmd)
+  if (!perf.on && !pmask)
     goto done;
 
-  perf.on = 0;
+  perf.pmask = 0;
+  perf.on = false;
 
-  if (dumps)
+  int cmd = perf.cmd;
+  if (cmd == PERF_DUMP_CMD)
     printf ("\n--- Dump # %d:\n", ++perf.n_dumps);
+
+  bool dump_all = cmd == PERF_DUMP_CMD  &&  pmask == PERF_ALL;
 
   for (int i = 1; i < NUM_PERFS; i++)
     {
+      int imask = (1 << i) & pmask;
+      int start = 0, stat = 0, stop = 0, dump = 0;
+
+      if (imask)
+        switch (cmd)
+          {
+          case PERF_START_CMD:
+          case PERF_START_CALL_CMD: start = imask; break;
+          case PERF_STOP_CMD:       stop  = imask; break;
+          case PERF_DUMP_CMD:       dump  = imask; break;
+          case PERF_STAT_U32_CMD:
+          case PERF_STAT_S32_CMD:
+          case PERF_STAT_FLOAT_CMD: stat  = imask; break;
+          }
+
       perfs_t *p = &perfs[i];
-      int start = ((starts | starts_call) & (1 << i)) ? PERF_START_CMD : 0;
-      int stop  = stops & (1 << i);
-      int dump  = dumps & (1 << i);
-      int start_call = starts_call  & (1 << i);
-      int stat_u32   = (stats_u32   & (1 << i)) ? PERF_STAT_U32_CMD : 0;
-      int stat_s32   = (stats_s32   & (1 << i)) ? PERF_STAT_S32_CMD : 0;
-      int stat_float = (stats_float & (1 << i)) ? PERF_STAT_FLOAT_CMD : 0;
-      int stat_val = stat_u32 | stat_s32 | stat_float;
 
       if (p->on
           // PERF_START_CALL:  Only account costs (including CALL+RET)
@@ -1205,38 +1091,35 @@ perf_instruction (int id)
           p->call_only.ticks += program.n_cycles - perf.tick;
         }
 
-      if (stop | dump)
-        perf_stop (p, i, dumps, dump, sp);
+      if (stop || dump)
+        perf_stop (p, i, dump_all, cmd, call_depth, sp);
 
       if (dump)
-        perf_dump (p, i, dumps);
+        perf_dump (p, i, dump_all);
 
       if (p->on)
         {
           minmax_update (& p->sp, sp, p);
-          minmax_update (& p->calls, perf.calls, p);
+          minmax_update (& p->calls, call_depth, p);
         }
 
-      if (start && perf_verbose_start (p, i, start))
+      if (start && perf_verbose_start (p, i, PERF_START_CMD))
         {
-          perf_start (p, i);
-          if (start_call)
+          perf_start (p, i, call_depth);
+          if (cmd == PERF_START_CALL_CMD)
             p->call_only.sp = sp;
         }
-      else if (stat_val && perf_verbose_start (p, i, stat_val))
-        perf_stat (p, i, stat_val);
+      else if (stat && perf_verbose_start (p, i, cmd))
+        perf_stat (p, i, cmd);
 
       perf.on |= p->on;
     }
 
-  memset (perf.cmd, 0, sizeof (perf.cmd));
  done:;
   // Store for the next call of ours.  Needed because log_dump_line()
   // must run after the instruction has performed and we might need
   // the values from before the instruction.
   perf.sp  = sp;
-  perf.pc2 = perf.pc;
-  perf.pc  = cpu_PC;
   perf.tick = program.n_cycles;
 }
 
@@ -1245,7 +1128,20 @@ void
 log_init (unsigned val)
 {
   alog.pos = alog.data;
-  alog.maybe_log = 1;
+  alog.maybe_log = true;
+
+  need.perf = have_syscall[5] || have_syscall[6];
+
+  need.logging = (is_avrtest_log
+                  && (options.do_log
+                      || have_syscall[1]
+                      || (have_syscall[2] && need.perf)
+                      || have_syscall[3]));
+
+  need.graph_cost = options.do_graph || options.do_debug_tree;
+
+  need.call_depth = need.graph_cost || need.logging || need.perf;
+  need.graph = need.call_depth;
 
   for (int i = 1; i < NUM_PERFS; i++)
     perfs[i].tag_for_start.cmd = -1;
@@ -1255,30 +1151,39 @@ log_init (unsigned val)
 
 
 void
-log_dump_line (int id)
+log_dump_line (const decoded_t *d)
 {
-  if (id && alog.countdown && --alog.countdown == 0)
+  if (d && alog.countdown && --alog.countdown == 0)
     {
       options.do_log = 0;
       qprintf ("*** done log %u\n", alog.count_val);
     }
 
-  int log_this = (options.do_log
-                  || (alog.perf_only
-                      && (perf.on || perf.will_be_on)));
+  bool log_this = (options.do_log
+                   || (alog.perf_only
+                       && (perf.on || perf.will_be_on)));
   if (log_this || (log_this != alog.log_this))
     {
-      alog.maybe_log = 1;
+      alog.maybe_log = true;
       puts (alog.data);
-      if (log_this && alog.unused)
-        leave (EXIT_STATUS_FATAL, "problem in log_dump_line");
+      if (log_this && log_unused)
+        leave (LEAVE_FATAL, "problem in log_dump_line");
     }
   else
-    alog.maybe_log = 0;
+    alog.maybe_log = false;
 
   alog.log_this = log_this;
 
   alog.pos = alog.data;
   *alog.pos = '\0';
-  perf_instruction (id);
+
+  int call_depth = (d && need.call_depth
+                    ? graph_update_call_depth (d)
+                    : 0);
+
+  if (!d && options.do_graph)
+    graph_write_dot();
+
+  if (need.perf)
+    perf_instruction (d ? d->id : 0, call_depth);
 }

@@ -3,7 +3,11 @@
 *.s
 *.i
 *.o
+*.c.*
 *.tmp
+*.diff
+*.log
+.git
 avrtest
 avrtest-xmega
 avrtest_log

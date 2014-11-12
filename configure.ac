@@ -54,7 +54,7 @@ AC_C_CONST
 
 # Checks for library functions.
 AC_CHECK_FUNCS([gettimeofday strtoul])
-AC_CHECK_FUNCS([memset sqrt strrchr rand srand])
+AC_CHECK_FUNCS([memset sqrt strchr strrchr rand srand])
 
 # autoconf is wrong with sqrt gcc:
 # AC_CHECK_FUNCS([sqrt])

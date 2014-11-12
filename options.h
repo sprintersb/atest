@@ -24,16 +24,18 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
+#include <stdbool.h>
+
 typedef struct
 {
   // Name of the architecture
   const char *name;
   // True if PC is 3 bytes, false if only 2 bytes
-  int pc_3bytes;
+  bool pc_3bytes;
   // True if the architecture has EIND related insns (EICALL/EIJMP)
-  int has_eind;
+  bool has_eind;
   // True if this is XMEGA
-  int is_xmega;
+  bool is_xmega;
   // Mask to detect whether cpu_PC is out of bounds
   unsigned int flash_addr_mask;
 } arch_t;
@@ -42,8 +44,8 @@ extern arch_t arch;
 
 enum
   {
-#define AVRTEST_OPT(NAME, DEFLT, VAR)           \
-    OPT_##NAME,
+#define AVRTEST_OPT(NAME, DEFLT, VAR)   \
+    OPT_ ## VAR,
 #include "options.def"
 #undef AVRTEST_OPT
     OPT_unknown
@@ -54,11 +56,9 @@ typedef struct
   // program name of avrtest
   const char *self;
 
-  // filename of the file being executed
-  const char *program_name;
-
-#define AVRTEST_OPT(NAME, DEFLT, VAR)           \
-  int do_##VAR;
+#define AVRTEST_OPT(NAME, DEFLT, VAR)   \
+  int do_##VAR;                         \
+  const char *s_##VAR;
 #include "options.def"
 #undef AVRTEST_OPT
 
@@ -71,8 +71,10 @@ typedef struct
   int avr_argc, avr_argv;
 } args_t;
 
-extern options_t options;
 extern void parse_args (int argc, char *argv[]);
+extern char** comma_list_to_array (const char *tokens, int *n);
+
+extern options_t options;
 extern args_t args;
 extern arch_t arch;
 
