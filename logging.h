@@ -21,6 +21,9 @@
   the Free Software Foundation, 59 Temple Place - Suite 330,
   Boston, MA 02111-1307, USA.  */
 
+#include <stdbool.h>
+#include <stdlib.h>
+
 typedef struct
 {
   // Buffer filled by log_append() and flushed to stdout after the
@@ -28,64 +31,58 @@ typedef struct
   char data[256];
   // Write position in .data[].
   char *pos;
-  // LOG_PERF: Just log when at least one perf-meter is on
-  int perf_only;
   // LOG_SET(N): Log the next f(N) instructions
   unsigned count_val;
   // LOG_SET(N): Value count down to 0 and then stop logging.
   unsigned countdown;
-  // Instruction might turn on logging, thus log it even if logging is
-  // (still) off.  Only ST* and OUT can start logging.
-  int maybe_log;
-  // Whether this instruction has been logged
-  int log_this;
   // ID of current instruction.
   int id;
+  // Instruction might turn on logging, thus log it even if logging is
+  // (still) off.  Only SYSCALLs can start logging.
+  bool log_this;
   // No log needed for the current instruction; dont' add stuff to .data[]
   // in order to speed up matters if logging is (temporarily) off.
-  int unused;
-  // Call depth after the insn completes
-  int calls;
-  // Change of call depth from the last instruction.
-  int calls_changed;
-  // __prologue_saves__ / __epilogue_restores__
-  struct
-  {
-    // Word address of __prologue_saves__ / __epilogue_restores__ or 0
-    int pc;
-    // Function that is using __prologue_saves__ / __epilogue_restores__
-    const char *func;
-  } prologue_save, epilogue_restore;
-  
-  // Symbol stack for function names from ELF.
-  const char *symbol_stack[LEN_SYMBOL_STACK];
+  //int unused;
+  bool maybe_log;
+  // Whether this instruction has been logged
+  // LOG_PERF: Just log when at least one perf-meter is on
+  bool perf_only;
 } alog_t;
+
+
+typedef struct
+{
+  // The ELF string table associated to the ELF symbol table
+  const char *data;
+  size_t size;
+  int n_entries;
+
+  // Number of ...
+  int n_strings;    // ... usable items and indices (inclusive) in strings[]
+  int n_funcs;      // ... that have STT_FUNC as symbol table type
+  int n_bad;        // ... that are of no use for us, e.g. orphans
+  int n_vec;        // ... unused vectors slots
+} string_table_t;
+
 
 typedef struct
 {
   // Whether any perf-meter is curremtly on;
-  int on;
+  bool on;
   // This instruction issued PERF_START and we must log if LOG_PERF is on.
   // However log_add_instr() must run before perf_instruction().
-  int will_be_on;
+  bool will_be_on;
   // PC and SP and program_cycles before the current instruction executed.
   dword tick;
-  int pc, sp;
-  // Yet one step older instruction ID (for call depth) and PC.
-  int id, pc2;
-  // Call depth
-  int calls;
+  int sp;
   // Enumerates PERF_DUMP
   int n_dumps;
-  
   // Commands as sent by SYSCALL 5..6
   unsigned cmd;
   unsigned pmask;
-  int pending_LOG_TAG_FMT;
-  
   // From PERF_STOP_XXX()
-  //int dval_is_set;
   double dval;
+  bool pending_LOG_TAG_FMT;
 } perf_t;
 
 // Min / Max values can be tagged to show the tag in LOG_DUMP
@@ -121,7 +118,7 @@ typedef struct
   int n;
   // 1 after PERF_START
   // 0 after PERF_STOP
-  int on;
+  bool on;
   // Whether this perf holds information, i.e. the perf is after
   // PERF_START but not directly after PERF_DUMP.
   int valid;
@@ -165,10 +162,10 @@ typedef struct
 {
   // # Bytes to read starting at R20
   int size;
-  // Whether the value is signed / loacted in flash (LOG_PSTR etc.)
-  int signed_p, in_rom;
   // Default printf format string
   const char *fmt;
+  // Whether the value is signed / loacted in flash (LOG_PSTR etc.)
+  bool signed_p, in_rom;
 } layout_t;
 
 enum
@@ -183,33 +180,33 @@ enum
 static const layout_t
 layout[LOG_X_sentinel] =
   {
-    [LOG_STR_CMD]  = { 2, 0, 0, "%s" },
-    [LOG_PSTR_CMD] = { 2, 0, 1, "%s"},
-    [LOG_ADDR_CMD] = { 2, 0, 0, " 0x%04x " },
+    [LOG_STR_CMD]   = { 2, "%s",       false, false },
+    [LOG_PSTR_CMD]  = { 2, "%s",       false, true  },
+    [LOG_ADDR_CMD]  = { 2, " 0x%04x ", false, false },
 
-    [LOG_FLOAT_CMD] = { 4, 0, 0, " %.6f " },
+    [LOG_FLOAT_CMD] = { 4, " %.6f ", false, false },
     
-    [LOG_U8_CMD]  = { 1, 0, 0, " %u " },
-    [LOG_U16_CMD] = { 2, 0, 0, " %u " },
-    [LOG_U24_CMD] = { 3, 0, 0, " %u " },
-    [LOG_U32_CMD] = { 4, 0, 0, " %u " },
+    [LOG_U8_CMD]  = { 1, " %u ", false, false },
+    [LOG_U16_CMD] = { 2, " %u ", false, false },
+    [LOG_U24_CMD] = { 3, " %u ", false, false },
+    [LOG_U32_CMD] = { 4, " %u ", false, false },
     
-    [LOG_S8_CMD]  = { 1, 1, 0, " %d " },
-    [LOG_S16_CMD] = { 2, 1, 0, " %d " },
-    [LOG_S24_CMD] = { 3, 1, 0, " %d " },
-    [LOG_S32_CMD] = { 4, 1, 0, " %d " },
+    [LOG_S8_CMD]  = { 1, " %d ", true,  false },
+    [LOG_S16_CMD] = { 2, " %d ", true,  false },
+    [LOG_S24_CMD] = { 3, " %d ", true,  false },
+    [LOG_S32_CMD] = { 4, " %d ", true,  false },
 
-    [LOG_X8_CMD]  = { 1, 0, 0, " 0x%02x " },
-    [LOG_X16_CMD] = { 2, 0, 0, " 0x%04x " },
-    [LOG_X24_CMD] = { 3, 0, 0, " 0x%06x " },
-    [LOG_X32_CMD] = { 4, 0, 0, " 0x%08x " },
+    [LOG_X8_CMD]  = { 1, " 0x%02x ", false, false },
+    [LOG_X16_CMD] = { 2, " 0x%04x ", false, false },
+    [LOG_X24_CMD] = { 3, " 0x%06x ", false, false },
+    [LOG_X32_CMD] = { 4, " 0x%08x ", false, false },
 
-    [LOG_UNSET_FMT_CMD]     = { 0, 0, 0, NULL },
-    [LOG_SET_FMT_CMD]       = { 2, 0, 0, NULL },
-    [LOG_SET_PFMT_CMD]      = { 2, 0, 1, NULL },
-    [LOG_SET_FMT_ONCE_CMD]  = { 2, 0, 0, NULL },
-    [LOG_SET_PFMT_ONCE_CMD] = { 2, 0, 1, NULL },
+    [LOG_UNSET_FMT_CMD]     = { 0, NULL, false, false },
+    [LOG_SET_FMT_CMD]       = { 2, NULL, false, false },
+    [LOG_SET_PFMT_CMD]      = { 2, NULL, false, true  },
+    [LOG_SET_FMT_ONCE_CMD]  = { 2, NULL, false, false },
+    [LOG_SET_PFMT_ONCE_CMD] = { 2, NULL, false, true  },
 
-    [LOG_TAG_FMT_CMD]       = { 2, 0, 0, NULL },
-    [LOG_TAG_PFMT_CMD]      = { 2, 0, 1, NULL },
+    [LOG_TAG_FMT_CMD]       = { 2, NULL, false, false },
+    [LOG_TAG_PFMT_CMD]      = { 2, NULL, false, true  },
   };

@@ -238,11 +238,12 @@ The following exit stati will be returned with -q:
   -  1  Target program called abort()  resp. called syscall abort
   -  x  Target program called exit (x) resp. called syscall exit (x).
   - 10  Program timeout as set by -m MAXCOUNT.
-  - 11  Problem with the program file: Could not be found / read,
-        is too big or invalid etc.
 
   - 20  Out of memory (avrtest_log only).
   - 21  Wrong avrtest usage: Unknown options, etc.
+  - 22  Program file could not be found / read.
+  - 23  Problem with the program file: Is too big or in wrong
+        format etc.
 
   - 42  Fatal error in avrtest.
 

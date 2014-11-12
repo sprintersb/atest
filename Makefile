@@ -48,7 +48,8 @@ EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 exit	: $(EXIT_O)
 
 DEP_OPTIONS	= options.def options.h testavr.h Makefile
-DEPS_LOGGING	= $(DEP_OPTIONS) avr-opcode.def sreg.h avrtest.h
+DEPS_GRAPH	= $(DEP_OPTIONS) graph.h
+DEPS_LOGGING	= $(DEP_OPTIONS) avr-opcode.def sreg.h avrtest.h graph.h
 DEPS_LOAD_FLASH = $(DEP_OPTIONS) avr-opcode.def
 DEPS		= $(DEPS_LOGGING) flag-tables.h
 
@@ -58,14 +59,17 @@ $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 $(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o flag-tables.o
 $(A:=$(EXEEXT))     : options.o load-flash.o flag-tables.o
 
-$(A_log:=$(EXEEXT)) : XOBJ += logging.o
+$(A_log:=$(EXEEXT)) : XOBJ += logging.o graph.o
 $(A_log:=$(EXEEXT)) : XLIB += -lm
-$(A_log:=$(EXEEXT)) : logging.o
+$(A_log:=$(EXEEXT)) : logging.o graph.o
 
 options.o: options.c $(DEP_OPTIONS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 logging.o: logging.c logging.h $(DEPS_LOGGING)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+graph.o: graph.c graph.h $(DEPS_GRAPH)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
@@ -104,15 +108,18 @@ $(A_xmega:=$(W).s) : XDEF += -DISA_XMEGA
 $(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o
 $(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o
 
-$(A_log:=.exe) : XOBJ_W += logging$(W).o
+$(A_log:=.exe) : XOBJ_W += logging$(W).o graph(W).o
 $(A_log:=.exe) : XLIB += -lm
-$(A_log:=.exe) : logging$(W).o
+$(A_log:=.exe) : logging$(W).o graph(W).o
 
 
 options$(W).o: options.c $(DEP_OPTIONS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 logging$(W).o: logging.c logging.h $(DEPS_LOGGING)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+graph$(W).o: graph.c graph.h $(DEPS_GRAPH)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 load-flash$(W).o: load-flash.c $(DEPS_LOAD_FLASH)

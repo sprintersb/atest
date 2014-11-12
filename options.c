@@ -33,38 +33,79 @@
 //     parse command line arguments
 
 static const char USAGE[] =
-  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-q]\n"
-  "                 [-runtime] [-no-log] [-no-stdin] [-no-stdout]\n"
+  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-runtime]\n"
+  "                 [-no-log] [-no-stdin] [-no-stdout] [-q] [-graph[=FILE]]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
   "Options:\n"
-  "  -h           Show this help and exit.\n"
-  "  -args ...    Pass all following parameters as argc and argv to main.\n"
-  "  -d           Initialize SRAM from .data (for ELF program)\n"
-  "  -e ENTRY     Byte address of program entry point.  Default for ENTRY is\n"
-  "               the entry point from the ELF program and 0 for non-ELF.\n"
-  "  -m MAXCOUNT  Execute at most MAXCOUNT instructions.\n"
-  "  -q           Quiet operation.  Only print messages explicitly requested,\n"
-  "               e.g. by LOG_U8(42).  Pass exit status from the program.\n"
-  "  -runtime     Print avrtest execution time.\n"
-  "  -no-log      Disable logging in avrtest_log.  Useful when capturing\n"
-  "               performance data.  Logging can still be cnotrolled by the\n"
-  "               running program, cf. README.\n"
-  "  -no-stdin    Using avrtest_getchar from avrtest.h has no effect.\n"
-  "  -no-stdout   Using avrtest_putchar from avrtest.h has no effect.\n"
-  "  -no-syms     Don't display function names from ELF symbol table when\n"
-  "               logging.\n"
-  "  -mmcu=ARCH   Select instruction set for ARCH\n"
+  "  -h            Show this help and exit.\n"
+  "  -args ...     Pass all following parameters as argc and argv to main.\n"
+  "  -d            Initialize SRAM from .data (for ELF program)\n"
+  "  -e ENTRY      Byte address of program entry.  Default for ENTRY is\n"
+  "                the entry point from the ELF program and 0 for non-ELF.\n"
+  "  -m MAXCOUNT   Execute at most MAXCOUNT instructions.\n"
+  "  -q            Quiet operation.  Only print messages explicitly\n"
+  "                requested.  Pass exit status from the program.\n"
+  "  -runtime      Print avrtest execution time.\n"
+  "  -no-log       Disable logging in avrtest_log.  Useful when capturing\n"
+  "                performance data.  Logging can still be controlled by\n"
+  "                the running program, cf. README.\n"
+  "  -no-stdin     Disable avrtest_getchar from avrtest.h.\n"
+  "  -no-stdout    Disable avrtest_putchar from avrtest.h.\n"
+  "  -graph[=FILE] Write a .dot FILE representing the dynamic call graph.\n"
+  "                For the dot tool see  http://graphviz.org\n"
+  "  -graph-help   Show more options to control graph generation and exit.\n"
+  "  -mmcu=ARCH    Select instruction set for ARCH\n"
   "    ARCH is one of:\n";
+
+static const char GRAPH_USAGE[] =
+  "avrtest_log can generate dot files that show the dynamic call\n"
+  "graph traversed during the simulation of the program.  The\n"
+  "produced dot file can be converted to a graphic file using dot.\n"
+  "dot is part of the graphviz package from  http://graphviz.org\n"
+  "and is available for many platforms and OSes.\n"
+  "\n"
+  "To convert dot file \"file.dot\" to the PNG graphic \"file.png\"\n"
+  "resp. to the SVG graphic \"file.svg\" run\n"
+  "\n"
+  "    dot file.dot -Tpng -o file.png\n"
+  "    dot file.dot -Tsvg -o file.svg\n"
+  "\n"
+  "-graph-help   Show this help and exit.\n"
+  "-graph[=FILE] Use FILE as file name for the dot call graph.\n"
+  "              If FILE is \"\" or \"-\" standard output is used.\n"
+  "-graph        Same as above, but compose the file name from\n"
+  "              the program base name and the extension .dot.\n"
+  "-graph-all    Show all nodes, even the ones that got no cycles\n"
+  "              attributed to them.\n"
+  "-graph-base=BASE   Account cycles to nodes only if BASE is in\n"
+  "              their call chain.  Default for BASE is \"main\".\n"
+  "-graph-reserved    Account cycles also to functions whose name\n"
+  "              is a reserved identifier in C, e.g. to library\n"
+  "              support functions like __mulsi3 from libgcc.\n"
+  "-graph-leaf=CLIST  A comma separated list of functions to be\n"
+  "              treated as leaf functions.  Costs of all sub-nodes\n"
+  "              will be propagated to them.\n"
+  "-graph-sub=CLIST   A comma separated list of functions to fully\n"
+  "              expand, i.e. also assign costs to all reserved\n"
+  "              functios they are using.\n"
+  "-graph-skip=CLIST  A comma separated list of functions to ignore.\n"
+  "              Propagate their costs up to the next appropriate\n"
+  "              function in the call tree.\n"
+  "\n"
+  "Arguments BASE and elements of CLIST accept function names and\n"
+  "numbers.  Numbers are treated as byte addresses except \"0\"\n"
+  "which stands for the program entry point.  If you really mean\n"
+  "address 0 then use \"0x0\" or \"00\".\n";
 
 // List of supported archs with their features.
 
 static const arch_t arch_desc[] =
   {
-    { "avr51",     0, 0, 0, 0x01ffff }, // default if is_xmega = 0
-    { "avrxmega6", 1, 1, 1, 0x03ffff }, // default if is_xmega = 1
-    { "avr6",      1, 1, 0, 0x03ffff },
-    { NULL, 0, 0, 0, 0}
+    { "avr51",     false, false, false, 0x01ffff }, // default if is_xmega = 0
+    { "avrxmega6", true,  true,  true,  0x03ffff }, // default if is_xmega = 1
+    { "avr6",      true,  true,  false, 0x03ffff },
+    { NULL, false, false, false, 0}
   };
 
 arch_t arch;
@@ -81,7 +122,9 @@ typedef struct
   // address of target variable
   int *pflag;
   // default value
-  int deflt;
+  //  int deflt;
+  // string after -foo=
+  const char **psuffix;
 } option_t;
 
 
@@ -90,10 +133,17 @@ usage (const char *fmt, ...)
 {
   static char reason[300];
 
+  if (fmt == GRAPH_USAGE)
+    {
+      options.do_quiet = 0;
+      qprintf ("%s\n", GRAPH_USAGE);
+      exit (EXIT_SUCCESS);
+    }
+
   if (!fmt)
     options.do_quiet = 0;
 
-  qprintf (USAGE);
+  qprintf ("%s", USAGE);
   for (const arch_t *d = arch_desc; d->name; d++)
     if (is_xmega == d->is_xmega)
       qprintf (" %s", d->name);
@@ -114,21 +164,21 @@ usage (const char *fmt, ...)
          options.do_quiet ? ", use -h for help" : "");
 }
 
-static option_t option_desc[] =
+static const option_t option_desc[] =
   {
-#define AVRTEST_OPT(NAME, DEFLT, VAR)           \
-    { OPT_##NAME, "-no-"#NAME, &options.do_##VAR, DEFLT  },
+#define AVRTEST_OPT(NAME, DEFLT, VAR)                                   \
+    { OPT_##VAR, "-no-"#NAME, &options.do_##VAR, &options.s_##VAR },
 #include "options.def"
 #undef AVRTEST_OPT
-    { OPT_unknown, NULL, NULL, 0 }
+    { OPT_unknown, NULL, NULL, NULL }
   };
 
 options_t options =
   {
-    "", // .self
-    NULL, // .program_name
-#define AVRTEST_OPT(NAME, DEFLT, VAR)           \
-    DEFLT,
+    "",   // .self
+#define AVRTEST_OPT(NAME, DEFLT, VAR)   \
+    DEFLT,                              \
+    "",
 #include "options.def"
 #undef AVRTEST_OPT
   };
@@ -139,8 +189,10 @@ get_valid_number (const char *str, const char *opt)
 {
   char *end;
   unsigned long val = strtoul (str, &end, 0);
+  if (*end && opt)
+    usage ("invalid number %s in '%s'", str, opt);
   if (*end)
-    usage ("invalid number in '%s %s'", opt, str);
+    usage ("invalid number %s", str);
   return val;
 }
 
@@ -153,23 +205,34 @@ parse_args (int argc, char *argv[])
   arch = arch_desc[is_xmega];
 
   for (int i = 1; i < argc; i++)
-    if (0 == strcmp (argv[i], "?")
-        || 0 == strcmp (argv[i], "-?")
-        || 0 == strcmp (argv[i], "/?")
-        || 0 == strcmp (argv[i], "-h")
-        || 0 == strcmp (argv[i], "--help"))
+    if (str_eq  (argv[i], "?")
+        || str_eq (argv[i], "-?")
+        || str_eq (argv[i], "/?")
+        || str_eq (argv[i], "-h")
+        || str_eq (argv[i], "-help")
+        || str_eq (argv[i], "--help"))
       usage (NULL);
+    else if (str_eq (argv[i], "-graph-help")
+             || str_eq (argv[i], "-help-graph")
+             || str_eq (argv[i], "--help=graph"))
+      usage (GRAPH_USAGE);
 
+  //  Use naive but very portable method to decode arguments.
   for (int i = 1; i < argc; i++)
     {
-      //  Use naive but very portable method to decode arguments.
+      const char *p;
       int on = 0;
-      option_t *o;
+      const option_t *o;
       for (o = option_desc; o->name; o++)
         {
-          if (strcmp (argv[i], o->name + strlen ("-no")) == 0)
+          p = strchr (o->name, '=');
+          if (p && str_prefix (o->name + strlen ("-no"), argv[i]))
+            * o->pflag = on = 1, * o->psuffix = 1 + strchr (argv[i], '=');
+          else if (p && str_prefix (o->name, argv[i]))
+            * o->pflag = 0, * o->psuffix = "";
+          else if (str_eq (argv[i], o->name + strlen ("-no")))
             * o->pflag = on = 1;
-          else if (strcmp (argv[i], o->name) == 0)
+          else if (str_eq (argv[i], o->name))
             * o->pflag = 0;
           else
             continue;
@@ -179,32 +242,37 @@ parse_args (int argc, char *argv[])
       switch (o->id)
         {
         case OPT_unknown:
-          if (strncmp (argv[i], "-mmcu=", 6) == 0)
-            {
-              for (const arch_t *d = arch_desc; ; d++)
-                if (d->name == NULL)
-                  usage ("unknown ARCH '%s'", argv[i] + 6);
-                else if (is_xmega == d->is_xmega
-                         && strcmp (argv[i] + 6, d->name) == 0)
-                  {
-                    arch = *d;
-                    break;
-                  }
-              break;
-            } // -mmcu=
-          
-          if (options.program_name != NULL)
-            usage ("unknown option or second program name '%s'", argv[i]);
-          options.program_name = argv[i];
+          if (program.name != NULL)
+            usage ("unknown option or duplicate program name '%s'", argv[i]);
+
+          program.name = program.short_name = argv[i];
+          // strip directories
+          if ((p = strrchr (program.short_name, '/')))  program.short_name = p;
+          if ((p = strrchr (program.short_name, '\\'))) program.short_name = p;
           break;
 
-        case OPT_e:
+        case OPT_mmcu:
+          if (!on)
+            arch = arch_desc[is_xmega];
+          else
+            for (const arch_t *a = arch_desc; ; a++)
+              if (a->name == NULL)
+                usage ("unknown ARCH '%s'", options.s_mmcu);
+              else if (is_xmega == a->is_xmega
+                       && str_eq (options.s_mmcu, a->name))
+                {
+                  arch = *a;
+                  break;
+                }
+          break; // -mmcu=
+
+        case OPT_entry_point:
           if (++i >= argc)
-            usage ("missing program ENTRY point after '%s'", argv[i]);
+            usage ("missing program ENTRY point after '%s'", argv[i-1]);
           // FIXME: get from avr-ld --entry-point if !on
           if (on)
             {
-              cpu_PC = get_valid_number (argv[i], "-e");
+              cpu_PC = get_valid_number (argv[i], "-e ENTRY");
               if (cpu_PC % 2 != 0)
                 usage ("odd byte address as ENTRY point in '-e %s'", argv[i]);
               if (cpu_PC >= MAX_FLASH_SIZE)
@@ -223,16 +291,24 @@ parse_args (int argc, char *argv[])
           i = argc;
           break; // -args
 
-        case OPT_m:
+        case OPT_max_instr_count:
           if (++i >= argc)
-            usage ("missing MAXCOUNT after '%s'", argv[i]);
+            usage ("missing MAXCOUNT after '%s'", argv[i-1]);
           if (on)
-            program.max_insns = get_valid_number (argv[i], "-m");
+            program.max_insns = get_valid_number (argv[i], "-m MAXCOUNT");
           break; // -m
+
+        case OPT_graph:
+          options.do_graph_filename &= on;
+          break;
+
+        case OPT_graph_filename:
+          options.do_graph = on;
+          break;
         }
     }
 
-  if (options.program_name == NULL)
+  if (program.name == NULL)
     usage ("missing program name");
 }
 
@@ -257,18 +333,13 @@ putchar_escaped (char c)
 void
 put_argv (int args_addr, byte *b)
 {
-  // strip directory to save space
-  const char *p, *program = options.program_name;
-  if ((p = strrchr (program, '/')))    program = p;
-  if ((p = strrchr (program, '\\')))   program = p;
-
   // put strings to args_addr 
   int argc = args.argc - args.i;
   int a = args_addr;
 
   for (int i = args.i; i < args.argc; i++)
     {
-      const char *arg = i == args.i ? program : args.argv[i];
+      const char *arg = i == args.i ? program.short_name : args.argv[i];
       int len = 1 + strlen (arg);
       if (is_avrtest_log)
         qprintf ("*** (%04x) <-- *argv[%d] = \"", a, i - args.i);
@@ -288,7 +359,7 @@ put_argv (int args_addr, byte *b)
   int aa = args_addr;
   for (int i = args.i; i < args.argc; i++)
     {
-      const char *arg = i == args.i ? program : args.argv[i];
+      const char *arg = i == args.i ? program.short_name : args.argv[i];
       int len = 1 + strlen (arg);
       if (is_avrtest_log)
         qprintf ("*** (%04x) <-- argv[%d] = %04x\n", a, i - args.i, aa);
@@ -311,3 +382,33 @@ put_argv (int args_addr, byte *b)
   args.avr_argc = argc;
 }
 
+
+/* TOKENS is a string that is a comma-separated list of tokens
+   "tok1,tok2,...,tokn".  Return a freshly allocated array of non-empty
+   token strings.  Set *N to the number of strings.  */
+
+char**
+comma_list_to_array (const char *tokens, int *n)
+{
+  char *t, *toks = get_mem (2 + strlen (tokens), sizeof (char), "tok");
+
+  // Prepend one ',' for convenience.  We must copy the string anyway.
+  sprintf (toks, ",%s", tokens);
+
+  // Count commas
+  for (t = toks, *n = 0; *t; t++)
+    *n += *t == ',';
+  char **array = get_mem (*n, sizeof (const char*), "tok[]");
+
+  // Find tokens from end to start of TOKS and replace each ',' by
+  // a string terminating '\0'.
+  *n = 0;
+  while ((t = strrchr (toks, ',')))
+    {
+      if (t[1] != '\0')
+        array[(*n)++] = t + 1;
+      *t = '\0';
+    }
+
+  return array;
+}

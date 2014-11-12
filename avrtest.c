@@ -67,9 +67,11 @@
 #define IS_AVRTEST_LOG 0
 #endif
 
-const int is_xmega = CX;
-const int is_avrtest_log = IS_AVRTEST_LOG;
+const bool is_xmega = CX == 1;
+const bool is_avrtest_log = IS_AVRTEST_LOG == 1;
 const int io_base = IOBASE;
+
+bool have_syscall[32];
 
 // ----------------------------------------------------------------------------
 // ports like EXIT_PORT used for application <-> simulator interactions 
@@ -124,8 +126,6 @@ typedef struct
   int quiet_value;
 } exit_status_t;
 
-static int exit_value;
-
 static const exit_status_t exit_status[] = 
   {
     // "EXIT" and "ABORTED" are keywords scanned by board descriptions.
@@ -137,6 +137,7 @@ static const exit_status_t exit_status[] =
     // Something went badly wrong
     [LEAVE_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 20 },
     [LEAVE_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 21 },
+    [LEAVE_IO]      = { "ABORTED", "file i/o",    EXIT_FAILURE, 22 },
     [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 
@@ -226,9 +227,10 @@ leave (int n, const char *reason, ...)
   const exit_status_t *status = & exit_status[n];
   va_list args;
 
+  program.leave_status = n;
   // make sure we print the last log line before leaving
   if (EXIT_SUCCESS == status->failure)
-    log_dump_line (0);
+    log_dump_line (NULL);
 
   qprintf ("\n");
 
@@ -241,13 +243,13 @@ leave (int n, const char *reason, ...)
       va_start (args, reason);
 
       printf (" exit status: %s\n"
-              "      reason: ", exit_value
+              "      reason: ", program.exit_value
               ? exit_status[LEAVE_ABORTED].text
               : status->text);
       vprintf (reason, args);
       printf ("\n"
               "     program: %s\n",
-              options.program_name ? options.program_name : "-not set-");
+              program.name ? program.name : "-not set-");
       if (EXIT_SUCCESS == status->failure)
         {
           if (program.entry_point != 0)
@@ -279,7 +281,7 @@ leave (int n, const char *reason, ...)
       va_end (args);
     }
 
-  exit (n == LEAVE_EXIT ? exit_value : status->quiet_value);
+  exit (n == LEAVE_EXIT ? program.exit_value : status->quiet_value);
 }
 
 // ----------------------------------------------------------------------------
@@ -417,20 +419,30 @@ byte* log_cpu_address (int address, int where)
   leave (LEAVE_FATAL, "code must be unreachable");
 }
 
-void set_function_symbol (int addr, const char *fname, int is_func)
+void set_elf_string_table (char *stab, size_t size, int n_entries)
 {
-  log_set_func_symbol (addr, fname, is_func);
+  log_set_string_table (stab, size, n_entries);
+}
+
+void finish_elf_string_table (void)
+{
+  log_finish_string_table ();
+}
+
+void set_elf_function_symbol (int addr, size_t offset, bool is_func)
+{
+  log_set_func_symbol (addr, offset, is_func);
 }
 
 // Memory allocation that never fails (never returns NULL).
 
-void* get_mem (unsigned n, size_t size)
+void* get_mem (unsigned n, size_t size, const char *purpose)
 {
 #ifdef AVRTEST_LOG
   void *p = calloc (n, size);
   if (p == NULL)
-    leave (LEAVE_MEMORY, "out of memory allocating %u bytes",
-           (unsigned) (n * size));
+    leave (LEAVE_MEMORY, "out of memory allocating %u bytes for %s",
+           (unsigned) (n * size), purpose);
   return p;
 #else
   leave (LEAVE_FATAL, "alloc_mem must be unreachable");
@@ -628,7 +640,7 @@ store_indirect (int rd, int r_addr, int adjust, int offset)
 }
 
 static INLINE void
-load_program_memory (int rd, int use_RAMPZ, int incr)
+load_program_memory (int rd, bool use_RAMPZ, bool incr)
 {
   int address = get_word_reg (REGZ);
   if (use_RAMPZ)
@@ -644,7 +656,7 @@ load_program_memory (int rd, int use_RAMPZ, int incr)
 }
 
 static INLINE void
-skip_instruction_on_condition (int condition, int words_to_skip)
+skip_instruction_on_condition (bool condition, int words_to_skip)
 {
   if (condition)
     {
@@ -677,10 +689,10 @@ rotate_right (int rd, int value, int top_bit /* 0 or 0x100 */)
 }
 
 static INLINE void
-do_multiply (int rd, int rr, int signed1, int signed2, int shift)
+do_multiply (int rd, int rr, bool signed1, bool signed2, int shift)
 {
-  int v1 = signed1 ? ((signed char) get_reg (rd)) : get_reg (rd);
-  int v2 = signed2 ? ((signed char) get_reg (rr)) : get_reg (rr);
+  int v1 = signed1 ? ((int8_t) get_reg (rd)) : get_reg (rd);
+  int v2 = signed2 ? ((int8_t) get_reg (rr)) : get_reg (rr);
   int result = (v1 * v2) & 0xFFFF;
 
   int sreg = (result & 0x8000) >> (15 - FLAG_C_BIT);
@@ -704,7 +716,8 @@ static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
     case IL_ARCH: leave (LEAVE_ABORTED, "opcode 0x%04x illegal on %s",
                          code, arch.name);
     case IL_TODO:
-      log_dump_line (0);
+      program.leave_status = LEAVE_ABORTED;
+      log_dump_line (NULL);
       leave (LEAVE_FATAL, "opcode 0x%04x not yet supported", code);
     }
 
@@ -748,7 +761,7 @@ static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
 /* 1001 0101 1101 1000 | ELPM */
 static OP_FUNC_TYPE func_ELPM (int rd, int rr)
 {
-  load_program_memory (0, 1, 0);
+  load_program_memory (0, true, false);
 }
 
 /* 1001 0101 1111 1000 | ESPM */
@@ -774,7 +787,7 @@ static OP_FUNC_TYPE func_IJMP (int rd, int rr)
 /* 1001 0101 1100 1000 | LPM */
 static OP_FUNC_TYPE func_LPM (int rd, int rr)
 {
-  load_program_memory (0, 0, 0);
+  load_program_memory (0, false, false);
 }
 
 /* 0000 0000 0000 0000 | NOP */
@@ -920,7 +933,7 @@ static OP_FUNC_TYPE func_MOV (int rd, int rr)
 /* 1001 11rd dddd rrrr | MUL */
 static OP_FUNC_TYPE func_MUL (int rd, int rr)
 {
-  do_multiply (rd, rr, 0, 0, 0);
+  do_multiply (rd, rr, false, false, 0);
 }
 
 /* 0010 10rd dddd rrrr | OR */
@@ -978,13 +991,13 @@ static OP_FUNC_TYPE func_DEC (int rd, int rr)
 /* 1001 000d dddd 0110 | ELPM */
 static OP_FUNC_TYPE func_ELPM_Z (int rd, int rr)
 {
-  load_program_memory (rd, 1, 0);
+  load_program_memory (rd, true, false);
 }
 
 /* 1001 000d dddd 0111 | ELPM */
 static OP_FUNC_TYPE func_ELPM_Z_incr (int rd, int rr)
 {
-  load_program_memory (rd, 1, 1);
+  load_program_memory (rd, true, true);
 }
 
 /* 1001 010d dddd 0011 | INC */
@@ -1048,13 +1061,13 @@ static OP_FUNC_TYPE func_LD_Z_incr (int rd, int rr)
 /* 1001 000d dddd 0100 | LPM Z */
 static OP_FUNC_TYPE func_LPM_Z (int rd, int rr)
 {
-  load_program_memory (rd, 0, 0);
+  load_program_memory (rd, false, false);
 }
 
 /* 1001 000d dddd 0101 | LPM Z+ */
 static OP_FUNC_TYPE func_LPM_Z_incr (int rd, int rr)
 {
-  load_program_memory (rd, 0, 1);
+  load_program_memory (rd, false, true);
 }
 
 /* 1001 010d dddd 0110 | LSR */
@@ -1473,32 +1486,32 @@ static OP_FUNC_TYPE func_MOVW (int rd, int rr)
 /* 0000 0010 dddd rrrr | MULS */
 static OP_FUNC_TYPE func_MULS (int rd, int rr)
 {
-  do_multiply (rd, rr, 1, 1, 0);
+  do_multiply (rd, rr, true, true, 0);
 }
 
 /* opcodes with two 3-bit register (Rd and Rr) operands */
 /* 0000 0011 0ddd 0rrr | MULSU */
 static OP_FUNC_TYPE func_MULSU (int rd, int rr)
 {
-  do_multiply (rd, rr, 1, 0, 0);
+  do_multiply (rd, rr, true, false, 0);
 }
 
 /* 0000 0011 0ddd 1rrr | FMUL */
 static OP_FUNC_TYPE func_FMUL (int rd, int rr)
 {
-  do_multiply (rd, rr, 0, 0, 1);
+  do_multiply (rd, rr, false, false, 1);
 }
 
 /* 0000 0011 1ddd 0rrr | FMULS */
 static OP_FUNC_TYPE func_FMULS (int rd, int rr)
 {
-  do_multiply (rd, rr, 1, 1, 1);
+  do_multiply (rd, rr, true, true, 1);
 }
 
 /* 0000 0011 1ddd 1rrr | FMULSU */
 static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 {
-  do_multiply (rd, rr, 1, 0, 1);
+  do_multiply (rd, rr, true, false, 1);
 }
 
 
@@ -1553,7 +1566,7 @@ static void do_exit (void)
 
   log_append ("exit %d: ", r24);
   get_word_reg (24);
-  leave (LEAVE_EXIT, "exit %d function called", exit_value = r24);
+  leave (LEAVE_EXIT, "exit %d function called", program.exit_value = r24);
 }
 
 static void do_abort (void)
@@ -1561,6 +1574,7 @@ static void do_abort (void)
   log_append ("abort");
   leave (LEAVE_ABORTED, "abort function called");
 }
+
 
 // 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
 static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
@@ -1636,7 +1650,7 @@ do_step (void)
   int op1 = d.op1;
   int op2 = d.op2;
   insn->func (op1, op2);
-  log_dump_line (id);
+  log_dump_line (&d);
 }
 
 static INLINE void
@@ -1659,14 +1673,13 @@ int
 main (int argc, char *argv[])
 {
   gettimeofday (&t_start, NULL);
-  log_init (t_start.tv_usec + t_start.tv_sec);
 
   parse_args (argc, argv);
 
   if (options.do_runtime)
     gettimeofday (&t_load, NULL);
 
-  load_to_flash (options.program_name, cpu_flash, cpu_data, cpu_eeprom);
+  load_to_flash (program.name, cpu_flash, cpu_data, cpu_eeprom);
 
   if (options.do_runtime)
     gettimeofday (&t_decode, NULL);
@@ -1676,6 +1689,7 @@ main (int argc, char *argv[])
   if (options.do_runtime)
     gettimeofday (&t_execute, NULL);
 
+  log_init (t_start.tv_usec + t_start.tv_sec);
   execute();
 
   return EXIT_SUCCESS;

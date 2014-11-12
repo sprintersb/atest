@@ -39,6 +39,9 @@
         Variable attached to that option.
 */
 
+// -mmcu=ARCH
+AVRTEST_OPT (mmcu=, 0, mmcu)
+
 // -m <MAX_CYCLES> Maximum number of instructions
 AVRTEST_OPT (m, 0, max_instr_count)
 
@@ -72,8 +75,32 @@ AVRTEST_OPT (args, 0, args)
 /* All of the following options are silently ignored by avrtest
    and behave as if disabled, i.e. specified as -no-...  */
 
-// Whether logging is on active at program start
+// Whether logging is active at program start
 AVRTEST_OPT (log, 1, log)
 
-// Whether to read and display symbol names from ELF
-AVRTEST_OPT (syms, 1, symbols)
+// Whether to write a .dot graphic representing program execution
+AVRTEST_OPT (graph, 0, graph)
+
+// File name for .dot file
+AVRTEST_OPT (graph=, 0, graph_filename)
+
+// Where to start that graph
+AVRTEST_OPT (graph-base=, 0, graph_base)
+
+// Whether to account times to reserved (__foo) functions
+AVRTEST_OPT (graph-reserved, 0, graph_reserved)
+
+// Comma-separated list of functions to be treated as leaf functions
+AVRTEST_OPT (graph-leaf=, 0, graph_leaf)
+
+// Comma-separated list of functions with completely expanded sub-tree
+AVRTEST_OPT (graph-sub=, 0, graph_sub)
+
+// Comma-separated list of functions to ignore
+AVRTEST_OPT (graph-skip=, 0, graph_skip)
+
+// Whether to show the whole (dynamic) call graph, no matter
+// if cycles have been attributed to functions or functions are reserved
+AVRTEST_OPT (graph-all, 0, graph_all)
+
+AVRTEST_OPT (debug-tree, 0, debug_tree)
