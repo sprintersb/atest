@@ -4,6 +4,10 @@
                           ============
 
 
+* Support call graph generation                            r178  2014-11-13
+  - -graph[=FILE]  New option to generate .dot graph
+
+
 * BUGFIX of wrong SBRC / SBRS / SBIC / SBIS / CPSE         r165  2014-10-20
   skip offset introduced with SVN r157 (2014-10-11).
 
