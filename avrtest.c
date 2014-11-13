@@ -1515,7 +1515,7 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 }
 
 
-static void do_argc_argv (void)
+static void sys_argc_argv (void)
 {
   if (!options.do_args)
     {
@@ -1536,7 +1536,7 @@ static void do_argc_argv (void)
     }
 }
 
-static void do_stdin (void)
+static void sys_stdin (void)
 {
   if (options.do_stdin)
     {
@@ -1549,7 +1549,7 @@ static void do_stdin (void)
     log_append ("-no-stdin");
 }
 
-static void do_stdout (void)
+static void sys_stdout (void)
 {
   if (options.do_stdout)
     {
@@ -1560,7 +1560,7 @@ static void do_stdout (void)
     log_append ("-no-stdout");
 }
 
-static void do_exit (void)
+static void sys_exit (void)
 {
   int r24 = (int16_t) get_word_reg_raw (24);
 
@@ -1569,38 +1569,12 @@ static void do_exit (void)
   leave (LEAVE_EXIT, "exit %d function called", program.exit_value = r24);
 }
 
-static void do_abort (void)
+static void sys_abort (void)
 {
   log_append ("abort");
   leave (LEAVE_ABORTED, "abort function called");
 }
 
-
-// 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
-static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
-{
-  log_append ("#%d: ", sysno);
-
-  switch (sysno)
-    {
-    default:
-      log_append ("not implemented ");
-      return;
-
-    case 27: do_argc_argv();  break;
-    case 28: do_stdin();      break;
-    case 29: do_stdout();     break;
-    case 30: do_exit();       break;
-    case 31: do_abort();      break;
-
-    case 0: case 1: case 2: case 3:  // Logging control
-    case 4:                          // Get / reset cycles, insns, rand ...
-    case 5: case 6:                  // Performance metering
-    case 7:                          // Logging values
-      do_syscall (sysno, get_word_reg_raw (24));
-      break;
-    }
-}
 
 static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
 {
@@ -1618,6 +1592,74 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
               "%s overlaps R%d", mnemo, opcode1, s_addr, rd);
   leave (LEAVE_ABORTED, "opcode 0x%04x has undefined result "
          "(%s overlaps R%d)", opcode1, mnemo, rd);
+}
+
+
+/* avrtest uses a concept called "syscall" to let the program interact with
+   the simulator.  The assumption is that the instruction sequence
+
+       CPSE N, N
+       .word 0xffff
+
+   i.e. always skipping the invalid opcode 0xffff, does not occur in any
+   real program.  This sequence is referred to as the pseudo instruction
+
+       SYSCALL N
+
+   and allows to implement 32 distinct syscalls SYSCALL 0 ... SYSCALL 31.
+
+   Each syscall has a spacific interface associated to the SYSCALL number.
+   For example, the syscall to terminate the program by means of EXIT
+   has number 30 and expects the exit status in word register R24:
+
+       LDI R24, <exit-status-lsb>
+       LDI R25, <exit-status-msb>
+       SYSCALL 30
+
+   avrtest.h defines the following inline functions as syscalls which are
+   supported by avrtest and avrtest_log:
+
+       SYSCALL 31:     void avrtest_abort (void)
+       SYSCALL 30:     void avrtest_exit (int)
+       SYSCALL 29:     void avrtest_putchar (int)
+       SYSCALL 28:     int avrtest_getchar (void)
+
+   There are more syscalls to interact with avrtest_log and that have no effect
+   on avrtest.
+
+   The simulator accounts no cycles to executing SYSCALL pseudo instructions.
+
+   The former approach of avrtest to interact with the simulated program were
+   special memory locations called "magic ports".  Writing to or reading from
+   such a location triggered specific actions.  The drawback of that approach
+   is that for each memory access which avrtest is simulating, it must test
+   whether such a special location is being accessed.  These tests are no more
+   needed with the syscall approach and make avrtest run faster.  */
+
+// 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
+static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
+{
+  log_append ("#%d: ", sysno);
+
+  switch (sysno)
+    {
+    default:
+      log_append ("not implemented ");
+      return;
+
+    case 27: sys_argc_argv();  break;
+    case 28: sys_stdin();      break;
+    case 29: sys_stdout();     break;
+    case 30: sys_exit();       break;
+    case 31: sys_abort();      break;
+
+    case 0: case 1: case 2: case 3:  // Logging control
+    case 4:                          // Get / reset cycles, insns, rand ...
+    case 5: case 6:                  // Performance metering
+    case 7:                          // Logging values
+      do_syscall (sysno, get_word_reg_raw (24));
+      break;
+    }
 }
 
 // ----------------------------------------------------------------------------

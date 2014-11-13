@@ -48,10 +48,11 @@ EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 exit	: $(EXIT_O)
 
 DEP_OPTIONS	= options.def options.h testavr.h Makefile
+DEPS_PERF	= $(DEP_OPTIONS) perf.h logging.h avrtest.h
 DEPS_GRAPH	= $(DEP_OPTIONS) graph.h
-DEPS_LOGGING	= $(DEP_OPTIONS) avr-opcode.def sreg.h avrtest.h graph.h
-DEPS_LOAD_FLASH = $(DEP_OPTIONS) avr-opcode.def
-DEPS		= $(DEPS_LOGGING) flag-tables.h
+DEPS_LOGGING	= $(DEP_PERF) sreg.h graph.h
+DEPS_LOAD_FLASH = $(DEP_OPTIONS)
+DEPS		= $(DEP_OPTIONS) sreg.h flag-tables.h
 
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
@@ -59,17 +60,20 @@ $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 $(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o flag-tables.o
 $(A:=$(EXEEXT))     : options.o load-flash.o flag-tables.o
 
-$(A_log:=$(EXEEXT)) : XOBJ += logging.o graph.o
+$(A_log:=$(EXEEXT)) : XOBJ += logging.o graph.o perf.o
 $(A_log:=$(EXEEXT)) : XLIB += -lm
-$(A_log:=$(EXEEXT)) : logging.o graph.o
+$(A_log:=$(EXEEXT)) : logging.o graph.o perf.o
 
 options.o: options.c $(DEP_OPTIONS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging.o: logging.c logging.h $(DEPS_LOGGING)
+logging.o: logging.c $(DEPS_LOGGING)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-graph.o: graph.c graph.h $(DEPS_GRAPH)
+graph.o: graph.c $(DEPS_GRAPH)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+perf.o: perf.c $(DEPS_PERF)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
@@ -98,7 +102,7 @@ gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 # Cross-compile Windows executables on Linux
 
 ifneq ($(EXEEXT),.exe)
-exe: avrtest.exe avrtest-xmega.exe
+exe: avrtest.exe avrtest-xmega.exe avrtest_log.exe avrtest-xmega_log.exe
 
 W=-mingw32
 
@@ -108,18 +112,21 @@ $(A_xmega:=$(W).s) : XDEF += -DISA_XMEGA
 $(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o
 $(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o
 
-$(A_log:=.exe) : XOBJ_W += logging$(W).o graph(W).o
+$(A_log:=.exe) : XOBJ_W += logging$(W).o graph$(W).o perf$(W).o 
 $(A_log:=.exe) : XLIB += -lm
-$(A_log:=.exe) : logging$(W).o graph(W).o
+$(A_log:=.exe) : logging$(W).o graph$(W).o perf$(W).o
 
 
 options$(W).o: options.c $(DEP_OPTIONS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging$(W).o: logging.c logging.h $(DEPS_LOGGING)
+logging$(W).o: logging.c $(DEPS_LOGGING)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-graph$(W).o: graph.c graph.h $(DEPS_GRAPH)
+graph$(W).o: graph.c $(DEPS_GRAPH)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+perf$(W).o: perf.c $(DEPS_PERF)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 load-flash$(W).o: load-flash.c $(DEPS_LOAD_FLASH)

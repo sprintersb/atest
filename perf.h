@@ -21,61 +21,37 @@
   the Free Software Foundation, 59 Temple Place - Suite 330,
   Boston, MA 02111-1307, USA.  */
 
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef PERF_H
+#define PERF_H
 
 #include <stdbool.h>
 
 typedef struct
 {
-  // Name of the architecture
-  const char *name;
-  // True if PC is 3 bytes, false if only 2 bytes
-  bool pc_3bytes;
-  // True if the architecture has EIND related insns (EICALL/EIJMP)
-  bool has_eind;
-  // True if this is XMEGA
-  bool is_xmega;
-  // Mask to detect whether cpu_PC is out of bounds
-  unsigned int flash_addr_mask;
-} arch_t;
+  // Whether any perf-meter is curremtly on;
+  bool on;
+  // This instruction issued PERF_START and we must log if LOG_PERF is on.
+  // However log_add_instr() must run before perf_instruction().
+  bool will_be_on;
+  // PC and SP and program_cycles before the current instruction executed.
+  dword tick;
+  int sp;
+  // Enumerates PERF_DUMP
+  int n_dumps;
+  // Commands as sent by SYSCALL 5..6
+  unsigned cmd;
+  unsigned pmask;
+  // From PERF_STOP_XXX()
+  double dval;
+  bool pending_LOG_TAG_FMT;
+} perf_t;
 
-extern arch_t arch;
+extern void perf_init (void);
+extern void sys_perf_cmd (int x);
+extern void sys_perf_tag_cmd (int x);
+extern void perf_instruction (int id, int call_depth);
 
-enum
-  {
-#define AVRTEST_OPT(NAME, DEFLT, VAR)   \
-    OPT_ ## VAR,
-#include "options.def"
-#undef AVRTEST_OPT
-    OPT_unknown
-  };
+extern perf_t perf;
 
-typedef struct
-{
-  // program name of avrtest
-  const char *self;
+#endif // PERF_H
 
-#define AVRTEST_OPT(NAME, DEFLT, VAR)   \
-  int do_ ## VAR;                       \
-  const char *s_ ## VAR;
-#include "options.def"
-#undef AVRTEST_OPT
-
-} options_t;
-
-typedef struct
-{
-  int argc, i;
-  char **argv;
-  int avr_argc, avr_argv;
-} args_t;
-
-extern void parse_args (int argc, char *argv[]);
-extern char** comma_list_to_array (const char *tokens, int *n);
-
-extern options_t options;
-extern args_t args;
-extern arch_t arch;
-
-#endif // OPTIONS_H

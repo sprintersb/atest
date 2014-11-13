@@ -175,53 +175,6 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 Voila!
 
 
-
-============================
- Syscalls
-============================
-
-avrtest uses a concept called "syscall" to let the program interact
-with the simulator.  A syscall is an instruction sequence that is
-supposed not to occur in any real program, namely:
-
-    CPSE N, N
-    .word 0xffff
-
-i.e. always skipping the invalid opcode 0xffff.  This is referred to as
-
-    SYSCALL N
-
-and allows to implement 32 distinct syscalls SYSCALL 0 ... SYSCALL 31.
-
-Each syscall has a spacific interface associated to the syscall number.
-For example, the syscall to terminate the program by means of EXIT
-has number 30 and expects the exit status in word register R24:
-
-    LDI R24, <exit-status-lsb>
-    LDI R25, <exit-status-msb>
-    SYSCALL 30
-
-avrtest.h defines the following functions as syscalls which are supported
-by avrtest and avrtest_log:
-
-    SYSCALL 31:     void avrtest_abort (void)
-    SYSCALL 30:     void avrtest_exit (int)
-    SYSCALL 29:     void avrtest_putchar (int)
-    SYSCALL 28:     int avrtest_getchar (void)
-
-There are more syscalls to interact with avrtest_log and that have no effect
-on avrtest.
-
-The simulator accounts no cycles to executing syscall pseudo instructions.
-
-The former approach of avrtest to interact with the simulated program were
-special memory locations called "magic ports".  Writing to or reading from
-such a location triggered specific actions.  The drawback of that approach
-is that for each memory access which avrtest is simulating, it must test
-whether such a special location is being accessed.  These tests are no more
-needed with the syscall approach and make avrtest run faster.
-
-
 =============================================
  -q : Quiet operation
 =============================================
@@ -235,8 +188,8 @@ explicitly requested by:
 The following exit stati will be returned with -q:
 
   -  0  Everything went fine.
-  -  1  Target program called abort()  resp. called syscall abort
-  -  x  Target program called exit (x) resp. called syscall exit (x).
+  -  1  Target program called abort()
+  -  x  Target program called exit (x)
   - 10  Program timeout as set by -m MAXCOUNT.
 
   - 20  Out of memory (avrtest_log only).
@@ -343,7 +296,7 @@ Please notice that this method of switching logging on / off is (low)
 intrusive to the program.  The commands listed above are translated by
 the compiler to machine instructions that might affect code generation
 for the surrounding code (register allocation, jump offsets, ...).
-The commands have low overhead; it's not more than a SYSCALL.
+The commands have low overhead; it's not more than an avrtest syscall.
 
 
 ====================================

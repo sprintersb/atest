@@ -36,16 +36,139 @@
 #error no function herein is needed without AVRTEST_LOG
 #endif // AVRTEST_LOG
 
-need_t need;
+enum
+  {
+    T_MAIN,
+    T_EXIT,
+    T__EXIT,
+    T_ABORT,
+    T_LONGJMP,
+    T_LAST_BOLD,
 
-static struct
+    T_ENTRY,
+    T_TERMINATE,
+    T_PROLOGUE,
+    T_EPILOGUE,
+    T_SETJMP,
+    T_ADDR,
+    T_VECTOR,
+
+    T_NONE
+  };
+
+enum
 {
-  const char *data;
-  size_t size;
-  int n_entries;
-  list_t *lnores;
-  bool *have;
-} symtab;
+  // Backtrace to show in case of trouble
+  EM_TRACE     = 1 << 0,
+  EM_SHOW      = 1 << 1,
+  EM_ACCOUNT   = 1 << 2,
+  EM_MAIN_RET  = 1 << 3,
+  EM_BACK      = 1 << 4,
+
+  EM_DOT_DONE  = 1 << 5,
+  EM_DOTTED    = 1 << 6,
+  EM_DASHED    = 1 << 7,
+
+  EM_CLEAR     = 1 << 30
+};
+
+typedef struct symbol
+{
+  // string's address, somewhere in string_table.data[]
+  const char *name;
+  // unique id > 0
+  int id;
+  // word address in Flash
+  unsigned pc;
+  // one from the ENUM above.
+  int type;
+  // from ELF
+  int stt, bind;
+
+  struct
+  {
+    unsigned own, childs;
+    bool done, account;
+  } cycles;
+  // whether this is STT_FUNC
+  bool is_func;
+  // Graph: node done
+  bool dot_done;
+  // -graph-base: Graph: starts here
+  bool is_base;
+  bool account;
+  // reserved C symbol
+  bool is_reserved, is_reserved_caller;
+  // -graph-leaf:
+  // whether to handle the (function) symbol as leaf
+  bool is_leaf;
+  // -graph-sub
+  // whether to account costs to the subtree, including reserved names
+  bool is_sub;
+  bool is_hidden;
+  bool is_skip;
+} symbol_t;
+
+
+typedef struct edge
+{
+  struct edge *next;
+  // unique
+  int id;
+  // egde occurs n-fold
+  int n;
+  symbol_t *from, *to;
+  // number of tail calls
+  int n_tail;
+  // number of proper calls
+  int n_call;
+  // total cycles accounted to this edge
+  unsigned n_cycles;
+  // apprearances in sub-trees (-graph-sub)
+  unsigned n_sub;
+  // appearances in sub-trees of leaf functions (-graph-leaf)
+  unsigned n_leaf;
+  // Hilit if program aborts
+  int mark;
+  const char *s_tail, *s_label;
+} edge_t;
+
+
+typedef struct list
+{
+  struct list *next, *prev;
+  symbol_t *sym;
+  edge_t *edge;
+  int depth;
+  int sp;
+  const char *res;
+  bool is_leaf, is_sub;
+} list_t;
+
+
+typedef struct
+{
+  // ID of current instruction.
+  int id, old_id;
+
+  symbol_t *entry_point, *base, *prologue_saves, *epilogue_restores;
+  symbol_t *setjmp, *longjmp;
+  symbol_t *main, *exit, *_exit, *abort;
+  // sum of "own" cycles accounted to nodes
+  unsigned n_cycles;
+  edge_t *entry_edge;
+  struct
+  {
+    int n_call;
+    unsigned pc;
+  } main_return;
+  bool no_startup_cycles;
+  bool entered;
+} graph_t;
+
+
+// Word address --> string_t that holds the symbol or NULL.
+static symbol_t *func_sym[MAX_FLASH_SIZE/2];
 
 #define EPRIM 43
 static edge_t *ebucket[EPRIM];
@@ -55,6 +178,7 @@ static graph_t graph;
 static list_t *ystack = NULL;
 static list_t *yend = NULL;
 static list_t *yfree = NULL;
+static list_t *lnores;
 
 // -graph-leaf: Functions to be treated as leaf functions
 static char* const *s_leafs;
@@ -189,12 +313,12 @@ bool is_func_prefix (const char *prefix, const char *fun)
 static bool
 have_elf_symbol (const char *name)
 {
-  for (size_t off = 1; off < symtab.size; )
-    if (symtab.have[off]
-        && str_eq (name, symtab.data + off))
+  for (size_t off = 1; off < string_table.size; )
+    if (string_table.have[off]
+        && str_eq (name, string_table.data + off))
       return true;
     else
-      off += 1 + strlen (symtab.data + off);
+      off += 1 + strlen (string_table.data + off);
 
   return false;
 }
@@ -279,11 +403,7 @@ classify_symbol (symbol_t *s, bool is_func)
 
   s->is_reserved_caller = (! options.do_graph_reserved
                            && str_in (name, res_callers));
-
-  if (!is_func  &&  str_prefix ("__vector_", name))
-    s->type = T_VECTOR;
-  else
-    s->is_func = is_func;
+  s->is_func = is_func;
 
   static const spec_t special[] =
     {
@@ -322,7 +442,7 @@ classify_symbol (symbol_t *s, bool is_func)
 }
 
 
-symbol_t*
+static symbol_t*
 graph_add_symbol (const char *name, unsigned pc, bool is_func)
 {
   static int n_symbols;
@@ -367,18 +487,17 @@ rate_symbol (const char *s)
    PC is the word location ans IS_FUNC is the set iff the symbol
    type is STT_FUNC.  */
 
-symbol_t*
+void
 graph_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func)
 {
   symbol_t *sym = func_sym[pc];
-  symtab.have[stoff] = true;
+  string_table.have[stoff] = true;
 
   if (sym
       && rate_symbol (name) <= rate_symbol (sym->name))
-    return sym;
+    return;
 
   sym = graph_add_symbol (name, pc, is_func);
-  sym-> is_func = is_func;
 
   // Collect names that might be remapped to their non-inline originator.
   // We must have all symbols available to decide on this because the
@@ -386,12 +505,12 @@ graph_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func)
   for (const char* const *r = not_reserved; r[0]; r += 2)
     if (str_eq (name, r[0]))
       {
-        lpush (&symtab.lnores, NULL);
-        symtab.lnores->sym = sym;
-        symtab.lnores->res = r[1];
+        lpush (&lnores, NULL);
+        lnores->sym = sym;
+        lnores->res = r[1];
       }
 
-  return sym;
+  func_sym[pc] = sym;
 }
 
 
@@ -400,10 +519,7 @@ graph_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func)
 void
 graph_set_string_table (char *stab, size_t size, int n_entries)
 {
-  symtab.data = stab;
-  symtab.size = size;
-  symtab.n_entries = n_entries;
-  symtab.have = get_mem (size, sizeof (bool), "symtab.have");
+  string_table.have = get_mem (size, sizeof (bool), "string_table.have");
 
   if (options.do_graph_leaf)
     s_leafs = comma_list_to_array (options.s_graph_leaf, &n_leafs);
@@ -422,15 +538,15 @@ void
 graph_finish_string_table (void)
 {
   // remap inlined functions to their original
-  while (symtab.lnores)
+  while (lnores)
     {
-      if (!have_elf_symbol (symtab.lnores->res))
+      if (!have_elf_symbol (lnores->res))
         {
-          symtab.lnores->sym->name = symtab.lnores->res;
-          symtab.lnores->sym->is_func = true;
-          symtab.lnores->sym->is_reserved = false;
+          lnores->sym->name = lnores->res;
+          lnores->sym->is_func = true;
+          lnores->sym->is_reserved = false;
         }
-      lpop (&symtab.lnores);
+      lpop (&lnores);
     }
 
   // Add artificial node and edge representing the program entry.
@@ -471,6 +587,9 @@ graph_finish_string_table (void)
 
   graph.base->is_base = true;
   graph.base->is_reserved = graph.base->is_reserved_caller = false;
+
+  graph.entered = true;
+
   if (DEBUG_TREE)
     printf ("BASE = %s\n", graph.base->name);
 }
@@ -794,8 +913,9 @@ graph_update_call_depth (const decoded_t *deco)
   int id = graph.id = deco->id;
   int call = 0;
 
-  if (! need.call_depth)
-    return call;
+  if (! need.call_depth
+      || ! graph.entered)
+    return 0;
 
   switch (id)
     {
@@ -1068,6 +1188,9 @@ make_dot_filename (void)
 void
 graph_write_dot (void)
 {
+  if (!graph.entered)
+    return;
+
   const char *fname = make_dot_filename ();
   FILE *fdot = fname ? fopen (fname, "w") : stdout;
 
