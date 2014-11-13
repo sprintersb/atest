@@ -1,3 +1,30 @@
+2014-11-13  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add call graph generation with -graph.
+	New modules graph.c and perf.c.
+
+	* perf.c: New file.
+	* graph.c: New file.
+	* Makefile: Add rules to graph.o, perf.o.
+	* options.h (arch_t): Boolify.
+	(options_t): Add s_<VAR> fields.
+	* options.c (comma_list_to_array): New function
+	* options.def (-syms): Remove.
+	(-graph*): New options.
+	* load-flash.c (load_symbol_string_table): Call
+	set_elf_string_table, finish_elf_string_table.
+	(load_to_flash): Provide emty string table if the executable does
+	not have one.
+	(decode_opcode): Set have_syscall[] on SYSCALL.
+	* logging.c: Factor out performance meters to perf.c.  Factor out
+	symbol handling to graph.c.
+	* logging.h: Same.  And add include guards.
+	(graph.h, perf.h): New includes.
+	* perf.c: New file.
+	* perf.h: New file.
+	* graph.h: New file.
+	* graph.c: New file.
+
 2014-10-29  Georg-Johann Lay  <avr@gjlay.de>
 
 	Remove dead -[no-]ticks option.

@@ -269,7 +269,6 @@ parse_args (int argc, char *argv[])
         case OPT_entry_point:
           if (++i >= argc)
             usage ("missing program ENTRY point after '%s'", argv[i-1]);
-          // FIXME: get from avr-ld --entry-point if !on
           if (on)
             {
               cpu_PC = get_valid_number (argv[i], "-e ENTRY");

@@ -198,6 +198,34 @@ extern void log_set_func_symbol (int, size_t, bool);
 extern void log_set_string_table (char*, size_t, int);
 extern void log_finish_string_table (void);
 
+typedef struct
+{
+  bool perf;
+  bool logging;
+  bool graph, graph_cost;
+  bool call_depth;
+} need_t;
+
+typedef struct
+{
+  // The ELF string table associated to the ELF symbol table
+  const char *data;
+  size_t size;
+  int n_entries;
+
+  // Number of ...
+  int n_strings;    // ... usable items and indices (inclusive) in strings[]
+  int n_funcs;      // ... that have STT_FUNC as symbol table type
+  int n_bad;        // ... that are of no use for us, e.g. orphans
+  int n_vec;        // ... unused vectors slots
+  bool *have;
+} string_table_t;
+
+// Some data shared by logging modules logging.c, perf.c, graph.c.
+// Objects hosted by logging.c.
+extern need_t need;
+extern string_table_t string_table;
+
 #endif  // AVRTEST_LOG
 
 extern void load_to_flash (const char*, byte[], byte[], byte[]);
