@@ -218,10 +218,12 @@ A_log_exe = $(A_log:=$(EXEEXT))
 EXE = $(A_exe)
 EXIT_MCUS = $(am__append_4) $(am__append_5)
 EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
-DEP_OPTIONS = options.def options.h config.h Makefile
-DEPS_LOGGING = $(DEP_OPTIONS) testavr.h avr-opcode.def sreg.h avrtest.h
-DEPS_LOAD_FLASH = $(DEP_OPTIONS) testavr.h avr-opcode.def
-DEPS = $(DEPS_LOGGING) flag-tables.h
+DEP_OPTIONS = options.def options.h testavr.h Makefile
+DEPS_PERF = $(DEP_OPTIONS) perf.h logging.h avrtest.h
+DEPS_GRAPH = $(DEP_OPTIONS) graph.h
+DEPS_LOGGING = $(DEP_PERF) sreg.h graph.h
+DEPS_LOAD_FLASH = $(DEP_OPTIONS)
+DEPS = $(DEP_OPTIONS) sreg.h flag-tables.h
 XDEF = -DHAVE_CONFIG_H
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -582,14 +584,20 @@ $(A_xmega_s): XDEF += -DISA_XMEGA
 $(A_exe): XOBJ += options.o load-flash.o flag-tables.o
 $(A_exe): options.o load-flash.o flag-tables.o
 
-$(A_log_exe): XOBJ += logging.o
+$(A_log_exe): XOBJ += logging.o graph.o perf.o
 $(A_log_exe): XLIB += -lm
-$(A_log_exe): logging.o
+$(A_log_exe): logging.o graph.o perf.o
 
 options.o: options.c $(DEP_OPTIONS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging.o: logging.c logging.h $(DEPS_LOGGING)
+logging.o: logging.c $(DEPS_LOGGING)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+graph.o: graph.c $(DEPS_GRAPH)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
+
+perf.o: perf.c $(DEPS_PERF)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
 load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
