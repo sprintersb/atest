@@ -1,1 +1,21 @@
-set boards_dir /home/pmarques/dejagnuboards
+# The directory where the "avrtest" executable and the
+# exit-*.o modules are located.  This can be overriden
+# in a DejaGNU *.exp board description if needed.
+
+set avrtest_dir "/home/pmarques"
+
+# A directory where AVR-LibC headers like stdio.h are located.
+# You can set it below or use individual overrides in .exp files.
+# It needs not to be in the install path of the toolchain under test,
+# but should be "reasonably close", e.g. from an older installation.
+# This is only needed if the install path doesn't already contain
+# AVR-LibC headers.
+
+set avrlibc_include_dir "/avrgcc_install/avr/include"
+
+# The directories where the DejaGNU *.exp board descriptions are found.
+# If you want more directories to be searched, just add respective
+# "lappend boards_dir" lines as needed.
+
+set boards_dir {}
+lappend boards_dir "${avrtest_dir}/dejagnuboards"

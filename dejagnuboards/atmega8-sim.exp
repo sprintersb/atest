@@ -10,7 +10,7 @@
 # > cd ${avrtest_dir}
 # > make exit-${mmcu}.o
 
-set mmcu "atmega103"
+set mmcu "atmega8"
 
 # MCU for avrtest.
 # One of: "avr51", "avr6", "avrxmega6", "avrxmega3", "avrtiny".

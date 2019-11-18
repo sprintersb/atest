@@ -4,13 +4,13 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
-   
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
+
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
-  
+
   avrtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -240,11 +240,11 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 
   // Read section headers
   if (e_shentsize != sizeof (Elf32_Shdr))
-    leave (LEAVE_FILE, "ELF section headers invalid");
+    leave (LEAVE_ELF, "ELF section headers invalid");
   shdr = get_mem (e_shnum, sizeof (Elf32_Shdr), "ELF section headers");
   if (fseek (f, e_shoff, SEEK_SET) != 0
       || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
-    leave (LEAVE_FILE, "ELF section headers truncated");
+    leave (LEAVE_ELF, "ELF section headers truncated");
 
   for (int n = 0; n < e_shnum; n++)
     {
@@ -260,7 +260,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
 
       if (sh_entsize != sizeof (Elf32_Sym)
           || sh_size % sh_entsize != 0)
-        leave (LEAVE_FILE, "ELF symbol section header invalid");
+        leave (LEAVE_ELF, "ELF symbol section header invalid");
 
       // Read symbol table
       size_t n_syms = sh_size / sh_entsize;
@@ -268,14 +268,14 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
                                    "ELF symbol table");
       if (fseek (f, sh_offset, SEEK_SET) != 0
           || fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
-        leave (LEAVE_FILE, "ELF symbol table truncated");
+        leave (LEAVE_ELF, "ELF symbol table truncated");
 
       // Read string table section header
       if (sh_link >= e_shnum)
-        leave (LEAVE_FILE, "ELF section header truncated");
+        leave (LEAVE_ELF, "ELF section header truncated");
       sh_type = get_elf32_word (&shdr[sh_link].sh_type);
       if (sh_type != SHT_STRTAB)
-        leave (LEAVE_FILE, "ELF string table header invalid");
+        leave (LEAVE_ELF, "ELF string table header invalid");
 
       // Read string table
       sh_offset = get_elf32_word (&shdr[sh_link].sh_offset);
@@ -283,7 +283,7 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
       strtab = get_mem (sh_size, sizeof (char), "ELF string table");
       if (fseek (f, sh_offset, SEEK_SET) != 0
           || fread (strtab, sh_size, 1, f) != 1)
-        leave (LEAVE_FILE, "ELF string table truncated");
+        leave (LEAVE_ELF, "ELF string table truncated");
 
       set_elf_string_table (strtab, (size_t) sh_size, (unsigned) n_syms);
 
@@ -295,13 +295,13 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
           size_t name = (size_t) get_elf32_word (&sym->st_name);
           int shndx = get_elf32_half (&sym->st_shndx);
           if (name >= sh_size)
-            leave (LEAVE_FILE, "ELF string table too short");
+            leave (LEAVE_ELF, "ELF string table too short");
 
           unsigned flags = 0;
           if (type == STT_NOTYPE && shndx < SHN_LORESERVE)
             {
               if (shndx >= e_shnum)
-                leave (LEAVE_FILE, "ELF section header truncated");
+                leave (LEAVE_ELF, "ELF section header truncated");
               sh_type = get_elf32_word (&shdr[shndx].sh_type);
               if (sh_type == SHT_PROGBITS)
                 flags = get_elf32_word (&shdr[shndx].sh_flags);
@@ -332,39 +332,48 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 {
   Elf32_Ehdr ehdr;
   Elf32_Phdr phdr[16];
-    
+
   rewind (f);
   if (fread (&ehdr, sizeof (ehdr), 1, f) != 1)
-    leave (LEAVE_FILE, "can't read ELF header");
+    leave (LEAVE_ELF, "can't read ELF header");
   if (ehdr.e_ident[EI_CLASS] != ELFCLASS32
       || ehdr.e_ident[EI_DATA] != ELFDATA2LSB
       || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
-    leave (LEAVE_FILE, "bad ELF header");
+    leave (LEAVE_ELF, "bad ELF header");
   if (get_elf32_half (&ehdr.e_type) != ET_EXEC
       || get_elf32_half (&ehdr.e_machine) != EM_AVR
       || get_elf32_word (&ehdr.e_version) != EV_CURRENT
       || get_elf32_half (&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
-    leave (LEAVE_FILE, "ELF file is not an AVR executable");
+    leave (LEAVE_ELF, "ELF file is not an AVR executable");
 
   if (!options.do_entry_point)
     {
-      unsigned pc = program.entry_point = get_elf32_word (&ehdr.e_entry);
-      cpu_PC = pc / 2;
-      if (pc >= MAX_FLASH_SIZE)
-        leave (LEAVE_FILE, "ELF entry-point 0x%x it too big", pc);
-      else if (pc % 2 != 0)
-        leave (LEAVE_FILE, "ELF entry-point 0x%x is odd", pc);
+      unsigned pc = get_elf32_word (&ehdr.e_entry);
+      // Symbol 'start' is special for the GNU linker:  It is one way to
+      // specify the entry point.  This would lead to an error if the
+      // program defines a global variable 'start', hence only consider
+      // ehdr.e_entry as entry point if the address is reasonable and
+      // not in .data.
+      if (pc < DATA_VADDR)
+        {
+          program.entry_point = pc;
+          cpu_PC = pc / 2;
+          if (pc >= MAX_FLASH_SIZE)
+            leave (LEAVE_ELF, "ELF entry-point 0x%x it too big", pc);
+          else if (pc % 2 != 0)
+            leave (LEAVE_ELF, "ELF entry-point 0x%x is odd", pc);
+        }
     }
 
   int nbr_phdr = get_elf32_half (&ehdr.e_phnum);
   if ((unsigned) nbr_phdr > sizeof (phdr) / sizeof (*phdr))
-    leave (LEAVE_FILE, "ELF file contains too many PHDR");
+    leave (LEAVE_ELF, "ELF file contains too many PHDR");
 
   if (fseek (f, get_elf32_word (&ehdr.e_phoff), SEEK_SET) != 0)
-    leave (LEAVE_FILE, "ELF file truncated");
+    leave (LEAVE_ELF, "ELF file truncated");
   size_t res = fread (phdr, sizeof (Elf32_Phdr), nbr_phdr, f);
   if (res != (size_t)nbr_phdr)
-    leave (LEAVE_FILE, "can't read PHDRs of ELF file");
+    leave (LEAVE_ELF, "can't read PHDRs of ELF file");
 
   for (int i = 0; i < nbr_phdr; i++)
     {
@@ -373,7 +382,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
       Elf32_Word filesz = get_elf32_word (&phdr[i].p_filesz);
       Elf32_Word memsz = get_elf32_word (&phdr[i].p_memsz);
       Elf32_Word flags = get_elf32_word (&phdr[i].p_flags);
-        
+
       if (get_elf32_word (&phdr[i].p_type) != PT_LOAD)
         continue;
       if (filesz == 0)
@@ -391,10 +400,10 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 
       if (addr + memsz > MAX_FLASH_SIZE
           && vaddr <= DATA_VADDR_END)
-        leave (LEAVE_FILE,
-               "program too big to fit in flash");
+        leave (LEAVE_ELF,
+               "program is too big to fit in flash");
       if (fseek (f, get_elf32_word (&phdr[i].p_offset), SEEK_SET) != 0)
-        leave (LEAVE_FILE, "ELF file truncated");
+        leave (LEAVE_ELF, "ELF file truncated");
 
       program.n_bytes += filesz;
 
@@ -403,20 +412,59 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
         {
           addr -= EEPROM_VADDR;
           if (addr + filesz > MAX_EEPROM_SIZE)
-            leave (LEAVE_FILE, ".eeprom too big to fit in memory");
+            leave (LEAVE_ELF, ".eeprom too big to fit in memory");
           if (fread (eeprom + addr, filesz, 1, f) != 1)
-            leave (LEAVE_FILE, "ELF file truncated");
+            leave (LEAVE_ELF, "ELF file truncated");
           continue;
         }
 
       // Read to Flash
       if (fread (flash + addr, filesz, 1, f) != 1)
-        leave (LEAVE_FILE, "ELF file truncated");
+        leave (LEAVE_ELF, "ELF file truncated");
+
+      bool is_data_for_sram_init = (vaddr >= DATA_VADDR
+                                    && vaddr + filesz -1 <= DATA_VADDR_END);
+
+      if (arch.flash_pm_offset)
+        {
+          if (options.do_verbose
+              && (addr + memsz + arch.flash_pm_offset < 0x10000
+                  || !is_data_for_sram_init))
+            {
+              printf (">>> CopyFlash 0x%06x -- 0x%06x to RAM 0x%06x -- 0x%06x"
+                      "\n", (unsigned) addr, (unsigned) (addr + memsz - 1),
+                      (unsigned) (addr + arch.flash_pm_offset),
+                      (unsigned) (addr + arch.flash_pm_offset + memsz - 1));
+            }
+
+          if (addr + memsz + arch.flash_pm_offset < 0x10000)
+            {
+              // Showing flash in RAM is possible; just copy.  This is faster
+              // than special-casing LDS and LD*.  The downside of just
+              // copying is that target code can write to .rodata and it
+              // will be harder to debug programs that fail due to that.
+              memcpy (ram + addr + arch.flash_pm_offset, flash + addr, memsz);
+            }
+          else if (is_data_for_sram_init)
+            {
+              // This occurs only if .data is big and hence its initializer,
+              // too.  There is no need for the initializer to be seen in
+              // RAM as the startup-code in libgcc's __do_copy_data uses
+              // LPM to read it.  Moreover, this case cannot occur on a real
+              // device as the biggest "avrxmega3" features much less RAM
+              // than supplied by attiny3216-sim.exp.  This is also the reason
+              // for why we use 0xffff as flash_addr_mask and not 0x7fff.
+              printf (">>> Skipped CopyFlash, PHDR only needed to"
+                      " initialize .data, and 0x%06x exceeds 0xffff\n",
+                      (unsigned) (addr + memsz + arch.flash_pm_offset));
+            }
+          else
+            leave (LEAVE_ELF, "program is too large to be seen in RAM");
+        }
 
       // Also copy in SRAM
       if (options.do_initialize_sram
-          && vaddr >= DATA_VADDR
-          && vaddr + filesz -1 <= DATA_VADDR_END)
+          && is_data_for_sram_init)
         memcpy (ram + vaddr - DATA_VADDR, flash + addr, filesz);
 
       if ((unsigned) (addr + memsz) > program.size)
@@ -444,7 +492,7 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
 
   FILE *fp = fopen (filename, "rb");
   if (!fp)
-    leave (LEAVE_IO, "can't fond or read program file");
+    leave (LEAVE_FOPEN, "can't find or read program file");
 
   size_t len = fread (buf, 1, sizeof (buf), fp);
   if (len == sizeof (buf)
@@ -466,7 +514,7 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
 
   if (program.size & ~arch.flash_addr_mask)
     {
-      leave (LEAVE_FILE, "program is too large (size: %"PRIu32
+      leave (LEAVE_ELF, "program is too large (size: %"PRIu32
              ", max: %u)", program.size, arch.flash_addr_mask + 1);
     }
 
@@ -479,7 +527,7 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
 }
 
 
-// Opcodes with no arguments except NOP       1001 010~ ~~~~ ~~~~ 
+// Opcodes with no arguments except NOP       1001 010~ ~~~~ ~~~~
 static const byte avr_op_16_index[1 + 0x1ff] = {
   [0x9598 ^ 0x9400] = ID_BREAK,  // 1001 0101 1001 1000 | BREAK
   [0x9519 ^ 0x9400] = ID_EICALL, // 1001 0101 0001 1001 | EICALL
@@ -602,7 +650,7 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
       switch (index)
         {
         case ID_LPM_Z_incr: case ID_ELPM_Z_incr:
-        case ID_LD_Z_incr:  case ID_ST_Z_incr: 
+        case ID_LD_Z_incr:  case ID_ST_Z_incr:
         case ID_LD_Z_decr:  case ID_ST_Z_decr: ill = 3u << REGZ; break;
         case ID_LD_Y_incr:  case ID_ST_Y_incr:
         case ID_LD_Y_decr:  case ID_ST_Y_decr: ill = 3u << REGY; break;
@@ -673,11 +721,26 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
                 | ((opcode1 >> 7) & 0x18)
                 | ((opcode1 >> 8) & 0x20));
       decode = opcode1 & ~(mask_Rd_5 | mask_q_displ);
-      switch (decode) {
-      case 0x8008: return ID_LDD_Y;   // 10q0 qq0d dddd 1qqq | LDD
-      case 0x8000: return ID_LDD_Z;   // 10q0 qq0d dddd 0qqq | LDD
-      case 0x8208: return ID_STD_Y;   // 10q0 qq1d dddd 1qqq | STD
-      case 0x8200: return ID_STD_Z;   // 10q0 qq1d dddd 0qqq | STD
+      if (!is_tiny || d->op2 == 0)
+        switch (decode) {
+        case 0x8008: return ID_LDD_Y;   // 10q0 qq0d dddd 1qqq | LDD
+        case 0x8000: return ID_LDD_Z;   // 10q0 qq0d dddd 0qqq | LDD
+        case 0x8208: return ID_STD_Y;   // 10q0 qq1d dddd 1qqq | STD
+        case 0x8200: return ID_STD_Z;   // 10q0 qq1d dddd 0qqq | STD
+        }
+    }
+
+  if (is_tiny && hi4 == 0xa)
+    {
+      /* TINY opcodes with a 7-bit address and a register (4-bit Rd)
+         as operands */
+      d->op1 = 16 + ((opcode1 >> 4) & 0xF);
+      d->op2 = ((opcode1 & 0xf)
+                | ((opcode1 >> 5) & 0x30)
+                | ((opcode1 & 0x100) ? 0x40 : 0x80));
+      switch (hi5) {
+      case 0xa000 >> 11: return ID_LDS1; // 1010 0kkk dddd kkkk | LDS (Tiny)
+      case 0xa800 >> 11: return ID_STS1; // 1010 1kkk dddd kkkk | STS (Tiny)
       }
     }
 
@@ -712,15 +775,15 @@ decode_opcode (decoded_t *d, unsigned opcode1, unsigned opcode2)
 
   if (hi7 == (0x9600 >> 9))
     {
-    // opcodes with a 6-bit constant (K) and a register (Rd) as operands
-    d->op1 = ((opcode1 >> 3) & 0x06) + 24;
-    d->op2 = (opcode1 & 0xF) | ((opcode1 >> 2) & 0x30);
-    decode = opcode1 & ~(mask_K_6 | mask_Rd_2);
-    switch (decode) {
-    case 0x9600: return ID_ADIW;          // 1001 0110 KKdd KKKK | ADIW
-    case 0x9700: return ID_SBIW;          // 1001 0111 KKdd KKKK | SBIW
+      // opcodes with a 6-bit constant (K) and a register (Rd) as operands
+      d->op1 = ((opcode1 >> 3) & 0x06) + 24;
+      d->op2 = (opcode1 & 0xF) | ((opcode1 >> 2) & 0x30);
+      decode = opcode1 & ~(mask_K_6 | mask_Rd_2);
+      switch (decode) {
+      case 0x9600: return ID_ADIW;          // 1001 0110 KKdd KKKK | ADIW
+      case 0x9700: return ID_SBIW;          // 1001 0111 KKdd KKKK | SBIW
+      }
     }
-  }
 
   unsigned hi6 = opcode1 >> 10;
   if (hi6 == (0x9800 >> 10))
@@ -803,6 +866,9 @@ do_skip:;
       return ID_SYSCALL;   //  0001 00xX XXXX xxxx | CPSE X X = SYSCALL X
     }
 
+  if (is_tiny)
+    return index;
+
   if ((opcode2 & mask_LDS_STS) == 0x9000)
     return 1 + index;
 
@@ -812,15 +878,43 @@ do_skip:;
   return index;
 }
 
+static void
+tiny_opcode_maybe_illegal (decoded_t *d)
+{
+  switch (d->id)
+    {
+    default:
+      break;
+
+    case ID_LDS:   case ID_JMP:      case ID_MOVW:
+    case ID_STS:   case ID_CALL:     case ID_ADIW:
+    case ID_MUL:   case ID_FMUL:     case ID_SBIW:
+    case ID_MULS:  case ID_FMULS:    case ID_EICALL:
+    case ID_MULSU: case ID_FMULSU:   case ID_EIJMP:
+    case ID_DES:   case ID_LPM:         case ID_ELPM:
+    case ID_XCH:   case ID_LPM_Z:       case ID_ELPM_Z:
+    case ID_LAS:   case ID_LPM_Z_incr:  case ID_ELPM_Z_incr:
+    case ID_LAC:   case ID_ESPM:
+    case ID_LAT:
+      d->op1 = IL_ILL;
+      d->op2 = 0;
+      d->id = ID_ILLEGAL;
+      break;
+    }
+}
+
 void
 decode_flash (decoded_t d[], const byte flash[])
 {
-  word opcode1 = flash[0] | (flash[1] << 8);
-  
-  for (unsigned i = program.code_start; i <= program.code_end; i += 2)
+  unsigned i = program.code_start;
+  word opcode1 = flash[i] | (flash[i + 1] << 8);
+
+  for (; i <= program.code_end; i += 2)
     {
       word opcode2 = flash[i + 2] | (flash[i + 3] << 8);
       d[i / 2].id = decode_opcode (&d[i / 2], opcode1, opcode2);
+      if (is_tiny)
+        tiny_opcode_maybe_illegal (&d[i / 2]);
       opcode1 = opcode2;
     }
 }

@@ -1,21 +1,29 @@
+#!/bin/sh
+
+print_exp()
+{
+    mmcu="$1"
+    avrtest_mmcu="$2"
+    extra_ldflags="$3"
+cat > $1-sim.exp <<EOF
 # Directory where to find the avrtest executable and the exit-*.o modules.
 # "avrtest_dir" can be specified in .dejagnurc or be overriden below.
 
 # set avrtest_dir "/home/pmarques"
 
 # Used as -mmcu when compiling a C source with avr-gcc and to find the
-# right exit*.o module.  If you need a specific exit-${mmcu}.o module,
+# right exit*.o module.  If you need a specific exit-\${mmcu}.o module,
 # then run:
 #
-# > cd ${avrtest_dir}
-# > make exit-${mmcu}.o
+# > cd \${avrtest_dir}
+# > make exit-\${mmcu}.o
 
-set mmcu "atmega103"
+set mmcu "${mmcu}"
 
 # MCU for avrtest.
 # One of: "avr51", "avr6", "avrxmega6", "avrxmega3", "avrtiny".
 
-set avrtest_mmcu "avr51"
+set avrtest_mmcu "${avrtest_mmcu}"
 
 # "avrlibc_include_dir" will be used as search path for include
 # files from AVR-LibC where stdio.h etc. is located.  You can set
@@ -37,6 +45,17 @@ set avrtest_mmcu "avr51"
 # that are FAILing due to small memory.  The simulator has plenty
 # of memory, and there is no need to stick to AVR harware limitations.
 
-set extra_ldflags "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+set extra_ldflags "${extra_ldflags}"
 
 load_generic_config "avrtest"
+EOF
+}
+
+print_exp "atmega128"  "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+print_exp "atmega103"  "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+print_exp "atmega64"   "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+print_exp "atmega8"    "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+print_exp "atmega2560" "avr6"  "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff,--defsym=__stack=0x1fff"
+print_exp "atxmega128a3" "avrxmega6" "-Wl,--defsym=__heap_end=0x80ffff,--defsym=__stack=0x1fff"
+print_exp "attiny40" "avrtiny" "-Wl,--defsym=__heap_end=0x801fff -Wl,--defsym=__DATA_REGION_LENGTH__=8K -Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x "
+print_exp "attiny3216" "avrxmega3" "-Tdata=0x802000 -Wl,--defsym=__stack=0x1fff,--defsym=__heap_end=0x807fff"

@@ -4,13 +4,13 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
-   
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
+
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
-  
+
   avrtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,6 +31,7 @@
 #include "testavr.h"
 #include "options.h"
 #include "logging.h"
+#include "host.h"
 #include "perf.h"
 
 #define IN_AVRTEST
@@ -213,7 +214,7 @@ static int
 print_tag (const perf_tag_t *t, const char *no_tag, const char *tag_prefix)
 {
   if (t->cmd < 0)
-    return printf (no_tag);
+    return printf ("%s", no_tag);
 
   printf ("%s", tag_prefix);
 
@@ -425,7 +426,7 @@ perf_stop (perfs_t *p, int i, bool dump_all, int cmd, int call_depth, int sp)
       p->tick.at_end = perf.tick;
       p->calls.at_end = call_depth;
       p->sp.at_end = sp;
-      if (p->call_only.sp == LONG_MAX)
+      if (p->call_only.sp == INT_MAX)
         {
           ticks = p->tick.at_end - p->tick.at_start;
           insns = p->insn.at_end - p->insn.at_start;
@@ -541,7 +542,7 @@ perf_instruction (int id, int call_depth)
 {
   perf.will_be_on = false;
 
-  int sp = pSP[0] | (pSP[1] << 8);
+  int sp = get_nonglitch_SP();
 
   // actions requested by perf SYSCALLs 5..6
 

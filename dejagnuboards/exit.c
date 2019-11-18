@@ -79,7 +79,17 @@ avrtest_init_argc_argv (void)
       void *pargs = __heap_start;
   */
 
+#ifdef __AVR_TINY__
+  /* Use an address that won't appear as if flash was mirror'ed into
+     the RAM space, i.e. pargs & 0x4000 = 0.  */
+  void *pargs = (void*) 0x3000;
+#elif __AVR_ARCH__ == 103
+  /* avrxmega3 see flash starting at 0x8000 or 0x4000, hence
+     use 0x1600 which is in a reserved address range.  */
+  void *pargs = (void*) 0x1600;
+#else
   void *pargs = (void*) 0xf000;
+#endif
 
   /* Tell avrtest to set R24 to argc, R22 to argv, R20 to environ
      and to start command args (argv[0]) at `pargs'.  */
@@ -99,11 +109,23 @@ static int avrtest_exit_code;
 
 void exit (int code)
 {
+#ifdef __AVR_TINY__
+  int *addr = &avrtest_exit_code;
+  /* Use indirect addressing on the reduced Tiny core as the address is
+     likely to be out of scope of STS.  */
+  __asm volatile ("st %a0+,%A1"  "\n\t"
+                  "st %a0+,%B1"  "\n\t"
+                  "%~jmp _exit"
+                  : "+e" (addr)
+                  : "r" (code));
+#else
   __asm volatile ("sts %0+0,%A1"  "\n\t"
                   "sts %0+1,%B1"  "\n\t"
                   "%~jmp _exit"
                   : /* no outputs */
                   : "i" (&avrtest_exit_code), "r" (code));
+#endif
+
   for (;;);
 }
 

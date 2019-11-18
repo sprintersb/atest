@@ -1,3 +1,23 @@
+* During performance measurement, SP might be read during
+a glitch.  SP is no more read during a glitch, i.e. no more
+read while SP is being updated by means of OUT.
+Fix a fatal error that might occor with with LOG_PERF.
+
+  Affected versions: r150 (2014-10-06) -- r221 (2019-09-09)
+
+* Correctly display sub-normal floats in LOG_[[P]FMT_]FLOAT
+and PERF_TAG_[[P]FMT_]FLOAT.
+
+  Affected versions: r150 (2014-10-06) -- r219 (2019-08-20)
+
+* Allow a global variable of name 'start' without being used
+  as program entry point.
+
+  Affected versions: r152 (2014-10-07) -- r217 (2019-08-13)
+
+* Wrong decoding of 1st instruction if entry-point is not 0x0.
+
+  Affected versions: r158 (2014-10-13) -- r180 (2016-06-24)
 
 * Wrong SBRC / SBRS / SBIC / SBIS / CPSE skip offset.
   

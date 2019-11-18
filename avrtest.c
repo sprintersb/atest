@@ -4,13 +4,13 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
-   
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
+
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
-  
+
   avrtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,6 +33,7 @@
 #include "options.h"
 #include "flag-tables.h"
 #include "sreg.h"
+#include "host.h"
 
 // ---------------------------------------------------------------------------
 // register and port definitions
@@ -42,6 +43,9 @@
 #define SPL     (0x3D + IOBASE)
 #define EIND    (0x3C + IOBASE)
 #define RAMPZ   (0x3B + IOBASE)
+#define RAMPY   (0x3A + IOBASE)
+#define RAMPX   (0x39 + IOBASE)
+#define RAMPD   (0x38 + IOBASE)
 
 // ----------------------------------------------------------------------------
 // information about program incarnation (avrtest_log, avrtest-xmega, ...)
@@ -49,16 +53,25 @@
 // matter e.g. in option parsing, so that these modules are independent
 // of ISA_XMEGA and AVRTEST_LOG.
 
-// io_base :        load-flash.c:decode_opcode()   map I/O -> RAM
-// is_avrtest_log : load-flash.c:load_elf()        load ELF symbols
-// is_xmega :       options.c:parse_args()         legal -mmcu=MCU
+// io_base:           load-flash.c:decode_opcode()   map I/O -> RAM
+// is_avrtest_log:    load-flash.c:load_elf()        load ELF symbols
+// is_xmega, is_tiny: options.c:parse_args()         legal -mmcu=MCU
 
 #ifdef ISA_XMEGA
-#define IOBASE  0
-#define CX 1
+#   define IOBASE  0
+#   define CX 1
+    const bool is_xmega = true;
+    const bool is_tiny  = false;
+#elif defined (ISA_TINY)
+#   define IOBASE  0
+#   define CX 0
+    const bool is_xmega = false;
+    const bool is_tiny  = true;
 #else
-#define IOBASE  0x20
-#define CX 0
+#   define IOBASE  0x20
+#   define CX 0
+    const bool is_xmega = false;
+    const bool is_tiny  = false;
 #endif
 
 #ifdef AVRTEST_LOG
@@ -67,14 +80,12 @@
 #define IS_AVRTEST_LOG 0
 #endif
 
-const bool is_xmega = CX == 1;
 const bool is_avrtest_log = IS_AVRTEST_LOG == 1;
 const int io_base = IOBASE;
 
 bool have_syscall[32];
 
 // ----------------------------------------------------------------------------
-// ports like EXIT_PORT used for application <-> simulator interactions 
 
 #define IN_AVRTEST
 #include "avrtest.h"
@@ -94,16 +105,18 @@ program_t program;
 // Word address of current PC and offset into decoded_flash[].
 unsigned cpu_PC;
 
-#ifdef ISA_XMEGA
+#if defined ISA_XMEGA || defined ISA_TINY
 static byte cpu_reg[0x20];
 #else
 #define cpu_reg cpu_data
-#endif /* XMEGA */
+#endif /* XMEGA || TINY */
 
-// cpu_data is used to store registers (non-xmega), ioport values
+// cpu_data is used to store registers (non-xmega, non-tiny), ioport values
 // and actual SRAM
 static byte cpu_data[MAX_RAM_SIZE];
 static byte cpu_eeprom[MAX_EEPROM_SIZE];
+// For accesses into `cpu_data'.
+static unsigned ram_valid_mask;
 
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
@@ -126,23 +139,104 @@ typedef struct
   int quiet_value;
 } exit_status_t;
 
-static const exit_status_t exit_status[] = 
+static const exit_status_t exit_status[] =
   {
     // "EXIT" and "ABORTED" are keywords scanned by board descriptions.
     // -1 : Use exit_value (only set to != 0 with LEAVE_EXIT)
     [LEAVE_EXIT]    = { "EXIT",    NULL, EXIT_SUCCESS, -1 },
     [LEAVE_ABORTED] = { "ABORTED", NULL, EXIT_SUCCESS, EXIT_FAILURE },
     [LEAVE_TIMEOUT] = { "TIMEOUT", NULL, EXIT_SUCCESS, 10 },
-    [LEAVE_FILE]    = { "ABORTED", NULL, EXIT_SUCCESS, 11 },
+    [LEAVE_ELF]     = { "ABORTED", NULL, EXIT_SUCCESS, 11 },
+    [LEAVE_CODE]    = { "ABORTED", NULL, EXIT_SUCCESS, 12 },
+    [LEAVE_SYMBOL]  = { "ABORTED", NULL, EXIT_SUCCESS, 13 },
+    [LEAVE_HOSTIO]  = { "ABORTED", NULL, EXIT_SUCCESS, 14 },
     // Something went badly wrong
     [LEAVE_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 20 },
     [LEAVE_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 21 },
-    [LEAVE_IO]      = { "ABORTED", "file i/o",    EXIT_FAILURE, 22 },
+    [LEAVE_FOPEN]   = { "ABORTED", "file open",   EXIT_FAILURE, 22 },
     [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 
 
+// Skip any output if -q (quiet) is on
+void qprintf (const char *fmt, ...)
+{
+  if (!options.do_quiet)
+    {
+      va_list args;
+      va_start (args, fmt);
+      vprintf (fmt, args);
+      va_end (args);
+    }
+}
+
+static void print_runtime (void);
+
+void NOINLINE NORETURN
+leave (int n, const char *reason, ...)
+{
+  const exit_status_t *status = & exit_status[n];
+  va_list args;
+
+  program.leave_status = n;
+  // make sure we print the last log line before leaving
+  if (EXIT_SUCCESS == status->failure)
+    log_dump_line (NULL);
+
+  qprintf ("\n");
+
+  if (options.do_runtime
+      && EXIT_SUCCESS == status->failure)
+    print_runtime();
+
+  if (!options.do_quiet)
+    {
+      va_start (args, reason);
+
+      printf (" exit status: %s\n"
+              "      reason: ", program.exit_value
+              ? exit_status[LEAVE_ABORTED].text
+              : status->text);
+      vprintf (reason, args);
+      printf ("\n"
+              "     program: %s\n",
+              program.name ? program.name : "-not set-");
+      if (EXIT_SUCCESS == status->failure)
+        {
+          if (program.entry_point != 0)
+            printf (" entry point: %06x\n", program.entry_point);
+          printf ("exit address: %06x\n"
+                  "total cycles: %u\n"
+                  "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
+                  program.n_insns);
+        }
+
+      va_end (args);
+      fflush (stdout);
+
+      exit (status->failure);
+    }
+
+  fflush (stdout);
+
+  if (status->failure != EXIT_SUCCESS)
+    {
+      FILE *out = stderr;
+      va_start (args, reason);
+
+      fprintf (out, "\n%s: %s error: ", options.self, status->kind);
+      vfprintf (out, reason, args);
+      fprintf (out, "\n");
+      fflush (out);
+
+      va_end (args);
+    }
+
+  exit (n == LEAVE_EXIT ? program.exit_value : status->quiet_value);
+}
+
 // ---------------------------------------------------------------------------
+
 // vars used with -runtime to measure avrtest performance
 
 static struct timeval t_start, t_decode, t_execute, t_load;
@@ -208,82 +302,6 @@ print_runtime (void)
 }
 
 
-// Skip any output if -q (quiet) is on
-void qprintf (const char *fmt, ...)
-{
-  if (!options.do_quiet)
-    {
-      va_list args;
-      va_start (args, fmt);
-      vprintf (fmt, args);
-      va_end (args);
-    }
-}
-
-
-void NOINLINE NORETURN
-leave (int n, const char *reason, ...)
-{
-  const exit_status_t *status = & exit_status[n];
-  va_list args;
-
-  program.leave_status = n;
-  // make sure we print the last log line before leaving
-  if (EXIT_SUCCESS == status->failure)
-    log_dump_line (NULL);
-
-  qprintf ("\n");
-
-  if (options.do_runtime
-      && EXIT_SUCCESS == status->failure)
-    print_runtime();
-
-  if (!options.do_quiet)
-    {
-      va_start (args, reason);
-
-      printf (" exit status: %s\n"
-              "      reason: ", program.exit_value
-              ? exit_status[LEAVE_ABORTED].text
-              : status->text);
-      vprintf (reason, args);
-      printf ("\n"
-              "     program: %s\n",
-              program.name ? program.name : "-not set-");
-      if (EXIT_SUCCESS == status->failure)
-        {
-          if (program.entry_point != 0)
-            printf (" entry point: %06x\n", program.entry_point);
-          printf ("exit address: %06x\n"
-                  "total cycles: %u\n"
-                  "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
-                  program.n_insns);
-        }
-
-      va_end (args);
-      fflush (stdout);
-
-      exit (status->failure);
-    }
-
-  fflush (stdout);
-
-  if (status->failure != EXIT_SUCCESS)
-    {
-      FILE *out = stderr;
-      va_start (args, reason);
-
-      fprintf (out, "\n%s: %s error: ", options.self, status->kind);
-      vfprintf (out, reason, args);
-      fprintf (out, "\n");
-      fflush (out);
-
-      va_end (args);
-    }
-
-  exit (n == LEAVE_EXIT ? program.exit_value : status->quiet_value);
-}
-
 // ----------------------------------------------------------------------------
 //     ioport / ram / flash, read / write entry points
 
@@ -337,6 +355,10 @@ static INLINE byte
 get_reg (int regno)
 {
   log_append ("(R%d)->%02x ", regno, cpu_reg[regno]);
+#ifdef ISA_TINY
+  if (regno < 16)
+    leave (LEAVE_CODE, "illegal tiny register R%d", regno);
+#endif
   return cpu_reg[regno];
 }
 
@@ -344,6 +366,10 @@ static INLINE void
 put_reg (int regno, byte value)
 {
   log_append ("(R%d)<-%02x ", regno, value);
+#ifdef ISA_TINY
+  if (regno < 16)
+    leave (LEAVE_CODE, "illegal tiny register R%d", regno);
+#endif
   cpu_reg[regno] = value;
 }
 
@@ -362,11 +388,17 @@ get_word_reg (int regno)
 }
 
 static INLINE void
+put_word_reg_raw (int regno, int value)
+{
+  cpu_reg[regno] = value;
+  cpu_reg[regno + 1] = value >> 8;
+}
+
+static INLINE void
 put_word_reg (int regno, int value)
 {
   log_append ("(R%d)<-%04x ", regno, value & 0xFFFF);
-  cpu_reg[regno] = value;
-  cpu_reg[regno + 1] = value >> 8;
+  put_word_reg_raw (regno, value);
 }
 
 // read a word from memory / ioport / register
@@ -392,9 +424,10 @@ data_write_word (int address, int value)
 }
 
 // ----------------------------------------------------------------------------
-// extern functions to make logging.c independent of ISA_XMEGA
+// extern functions to make logging.c independent of ISA_XMEGA and ISA_TINY
 
 const int addr_SREG = SREG;
+const int addr_SPL = SPL;
 byte* const pSP = cpu_data + SPL;
 
 const sfr_t named_sfr[] =
@@ -403,11 +436,16 @@ const sfr_t named_sfr[] =
     { SPH,   "SPH",   NULL },
     { RAMPZ, "RAMPZ", NULL },
     { EIND,  "EIND",  &arch.has_eind },
+#ifdef ISA_XMEGA
+    { RAMPX, "RAMPX", &arch.has_rampd },
+    { RAMPY, "RAMPY", &arch.has_rampd },
+    { RAMPD, "RAMPD", &arch.has_rampd },
+#endif // ISA_XMEGA
 
     { 0, NULL, NULL }
   };
-  
-byte* log_cpu_address (int address, int where)
+
+byte* cpu_address (int address, int where)
 {
   switch (where)
     {
@@ -445,7 +483,7 @@ void* get_mem (unsigned n, size_t size, const char *purpose)
            (unsigned) (n * size), purpose);
   return p;
 #else
-  leave (LEAVE_FATAL, "alloc_mem must be unreachable");
+  leave (LEAVE_FATAL, "get_mem must be unreachable");
   return NULL;
 #endif
 }
@@ -503,7 +541,7 @@ push_byte (int value)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (LEAVE_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
+    leave (LEAVE_CODE, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp--, value);
   data_write_word (SPL, sp);
 }
@@ -523,7 +561,7 @@ push_PC (void)
   // temporary hack to disallow growing the stack over the reserved
   // register area
   if (sp < 0x40 + IOBASE)
-    leave (LEAVE_ABORTED, "stack pointer overflow (SP = 0x%04x)", sp);
+    leave (LEAVE_CODE, "stack pointer overflow (SP = 0x%04x)", sp);
   data_write_byte (sp--, cpu_PC);
   data_write_byte (sp--, cpu_PC >> 8);
   if (arch.pc_3bytes)
@@ -534,7 +572,7 @@ push_PC (void)
 static NOINLINE NORETURN void
 bad_PC (unsigned pc)
 {
-  leave (LEAVE_ABORTED, "program counter 0x%x out of bounds "
+  leave (LEAVE_CODE, "program counter 0x%x out of bounds "
          "(0x%x--0x%x)", 2 * pc, program.code_start, program.code_end - 1);
 }
 
@@ -607,36 +645,110 @@ store_logical_result (int rd, int result)
                 flag_update_table_logical[result]);
 }
 
+static INLINE byte
+get_ramp (int r_addr)
+{
+    unsigned i = (r_addr - 26) / 2;
+    if (i <= 2)
+        return data_read_byte (i + RAMPX);
+    else
+        return data_read_byte (RAMPD);
+}
+
+static INLINE void
+update_reg_and_ramp (int r_addr, int addr, int adjust)
+{
+  put_word_reg (r_addr, addr);
+
+  // Only log writeback of RAMPx if it actually changed.
+
+  word lo16 = addr & 0xffff;
+  if (is_xmega && arch.has_rampd)
+    if ((adjust == -1 && lo16 == 0xffff)
+        || (adjust == 1 && lo16 == 0))
+      {
+        unsigned i = (r_addr - 26) / 2;
+        data_write_byte (i + RAMPX, addr >> 16);
+      }
+}
+
+/* Add two RAM address values and apply the appropriate wrap-around
+   for 2-byte resp. 3-byte addresses.  Used by `load_indirect' and
+   `store_indirect' below.  */
+
+static INLINE int
+add_address (int addr, int adjust)
+{
+  return is_xmega
+    ? (addr + adjust) & ram_valid_mask
+    : (addr + adjust) & 0xffff;
+}
+
 /* 10q0 qq0d dddd 1qqq | LDD */
 
 static INLINE void
 load_indirect (int rd, int r_addr, int adjust, int offset)
 {
-  //TODO: use RAMPx registers to address more than 64kb of RAM
+  if (r_addr != REGX && adjust == 0)
+    log_append ("(###)->%02x ", offset);
+
   int addr = get_word_reg (r_addr);
 
+  if (is_xmega && arch.has_rampd)
+    addr |= get_ramp (r_addr) << 16;
+
   if (adjust < 0)
-    addr += adjust;
-  put_reg (rd, data_read_byte (addr + offset));
+    addr = add_address (addr, adjust);
+
+#if defined ISA_XMEGA || defined ISA_TINY
+  if ((is_tiny || arch.flash_pm_offset)
+      && (word) addr > arch.flash_pm_offset)
+    {
+      log_append ("{F:%04x} ", addr - arch.flash_pm_offset);
+      add_program_cycles (1);
+    }
+#endif // XMEGA || TINY
+
+  put_reg (rd, data_read_byte (add_address (addr, offset)));
+
+#if defined ISA_XMEGA || defined ISA_TINY
+  if (adjust >= 0 && !offset)
+    add_program_cycles (-1);
+#endif
+
   if (adjust > 0)
-    addr += adjust;
+    addr = add_address (addr, adjust);
+
   if (adjust)
-    put_word_reg (r_addr, addr);
+    update_reg_and_ramp (r_addr, addr, adjust);
 }
 
-static INLINE void 
+static INLINE void
 store_indirect (int rd, int r_addr, int adjust, int offset)
 {
-  //TODO: use RAMPx registers to address more than 64kb of RAM
+  if (r_addr != REGX && adjust == 0)
+    log_append ("(###)->%02x ", offset);
+
   int addr = get_word_reg (r_addr);
 
+  if (is_xmega && arch.has_rampd)
+    addr |= get_ramp (r_addr) << 16;
+
   if (adjust < 0)
-    addr += adjust;
-  data_write_byte (addr + offset, get_reg (rd));
+    addr = add_address (addr, adjust);
+
+  data_write_byte (add_address (addr, offset), get_reg (rd));
+
+#if defined ISA_XMEGA || defined ISA_TINY
+  if (adjust >= 0 && !offset)
+    add_program_cycles (-1);
+#endif
+
   if (adjust > 0)
-    addr += adjust;
+    addr = add_address (addr, adjust);
+
   if (adjust)
-    put_word_reg (r_addr, addr);
+    update_reg_and_ramp (r_addr, addr, adjust);
 }
 
 static INLINE void
@@ -650,7 +762,7 @@ load_program_memory (int rd, bool use_RAMPZ, bool incr)
     {
       address++;
       put_word_reg (REGZ, address & 0xFFFF);
-      if (use_RAMPZ)
+      if (use_RAMPZ && (address & 0xFFFF) == 0)
         data_write_byte (RAMPZ, address >> 16);
     }
 }
@@ -712,8 +824,8 @@ static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
   log_append (".word 0x%04x", code);
   switch (ill)
     {
-    case IL_ILL:  leave (LEAVE_ABORTED, "illegal opcode 0x%04x", code);
-    case IL_ARCH: leave (LEAVE_ABORTED, "opcode 0x%04x illegal on %s",
+    case IL_ILL:  leave (LEAVE_CODE, "illegal opcode 0x%04x", code);
+    case IL_ARCH: leave (LEAVE_CODE, "opcode 0x%04x illegal on %s",
                          code, arch.name);
     case IL_TODO:
       program.leave_status = LEAVE_ABORTED;
@@ -1012,7 +1124,26 @@ static OP_FUNC_TYPE func_INC (int rd, int rr)
 /* 1001 000d dddd 0000 | LDS */
 static OP_FUNC_TYPE func_LDS (int rd, int rr)
 {
-  //TODO:RAMPD
+#if defined ISA_XMEGA
+  if (arch.has_rampd)
+    {
+      byte ramp = get_ramp (0 /* RAMPD */);
+      rr |= ramp << 16;
+    }
+  else if (arch.flash_pm_offset
+           && (word) rr > arch.flash_pm_offset)
+    {
+      log_append ("{F:%04x} ", (word) rr - arch.flash_pm_offset);
+      add_program_cycles (1);
+    }
+#endif // XMEGA
+
+  put_reg (rd, data_read_byte (rr));
+}
+
+/* 1010 0kkk dddd kkkk | LDS (Tiny) */
+static OP_FUNC_TYPE func_LDS1 (int rd, int rr)
+{
   put_reg (rd, data_read_byte (rr));
 }
 
@@ -1151,7 +1282,20 @@ static OP_FUNC_TYPE func_ROR (int rd, int rr)
 /* 1001 001d dddd 0000 | STS */
 static OP_FUNC_TYPE func_STS (int rd, int rr)
 {
-  //TODO:RAMPD
+#ifdef ISA_XMEGA
+  if (arch.has_rampd)
+    {
+      byte ramp = get_ramp (0 /* RAMPD */);
+      rr |= ramp << 16;
+    }
+#endif // ISA_XMEGA
+
+  data_write_byte (rr, get_reg (rd));
+}
+
+/* 1010 1kkk dddd kkkk | STS (Tiny) */
+static OP_FUNC_TYPE func_STS1 (int rd, int rr)
+{
   data_write_byte (rr, get_reg (rd));
 }
 
@@ -1446,6 +1590,7 @@ static OP_FUNC_TYPE func_IN (int rd, int rr)
 /* 1011 1AAd dddd AAAA | OUT */
 static OP_FUNC_TYPE func_OUT (int rd, int rr)
 {
+  log_maybe_change_SP (rr);
   data_write_byte (rr, get_reg (rd));
 }
 
@@ -1514,6 +1659,34 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
   do_multiply (rd, rr, true, false, 1);
 }
 
+
+/* Supply logging facility for modules other than logging.c that are
+   present in avrtest.  This way, the module does not depend on macro
+   AVRTEST_LOG.  This approach should only be used if loss of speed
+   of execution of logging is *not* available is no issue, i.e. the
+   following function should not be used by avrtest.c.  */
+
+static void _log_va (const char *fmt, va_list args)
+{
+  (void) fmt;
+  (void) args;
+  log_append_va (fmt, args);
+}
+
+void (*log_va)(const char*,va_list) = _log_va;
+
+
+static void sys_fileio (void)
+{
+  byte what = get_word_reg_raw (24);
+  word r22  = get_word_reg_raw (22);
+  dword r20 = (r22 << 16) | get_word_reg_raw (20);
+
+  dword ret22 = host_fileio (what, r20);
+
+  put_word_reg_raw (22, ret22);
+  put_word_reg_raw (24, ret22 >> 16);
+}
 
 static void sys_argc_argv (void)
 {
@@ -1590,7 +1763,7 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
   (void) s_addr;
   log_append ("%-7s .word 0x%04x: undefined operand combination: "
               "%s overlaps R%d", mnemo, opcode1, s_addr, rd);
-  leave (LEAVE_ABORTED, "opcode 0x%04x has undefined result "
+  leave (LEAVE_CODE, "opcode 0x%04x has undefined result "
          "(%s overlaps R%d)", opcode1, mnemo, rd);
 }
 
@@ -1608,7 +1781,7 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
 
    and allows to implement 32 distinct syscalls SYSCALL 0 ... SYSCALL 31.
 
-   Each syscall has a spacific interface associated to the SYSCALL number.
+   Each syscall has a specific interface associated to the SYSCALL number.
    For example, the syscall to terminate the program by means of EXIT
    has number 30 and expects the exit status in word register R24:
 
@@ -1647,6 +1820,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       log_append ("not implemented ");
       return;
 
+    case 26: sys_fileio();     break;
     case 27: sys_argc_argv();  break;
     case 28: sys_stdin();      break;
     case 29: sys_stdout();     break;
@@ -1657,7 +1831,11 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 4:                          // Get / reset cycles, insns, rand ...
     case 5: case 6:                  // Performance metering
     case 7:                          // Logging values
+    case 9: case 10: case 11:        // Logging push / pop
       do_syscall (sysno, get_word_reg_raw (24));
+      break;
+    case 8:                          // Logging 64-bit values
+      do_syscall (sysno, get_word_reg_raw (26));
       break;
     }
 }
@@ -1698,6 +1876,8 @@ do_step (void)
 static INLINE void
 execute (void)
 {
+  ram_valid_mask = (is_xmega && arch.has_rampd) ? 0xffffff : 0xffff;
+
   dword max_insns = program.max_insns;
 
   for (;;)

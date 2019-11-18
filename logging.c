@@ -4,13 +4,13 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
-   
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
+
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
-  
+
   avrtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,7 +27,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdbool.h>
-#include <math.h>
 
 #include "testavr.h"
 #include "options.h"
@@ -35,6 +34,7 @@
 #include "graph.h"
 #include "perf.h"
 #include "logging.h"
+#include "host.h"
 
 // ports used for application <-> simulator interactions
 #define IN_AVRTEST
@@ -78,6 +78,7 @@ const char s_SREG[] = "CZNVSHTI";
 unsigned old_PC, old_old_PC;
 bool log_unused;
 need_t need;
+int maybe_SP_glitch;
 
 string_table_t string_table;
 
@@ -93,6 +94,15 @@ log_append (const char *fmt, ...)
   va_start (args, fmt);
   alog.pos += vsprintf (alog.pos, fmt, args);
   va_end (args);
+}
+
+void
+log_append_va (const char *fmt, va_list args)
+{
+  if (log_unused)
+    return;
+
+  alog.pos += vsprintf (alog.pos, fmt, args);
 }
 
 static INLINE int
@@ -139,6 +149,14 @@ log_patch_mnemo (const decoded_t *d, char *buf)
       mask = d->op1;
       style = 3;
       break;
+    case ID_LDD_Y:  case ID_STD_Y:
+    case ID_LDD_Z:  case ID_STD_Z:
+      if (is_tiny)
+        {
+          buf[-4] = buf[-3];
+          buf[-5] = buf[-3] = buf[-2] = buf[-1] = ' ';
+        }
+      return;
     }
 
   int val = mask_to_bit (mask);
@@ -176,6 +194,29 @@ log_patch_mnemo (const decoded_t *d, char *buf)
 }
 
 
+/* When measuring performance and track min / max SP values,
+   then changing SP by OUT may lead to a glitch just like when
+   an IRQ occurred in the middle of the SP adjustment.
+   Therefore, flag that SP might contain garbage.  */
+
+void log_maybe_change_SP (int address)
+{
+  if (address == addr_SPL || address == addr_SPL + 1)
+    maybe_SP_glitch = 4;
+}
+
+
+int get_nonglitch_SP()
+{
+  static int nonglitch_SP;
+
+  if (!maybe_SP_glitch)
+    nonglitch_SP = pSP[0] | (pSP[1] << 8);
+
+  return nonglitch_SP;
+}
+
+
 /* Add a symbol; called by ELF loader.
 
    ADDR  is the value of the symbol.
@@ -198,7 +239,7 @@ log_set_func_symbol (int addr, size_t stoff, bool is_func)
   if (is_func
       && (addr % 2 != 0
           || addr >= MAX_FLASH_SIZE))
-    leave (LEAVE_ABORTED, "'%s': bad symbol at 0x%x", name, addr);
+    leave (LEAVE_SYMBOL, "'%s': bad symbol at 0x%x", name, addr);
 
   if (addr % 2 != 0
       // Something weird, maybe orphan etc.
@@ -237,8 +278,8 @@ log_finish_string_table (void)
   string_table_t *s = & string_table;
 
   if (options.do_verbose)
-    printf (">>> strtab[%u] %d entries, %d usable, %d functions, %d other, "
-            "%d bad, %d unused vectors\n", 0U + s->size, s->n_entries,
+    printf (">>> strtab[%zu] %d entries, %d usable, %d functions, %d other, "
+            "%d bad, %d unused vectors\n", s->size, s->n_entries,
             s->n_strings, s->n_funcs, s->n_strings - s->n_funcs, s->n_bad,
             s->n_vec);
 
@@ -253,13 +294,30 @@ log_add_instr (const decoded_t *d)
   old_old_PC = old_PC;
   old_PC = cpu_PC;
 
+  // We are called by do_step() for each instruction.  Decrement our
+  // SP "atomicy" device.
+  if (maybe_SP_glitch)
+    {
+      maybe_SP_glitch--;
+
+      // Some instructions immediately end a glitch because they won't be
+      // used during an explicit SP adjustment.  IJMP is usually from longjmp
+      // or from __prologue_saves__; RET is from __epilogue_restores__.
+      if (ID_RET == d->id || ID_IJMP == d->id || ID_EIJMP == d->id
+          || ID_RCALL == d->id || ID_CALL == d->id
+          || ID_PUSH == d->id || ID_POP == d->id)
+        maybe_SP_glitch = 0;
+    }
+
   char mnemo_[16];
   const char *fmt, *mnemo = opcodes[alog.id].mnemonic;
 
-  // SYSCALL 0..3 might turn on logging: always log them to alog.data[].
+  // SYSCALL 0..3, 5, 10..11 might turn on logging:
+  // always log them to alog.data[].
 
+  unsigned sysmask = 0xf | (1 << 5) | (1 << 10) | (1 << 11);
   bool maybe_used = (alog.maybe_log
-                     || (alog.id == ID_SYSCALL && d->op1 <= 3));
+                     || (alog.id == ID_SYSCALL && (sysmask & (1u << d->op1))));
 
   if ((log_unused = !maybe_used || !need.logging))
     return;
@@ -269,7 +327,7 @@ log_add_instr (const decoded_t *d)
       log_append (arch.pc_3bytes ? "%06x: " : "%04x: ", cpu_PC * 2);
       return;
     }
-  
+
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (d, mnemo_ + strlen (mnemo));
   fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
@@ -314,108 +372,16 @@ log_add_data_mov (const char *format, int addr, int value)
           && (sfr->pon == NULL || *sfr->pon))
         s_name = sfr->name;
       else if (sfr->name == NULL)
-        sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
+        if (addr >= 0x10000 && arch.has_rampd)
+          sprintf (name, "%02x:%04x", addr >> 16, addr & 0xffff);
+        else
+          sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
       else
         continue;
       break;
     }
 
   log_append (format, s_name, value);
-}
-
-
-// IEEE 754 single
-avr_float_t
-decode_avr_float (unsigned val)
-{
-  // float =  s  bbbbbbbb mmmmmmmmmmmmmmmmmmmmmmm
-  //         31
-  // s = sign (1)
-  // b = biased exponent
-  // m = mantissa
-
-  int one;
-  const int DIG_MANT = 23;
-  const int DIG_EXP  = 8;
-  const int EXP_BIAS = 127;
-  avr_float_t af;
-
-  int r = (1 << DIG_EXP) -1;
-  unsigned mant = af.mant = val & ((1 << DIG_MANT) -1);
-  val >>= DIG_MANT;
-  af.exp_biased = val & r;
-  af.exp = af.exp_biased - EXP_BIAS;
-
-  val >>= DIG_EXP;
-  af.sign_bit = val & 1;
-
-  // Denorm?
-  if (af.exp_biased == 0)
-    af.fclass = FT_DENORM;
-  else if (af.exp_biased < r)
-    af.fclass = FT_NORM;
-  else if (mant == 0)
-    af.fclass = FT_INF;
-  else
-    af.fclass = FT_NAN;
-
-  switch (af.fclass)
-    {
-    case FT_NORM:
-    case FT_DENORM:
-      one = af.fclass == FT_NORM;
-      af.mant1 = mant | (one << DIG_MANT);
-      af.x = ldexp ((double) af.mant1, af.exp - DIG_MANT);
-      af.x = copysign (af.x, af.sign_bit ? -1.0 : 1.0);
-      break;
-    case FT_NAN:
-      af.x = nan ("");
-      break;
-    case FT_INF:
-      af.x = af.sign_bit ? -HUGE_VAL : HUGE_VAL;
-      break;
-    }
-
-  return af;
-}
-
-
-/* Copy a string from AVR target to the host, but not more than
-   LEN_MAX characters.  */
-
-char*
-read_string (char *p, unsigned addr, bool flash_p, size_t len_max)
-{
-  char c;
-  size_t n = 0;
-  byte *p_avr = log_cpu_address (addr, flash_p ? AR_FLASH : AR_RAM);
-
-  while (++n < len_max && (c = *p_avr++))
-    if (c != '\r')
-      *p++ = c;
-
-  *p = '\0';
-  return p;
-}
-
-
-/* Read a value as unsigned from R20.  Bytesize (1..4) and signedness are
-   determined by respective layout[].  If the value is signed a cast to
-   signed will do the conversion.  */
-
-unsigned
-get_r20_value (const layout_t *lay)
-{
-  byte *p = log_cpu_address (20, AR_REG);
-  unsigned val = 0;
-
-  if (lay->signed_p && (0x80 & p[lay->size - 1]))
-    val = -1U;
-
-  for (int n = lay->size; n;)
-    val = (val << 8) | p[--n];
-
-  return val;
 }
 
 
@@ -493,7 +459,7 @@ sys_ticks_cmd (int cfg)
     }
 
   log_append ("ticks get %s: R22<-(%08x) = %u", what, value, value);
-  byte *p = log_cpu_address (22, AR_REG);
+  byte *p = cpu_address (22, AR_REG);
 
   *p++ = value;
   *p++ = value >> 8;
@@ -527,6 +493,13 @@ sys_log_dump (int what)
     default:
       log_append ("log %d-byte value", lay->size);
       printf (fmt, val);
+      break;
+
+    case LOG_S64_CMD:
+    case LOG_U64_CMD:
+    case LOG_X64_CMD:
+      log_append ("log %d-byte value", lay->size);
+      printf (fmt, get_r18_value (lay));
       break;
 
     case LOG_SET_FMT_ONCE_CMD:
@@ -574,35 +547,121 @@ enum
     LOG_PERF_CMD,
   };
 
+static void log_set_logging (bool on, bool on_perf, unsigned cntdwn)
+{
+  options.do_log = on;
+  alog.perf_only = on_perf;
+  alog.countdown = cntdwn;
+}
+
 static void
 sys_log_config (int cmd, int val)
 {
-#define SET_LOGGING(F, P, C)                                            \
-  do { options.do_log=(F); alog.perf_only=(P); alog.countdown=(C); } while(0)
-
   // Turning logging on / off
   switch (cmd)
     {
     case LOG_ON_CMD:
       log_append ("log On");
-      SET_LOGGING (1, false, 0);
+      log_set_logging (1, false, 0);
       break;
     case LOG_OFF_CMD:
       log_append ("log Off");
-      SET_LOGGING (0, false, 0);
+      log_set_logging (0, false, 0);
       break;
     case LOG_PERF_CMD:
       log_append ("performance log");
-      SET_LOGGING (0, true, 0);
+      log_set_logging (0, true, 0);
       break;
     case LOG_SET_CMD:
       alog.count_val = val ? val : 0x10000;
       log_append ("start log %u", alog.count_val);
-      SET_LOGGING (1, false, 1 + alog.count_val);
+      log_set_logging (1, false, 1 + alog.count_val);
       break;
     }
+}
 
-#undef SET_LOGGING
+static const char*
+pc_string ()
+{
+  static char str[20];
+  sprintf (str, arch.pc_3bytes ? "%06x" : "%04x", cpu_PC * 2);
+  return str;
+}
+
+typedef struct
+{
+  bool on;
+  bool perf;
+  unsigned count_val;
+  unsigned countdown;
+
+} log_stack_t;
+
+static void
+sys_log_pushpop (int sysno, int what)
+{
+  static log_stack_t stack[100];
+  static log_stack_t *sp = stack;
+
+  size_t n_slots = sizeof (stack) / sizeof (*stack);
+
+  if (what == 0 || what == 1)
+    {
+      log_append ("log push %s", what ? "On" : "Off");
+
+      if (sp < stack  + n_slots - 1)
+        {
+          log_stack_t slot = { !!options.do_log, alog.perf_only,
+                               alog.count_val, alog.countdown };
+          *sp++ = slot;
+
+          log_append (" #%d", (int) (sp - stack));
+
+          if (slot.perf)
+            log_append (" (perf)");
+
+          if (slot.on && slot.countdown)
+            log_append (" (%u / %u) ", slot.countdown, slot.count_val);
+
+          log_set_logging (what, 0 /* perf */, 0 /* countdown */);
+          alog.count_val = 0;
+        }
+      else
+        {
+          log_append (" (stack #%u overflow)", (unsigned) n_slots);
+          if (! options.do_log)
+            qprintf ("*** syscall #%d 0x%s: log push (stack #%u overflow)\n",
+                     sysno, pc_string(), (unsigned) n_slots);
+        }
+    }
+  else if (what == -1)
+    {
+      log_append ("log pop ");
+
+      if (sp > stack)
+        {
+          log_stack_t slot = * --sp;
+          log_append ("%s #%d", slot.on ? "On" : "Off", (int) (sp + 1 - stack));
+
+          alog.count_val = slot.count_val;
+          log_set_logging (slot.on, slot.perf, slot.countdown);
+
+          if (slot.perf)
+            log_append (" (perf)");
+
+          if (slot.on && slot.countdown)
+            log_append (" (%u / %u)", slot.countdown, slot.count_val);
+        }
+      else
+        {
+          log_append ("(stack underflow)");
+          if (! options.do_log)
+            qprintf ("*** syscall #%d 0x%s: log pop (stack underflow)\n",
+                     sysno, pc_string());
+        }
+    }
+  else
+    leave (LEAVE_FATAL, "code must be unreachable");
 }
 
 
@@ -613,7 +672,7 @@ do_syscall (int sysno, int val)
     {
     default:
       log_append ("void ");
-      qprintf ("*** syscall %d: void\n", sysno);
+      qprintf ("*** syscall #%d: void\n", sysno);
       break;
 
     case 0: sys_log_config (LOG_OFF_CMD, 0);    break;
@@ -623,7 +682,11 @@ do_syscall (int sysno, int val)
     case 4: sys_ticks_cmd (val);    break;
     case 5: sys_perf_cmd (val);     break;
     case 6: sys_perf_tag_cmd (val); break;
-    case 7: sys_log_dump (val);     break;
+    case 7:
+    case 8: sys_log_dump (val);     break;
+    case  9: sys_log_pushpop (sysno, 0);    break;
+    case 10: sys_log_pushpop (sysno, 1);    break;
+    case 11: sys_log_pushpop (sysno, -1);   break;
     }
 }
 
@@ -640,10 +703,11 @@ log_init (unsigned val)
   /**/
 
   need.perf = have_syscall[5] || have_syscall[6];
-  
+
   need.logging = (is_avrtest_log
                   && (options.do_log
                       || have_syscall[1]
+                      || have_syscall[10] || have_syscall[11]
                       || (have_syscall[2] && need.perf)
                       || have_syscall[3]));
 
@@ -701,21 +765,24 @@ layout[LOG_X_sentinel] =
     [LOG_ADDR_CMD]  = { 2, " 0x%04x ", false, false },
 
     [LOG_FLOAT_CMD] = { 4, " %.6f ", false, false },
-    
+
     [LOG_U8_CMD]  = { 1, " %u ", false, false },
     [LOG_U16_CMD] = { 2, " %u ", false, false },
     [LOG_U24_CMD] = { 3, " %u ", false, false },
     [LOG_U32_CMD] = { 4, " %u ", false, false },
-    
+    [LOG_U64_CMD] = { 8, " %llu ", false, false },
+
     [LOG_S8_CMD]  = { 1, " %d ", true,  false },
     [LOG_S16_CMD] = { 2, " %d ", true,  false },
     [LOG_S24_CMD] = { 3, " %d ", true,  false },
     [LOG_S32_CMD] = { 4, " %d ", true,  false },
+    [LOG_S64_CMD] = { 8, " %lld ", true,  false },
 
     [LOG_X8_CMD]  = { 1, " 0x%02x ", false, false },
     [LOG_X16_CMD] = { 2, " 0x%04x ", false, false },
     [LOG_X24_CMD] = { 3, " 0x%06x ", false, false },
     [LOG_X32_CMD] = { 4, " 0x%08x ", false, false },
+    [LOG_X64_CMD] = { 8, " 0x%016llx ", false, false },
 
     [LOG_UNSET_FMT_CMD]     = { 0, NULL, false, false },
     [LOG_SET_FMT_CMD]       = { 2, NULL, false, false },

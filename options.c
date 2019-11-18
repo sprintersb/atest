@@ -4,13 +4,13 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
-   
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
+
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
-  
+
   avrtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,6 +35,7 @@
 static const char USAGE[] =
   "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-runtime]\n"
   "                 [-no-log] [-no-stdin] [-no-stdout] [-q] [-graph[=FILE]]\n"
+  "                 [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
   "Options:\n"
@@ -43,6 +44,8 @@ static const char USAGE[] =
   "  -d            Initialize SRAM from .data (for ELF program)\n"
   "  -e ENTRY      Byte address of program entry.  Default for ENTRY is\n"
   "                the entry point from the ELF program and 0 for non-ELF.\n"
+  "  -pm OFFSET    Set OFFSET where the program memory is seen in the\n"
+  "                LD's instruction address space (avrxmega3 only).\n"
   "  -m MAXCOUNT   Execute at most MAXCOUNT instructions.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
   "                requested.  Pass exit status from the program.\n"
@@ -50,8 +53,10 @@ static const char USAGE[] =
   "  -no-log       Disable logging in avrtest_log.  Useful when capturing\n"
   "                performance data.  Logging can still be controlled by\n"
   "                the running program, cf. README.\n"
-  "  -no-stdin     Disable avrtest_getchar from avrtest.h.\n"
-  "  -no-stdout    Disable avrtest_putchar from avrtest.h.\n"
+  "  -no-stdin     Disable avrtest_getchar (syscall 28) from avrtest.h.\n"
+  "  -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.\n"
+  "  -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the\n"
+  "                target program can access via file i/o (syscall 26).\n"
   "  -graph[=FILE] Write a .dot FILE representing the dynamic call graph.\n"
   "                For the dot tool see  http://graphviz.org\n"
   "  -graph-help   Show more options to control graph generation and exit.\n"
@@ -102,16 +107,24 @@ static const char GRAPH_USAGE[] =
 
 static const arch_t arch_desc[] =
   {
-    { "avr51",     false, false, false, 0x01ffff }, // default if is_xmega = 0
-    { "avrxmega6", true,  true,  true,  0x03ffff }, // default if is_xmega = 1
-    { "avr6",      true,  true,  false, 0x03ffff },
-    { NULL, false, false, false, 0}
+    // default 3-pyte PC, EIND,  XMEGA, RAMPD  TINY, FlashMask, Flash-PM Offset
+    { "avr51",     false, false, false, false, false, 0x01ffff, 0 },
+    // default if is_xmega = 1
+    { "avrxmega6", true,  true,  true,  false, false, 0x03ffff, 0 },
+    // default if is_tiny  = 1
+    { "avrtiny",   false, false, false, false, true,  0x01ffff, 0x4000 },
+    { "avr6",      true,  true,  false, false, false, 0x03ffff, 0 },
+    { "avrxmega3", false, false, true,  false, false, 0x00ffff, 0x8000 },
+    { "avrxmega7", true,  true,  true,  true,  false, 0x03ffff, 0 },
+    { NULL,        false, false, false, false, false, 0, 0}
   };
 
 arch_t arch;
 
 // args from -args ... to pass to the target program (*_log only)
 args_t args;
+
+const char *fileio_sandbox;
 
 typedef struct
 {
@@ -121,8 +134,6 @@ typedef struct
   const char *name;
   // address of target variable
   int *pflag;
-  // default value
-  //  int deflt;
   // string after -foo=
   const char **psuffix;
 } option_t;
@@ -145,7 +156,8 @@ usage (const char *fmt, ...)
 
   qprintf ("%s", USAGE);
   for (const arch_t *d = arch_desc; d->name; d++)
-    if (is_xmega == d->is_xmega)
+    if (is_xmega == d->is_xmega
+        && is_tiny == d->is_tiny)
       qprintf (" %s", d->name);
 
   if (!fmt)
@@ -190,19 +202,20 @@ get_valid_number (const char *str, const char *opt)
   char *end;
   unsigned long val = strtoul (str, &end, 0);
   if (*end && opt)
-    usage ("invalid number %s in '%s'", str, opt);
+    usage ("invalid number '%s' in '%s'", str, opt);
   if (*end)
-    usage ("invalid number %s", str);
+    usage ("invalid number '%s'", str);
   return val;
 }
 
+static unsigned int flash_pm_offset;
 
 // parse command line arguments
 void
 parse_args (int argc, char *argv[])
 {
   options.self = argv[0];
-  arch = arch_desc[is_xmega];
+  arch = arch_desc[is_xmega + 2 * is_tiny];
 
   for (int i = 1; i < argc; i++)
     if (str_eq  (argv[i], "?")
@@ -253,12 +266,13 @@ parse_args (int argc, char *argv[])
 
         case OPT_mmcu:
           if (!on)
-            arch = arch_desc[is_xmega];
+            arch = arch_desc[is_xmega + 2 * is_tiny];
           else
             for (const arch_t *a = arch_desc; ; a++)
               if (a->name == NULL)
                 usage ("unknown ARCH '%s'", options.s_mmcu);
-              else if (is_xmega == a->is_xmega
+              else if ((is_xmega == a->is_xmega
+                        && is_tiny == a->is_tiny)
                        && str_eq (options.s_mmcu, a->name))
                 {
                   arch = *a;
@@ -282,6 +296,25 @@ parse_args (int argc, char *argv[])
           program.entry_point = cpu_PC;
           cpu_PC /= 2;
           break; // -e
+
+        case OPT_flash_pm_offset:
+          if (++i >= argc)
+            usage ("missing OFFSET after '%s'", argv[i-1]);
+          if (on)
+            {
+              flash_pm_offset = get_valid_number (argv[i], "-pm OFFSET");
+              if (flash_pm_offset != 0x4000 && flash_pm_offset != 0x8000)
+                usage ("OFFSET must be 0x4000 or 0x8000 in '-pm %s'", argv[i]);
+            }
+          else
+              flash_pm_offset = 0;
+          break; // -pm
+
+        case OPT_sandbox:
+          if (++i >= argc)
+            usage ("missing SANDBOX folder after '%s'", argv[i-1]);
+          fileio_sandbox = on ? argv[i] : NULL;
+          break; // -sbox SANDBOX
 
         case OPT_args:
           args.argc = on ? argc : i;
@@ -309,6 +342,13 @@ parse_args (int argc, char *argv[])
 
   if (program.name == NULL)
     usage ("missing program name");
+
+  if (flash_pm_offset)
+    {
+      if (!str_eq (arch.name, "avrxmega3"))
+          usage ("'-pm OFFSET' is only valid for avrxmega3");
+      arch.flash_pm_offset = flash_pm_offset;
+    }
 }
 
 
@@ -328,11 +368,11 @@ putchar_escaped (char c)
 }
 
 
-// set argc and argv[] from -args
+// Set argc and argv[] from -args.
 void
 put_argv (int args_addr, byte *b)
 {
-  // put strings to args_addr 
+  // Put strings to args_addr.
   int argc = args.argc - args.i;
   int a = args_addr;
 

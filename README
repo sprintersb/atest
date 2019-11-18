@@ -11,19 +11,34 @@ to run the GCC testsuite for avr-gcc.  Thus, its main audience are guys
 and ladies that develop parts of the AVR toolchain like avr-gcc or avr-libc.
 
 avrtest is an instruction set simulator for AVR core families
-    avr51: ATmega128*, AT90can128, AT90usb128*
+    avr51: ATmega128*, AT90can128, AT90usb128*, ATtiny2313, ...
     avr6:  ATmega256*
 
 avrtest-xmega is an instruction set simulator for AVR XMEGA core families
-    avrxmega6: ATXmega128*, ...
+    avrxmega6: ATxmega128*, ...
+    avrxmega3: ATtiny212, ATtiny816, ... that see flash in RAM address space.
+    avrxmega7: ATXmega128A1, ATXmega128A1U, ... that use RAMPx as high-byte
+               for RAM accesses.
+
+avrtest-tiny is an instruction set simulator for AVR TINY core families
+    avrtiny: ATtiny40, ... with only 16 GPRs and flash seen in RAM.
 
 The executable that supports AVR XMEGA cores is named avrtest-xmega.
 In addition to the avrtest simulator, it supports the XMEGA instructions
-XCH, LAS, LAC and LAT.
+XCH, LAS, LAC and LAT.  For avrxmega3, it also supports the command line
+option '-pm 0x4000' in order to set the location of the flash image in
+the RAM address space for devices like ATmega4808.  The default for
+this option and for avrxmega3 is 0x8000.
 
-In the remainder, avrtest is explained.  avrtest-xmega works similar.
-avrtest does not simulate internal peripherals like timers, I/O ports,
-interrupts, etc.
+The executable that supports reduced AVR TINY cores is named avrtest-tiny.
+It only supports general purpose registers (GPRs) R16..R31,
+and many instructions like ADIW are not supported.  The LDS and STS
+instructions are 1-word instructions that can access SRAM in the
+range 0x40..0xbf.
+
+In the remainder, avrtest is explained.  avrtest-xmega and avrtext-tiny
+work similar.  avrtest does not simulate internal peripherals like timers,
+I/O ports, interrupts, etc.
 
 
 ================
@@ -45,8 +60,8 @@ int main (void)
 
 
 Compile this program as usual but link against exit-atmega128.o.
-How to build that object is explained in the next chapter.  Store the
-C source as hello.c and compile it with, e.g.
+How to build that object file is explained in the next chapter.
+Store the C source as hello.c and compile it with, e.g.
 
     avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
@@ -88,8 +103,8 @@ int main (void)
 
 The avrtest_putchar and avrtest_getchar functions are defined in avrtest.h
 and act like putchar resp. getchar in an ordinary, hosted program:
-putchar writes a character to the host's standard output and getchar reads
-a character from the host's standard input.
+putchar writes a character to the host's standard output,
+and getchar reads a character from the host's standard input.
 
 Compile the C source with
 
@@ -143,24 +158,29 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
     make clean-exit all CC_FOR_AVR=/some-compiler-path/avr-gcc
 
-* Copy /someplace/avrtest/.dejagnurc to your $HOME and change the path
-  inside to point to directory where "board file" is located.
-  This is dejagnuboards subdirectory of avrtest files:
+* Adjust your $HOME/.dejagnurc file (or create one if it not already
+  exists) as indicated in /someplace/avrtest/.dejagnurc.
+  Change the "avrtest_dir" path to the directory where the avrtest
+  executable is located:
 
-    set board dir /someplace/avrtest/dejagnuboards
+    set avrtest_dir "/someplace/avrtest"
 
-* Edit /someplace/avrtest/dejagnuboards/atmega128-sim.exp and replace paths
-  to point to correct location of files for simulator (avrtest executable
-  and exit-atmega128.o object file) or add avrtest to $PATH:
+* You can add /someplace/avrtest to your PATH variable so that it's
+  more convenient to start avrtest.  In order to run the GCC test
+  suite this is not necessary, though.
 
-    set result [exec /someplace/avrtest/avrtest -m 2000000000 -no-stdin $prog ]
+* The .dejagnurc file sets the "avrlibc_include_dir" variable that points
+  to a directory where the compiler can find stdio.h and similar headers
+  from AVR-LibC.  Adjust this path to point to the "incude/avr" subdir
+  of a valid AVR-LibC installation.  You can also adjust that path in
+  the *-sim.exp file.
 
-    set board_info ldflags "/someplace/avrtest/exit-atmega128.o" -Wl,-u,vfprintf ...
+* *-sim.exp just sets some custom variables and then loads
+  avrtest.exp from the same directory to run avrtest.
 
 * Run the tests from gcc subdirectory of your avr-gcc build directory like:
 
     make -k check-gcc RUNTESTFLAGS="--target_board=atmega128-sim"
-    make -k check-gcc RUNTESTFLAGS="--target_board=atxmega128-sim"
 
 * Look in the ./gcc/testsuite subdirectory of avr-gcc build directory for
   logged results or add the -all switch to see it working 1 test at a time.
@@ -191,12 +211,17 @@ The following exit stati will be returned with -q:
   -  1  Target program called abort()
   -  x  Target program called exit (x)
   - 10  Program timeout as set by -m MAXCOUNT.
+  - 11  Something is wrong with the program file:  Does not fit into
+        memory, not an AVR executable, ELF headers broken, ...
+  - 12  The program goes haywire:  Stack overflow, illegal instruction or PC.
+  - 13  Problem with symbol information like an off function address.
+  - 14  Problem with using file i/o with the host's file system: Bad file
+        handle or file name, illegal argument.  This does *not* encompass
+        when fopen cannot open the file; this will just return a 0-handle.
 
   - 20  Out of memory (avrtest_log only).
   - 21  Wrong avrtest usage: Unknown options, etc.
   - 22  Program file could not be found / read.
-  - 23  Problem with the program file: Is too big or in wrong
-        format etc.
 
   - 42  Fatal error in avrtest.
 
@@ -252,15 +277,16 @@ env is set to the NULL pointer if the program is executed by avrtest
 and to a non-NULL pointer when executed by avrtest_log.
 
 exit.c:avrtest_init_argc_argv() requests the command args to be put
-starting at RAM address 0xf000.  If you prefer a different location then
-simply adjust exit.c according to your needs following the source comments.
+starting at a RAM address hard-coded in exit.c::avrtest_init_argc_argv().
+If you prefer a different location then adjust exit.c according to your
+needs, following the source comments.
 
 
 ============================
--no-args
+ -no-args
 ============================
 
-will act as if no -args switch was supplied:  It skip all arguments
+will act as if no -args switch was supplied:  It skips all arguments
 thereafter and sets argc = 0, argv = NULL and env as described above.
 
 
@@ -268,29 +294,34 @@ thereafter and sets argc = 0, argv = NULL and env as described above.
  -no-log and logging control
 ============================
 
-* This feature is only supported by avrtest_log and avrtest-xmega_log.
+* This feature is only supported by the avrtest_log family.
 
 avrtest_log will log address and action of each executed instruction to
 standard output of the host.  In cases where that is too much a flood of
 information, you can start avrtest_log with -no-log and turn on instruction
 logging by executing special commands defined in avrtest.h:
 
+    // Turn on instruction logging.
     LOG_ON;
 
-Turn on instruction logging.
-
+    // Turn it off again.
     LOG_OFF;
 
-Turn it off again.
+    // Push the current state of the logging (on or off) to an
+    // internal simulator stack, and then turn logging on / off.
+    LOG_PUSH_ON;
+    LOG_PUSH_OFF;
 
+    // Pop the logging state from the top of that stack.
+    LOG_POP;
+
+    // Turn on logging for the next N instructions and then switch
+    // it off again.
     LOG_SET (N);
 
-Turn on logging for the next N instructions and then switch it off again.
-
+    // Turn on logging during performance measurement described below,
+    // i.e. if any timer is in a START / STOP round.
     LOG_PERF;
-
-Turn on logging during performance measurement described below, i.e.
-if any timer is in a START / STOP round.
 
 Please notice that this method of switching logging on / off is (low)
 intrusive to the program.  The commands listed above are translated by
@@ -298,14 +329,18 @@ the compiler to machine instructions that might affect code generation
 for the surrounding code (register allocation, jump offsets, ...).
 The commands have low overhead; it's not more than an avrtest syscall.
 
+LOG_ON, LOG_OFF, LOG_PUSH_ON, LOG_PUSH_OFF and LOG_POP are also supplied
+as macros that can be used from assembly code.  These the macros have no
+effect on the internal state of the program (except for the program counter:
+the respective syscalls consume 4 bytes of code).
 
 ====================================
  Logging values to the host computer
 ====================================
 
-* This feature is only supported by avrtest_log and avrtest-xmega_log.
+* This feature is only supported by avrtest_log.
 
-In order to get values out of the running program the following
+In order to get values out of the running program, the following
 low-overhead, low-intrusive commands might be useful:
 
     LOG_U8 (X);         print X as unsigned 8-bit decimal value
@@ -335,9 +370,12 @@ printf format string to print the supplied value:
 !!! Please use format strings with care!  You can easily crash avrtest_log
 !!! and make it raise a Segmentation Fault or other undefined behaviour
 !!! by specifying a format string that does not match the value!
+!!! Notice that the %-formats below refer to the HOST machine, i.e. the
+!!! machine that executes avrtest_log!
 
 avrtest_log uses "double" to represent float and "unsigned int" for all
-other values.  The default format strings for the vanilla LOG_XXX are:
+other values up to 4 bytes.  The default format strings for the vanilla
+LOG_XXX are:
 
     " %u "              for the "U" variants
     " %d "              for the "S" variants
@@ -347,6 +385,145 @@ other values.  The default format strings for the vanilla LOG_XXX are:
     "%s"                for strings
     " %.6f "            for floats
     " 0x%04x "          for addresses
+
+For 8-byte values, the internal representation is "unsigned long long", and
+the default format strings are:
+
+    " %llu "              for the "U" variant
+    " %lld "              for the "S" variant
+    " 0x%016llx "         for the "X" variant
+
+
+===================================================
+ File I/O with the file system of the host computer
+===================================================
+
+avrtest supports basic file i/o capabilities that enable the target program
+to communicate with the host's file system.  In order to enable this, option
+
+    -sbox SANDBOX
+
+has to be set on the command line.  SANDBOX is the name of a folder of the
+host file system.  SANDBOX will be prepended to the file name passed to
+fopen() without any further ado.  avrtest implements several functionalities
+found in stdio.h and provides them by means of a syscall that can be accessed
+by functions from avrtest.h:
+
+    unsigned long avrtest_fileio_p (char what, const void *pargs);
+    unsigned long avrtest_fileio_1 (char what, unsigned char args);
+    unsigned long avrtest_fileio_2 (char what, unsigned      args);
+    unsigned long avrtest_fileio_4 (char what, unsigned long args);
+
+WHAT specifies the host operation to perform.  For each supported function,
+there is a macro AVRTEST_F that can be used as WHAT where F specifies the
+function.  For example, AVRTEST_fopen specifies to call the host's fopen().
+In order to specify FILEs, handles are passed around instead or FILE*
+pointers:  If the prototype of the stdio.h function specifies a FILE*
+argument, then the avrtest interface uses a handle instead.  A handle is
+a small 8-bit value.
+
+ARGS resp. PARGS specifies the arguments to pass to the host.  If all of them
+-- after replacing FILE* by its respective handle -- fit into 4 bytes, then
+these arguments are passed compressed as ARGS.  If they do not fit into 4 bytes,
+then the PARGS variant has to be used where PARGS points to a memory location
+where to find the arguments.
+
+To give an example, fopen whould be called as
+
+    uint8_t handle = (uint8_t) avrtest_fileio_4 (AVRTEST_fopen, args);
+
+where the low-word of ARGS is a const char* that points to the file name
+(which will be appended to SANDBOX as-is), and the high-word is a char
+pointer to the mode to use to open the file.  The return value ships the
+handle associated to the host's FILE* in the low-byte of the return value,
+the other bytes of the return value are unused.  HANDLE would be used in
+subsequent calls like AVRTEST_fclose, that passes the file handle in the
+low-byte of ARGS.
+
+-------------------------------------
+ File I/O:  Using the fileio.c module
+-------------------------------------
+
+For convenience, avrtest comes with a target module that supplies wrappers
+for the available file i/o functions.  The interface of these functions is
+as specified by the C standard, and fileio.c then tries to map the FILE*
+pointer to an associated handle that's needed for the respective avrtest
+syscall.  The following functions from stdio.h are implemented:
+
+    fopen, fclose, feof, fflush, clearerr, fread, fwrite.
+
+!!! However, using fileio.c comes with some limitations, and it needs
+!!! special options when linking.  See the next section for details.
+
+If a handle is not found, a default action might be performed.  Suppose for
+example a call to fread.  If fileio.c finds a handle associated to the passed
+FILE*, it will call the host's fread with the host's FILE* derived from the
+handle; otherwise it calls the avr-libc implementation of fread which uses
+FILE* and operates byte-by-byte.
+
+Most functions like fputc, fgetc, fputs, fprintf, etc. that are not included
+in the above list will work out-of-the-box and without special treatment or
+wrappers from the fileio module.
+
+You can use fileio.c/h as a module in your application, or you can link
+against one of the pre-compiled object files built by make.  For a program
+that simulates ATmega128 for example, the link would be
+
+    avr-gcc -mmcu=atmega128 fileio-atmega128.o -Wl,-wrap,fclose -Wl,-wrap,feof ...
+
+and then simulate program.elf with avrtest or avrtest_log.
+
+In order to circumvent avr-libc stdio.h pecularities and also for
+better performance, the fileio module provides functions that use
+handles directly instead of the need for an intermediate FILE*.
+These functions with their obvious semantics are:
+
+    fileio_handle_t host_fopen (const char *filename, const char *mode);
+    int host_fclose (fileio_handle_t);
+    int host_fflush (fileio_handle_t)
+    int host_feof (fileio_handle_t);
+    int host_fseek (fileio_handle_t, long pos, uint8_t whence);
+    int host_fgetc (fileio_handle_t);
+    int host_fputc (char, fileio_handle_t);
+    void host_clearerr (fileio_handle_t);
+    size_t host_fwrite (const void*, size_t, size_t, fileio_handle_t);
+    size_t host_fread (void*, size_t, size_t, fileio_handle_t);
+
+-------------------------------------------------
+ File I/O:  Caveats, restrictions and limitations
+-------------------------------------------------
+
+Due to peculiarities of avr-libc's stdio.h implementation, the
+following rules have to be obeyed when using file i/o via fileio.c:
+
+* The linker must be called with -wrap for the following symbols:
+  feof, fwrite, fread, fclose, cleaerr,  i.e. avr-gcc has to be called with
+
+    avr-gcc ... -Wl,-wrap,feof -Wl,-wrap,fwrite -Wl,-wrap,fread ...
+
+when linking.  For the documentation of -wrap, see
+http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
+
+* When using avrtest to run the avr-gcc test suite, the host interactions
+that exit-*.o supplies vie stdout and stderr should be sufficient.  The
+complexity of fileio is not needed for the test suite.
+
+----------------------------------------------------------------
+ File I/O:  Special streams for the host's stdin, stdout, stderr
+----------------------------------------------------------------
+
+The fileio module provides
+
+    FILE *host_stdin;
+    FILE *host_stdout;
+    FILE *host_stderr;
+
+that are associated to the host's stdin, stdout and stderr, respectively.
+The respective handles to use with functions like host_fflush() are:
+
+    HANDLE_stdin
+    HANDLE_stdout
+    HANDLE_stderr
 
 
 ========================
@@ -386,10 +563,10 @@ Displayed values are:
 Tracking of the call depth won't work as expected for setjmp / longjmp
 and similar functions that set SP to an unknown call depth.
 
-In order to give a specific perf-meter a more descriptive name there are
+In order to give a specific perf-meter N a more descriptive name there are
 
-    PERF_LABEL (L);
-    PERF_PLABEL (L);
+    PERF_LABEL (N, L);
+    PERF_PLABEL (N, L);
 
 where label L is a C-string residing in RAM or Flash, respectively.
 avrtest_log will cache the label so you can override it after PERF_LABEL.
@@ -519,7 +696,7 @@ the volatile accesses does not matter as it is ignored by PERF_START_CALL.
  Timing data and random values
 ==============================
 
-* This feature is only supported by avrtest_log and avrtest-xmega_log.
+* This feature is only supported by avrtest_log.
 
 Following functions return a 32-bit value:
 
@@ -539,3 +716,41 @@ program start:
     avrtest_reset_all();          Reset all of them
 
 The simulator does not account cycles to syscalls.
+
+
+===============================
+ Assembler support in avrtest.h
+===============================
+
+avrtest.h adds assembler support for a few avrtest features:
+
+    avrtest_syscall <sysno>
+    LOG_OFF             ;; Same as "avrtest_syscall 0"
+    LOG_ON              ;; Same as "avrtest_syscall 1"
+    LOG_PUSH_OFF        ;; Same as "avrtest_syscall 9"
+    LOG_PUSH_ON         ;; Same as "avrtest_syscall 10"
+    LOG_POP             ;; Same as "avrtest_syscall 11"
+    AVRTEST_ABORT       ;; Same as "avrtest_syscall 31"
+    AVRTEST_EXIT        ;; Same as "avrtest_syscall 30", exit value = R25:R24.
+
+"avrtest_syscall <sysno>" is an assembler macro which expands to
+
+    CPSE  R<sysno>, R<sysno>
+    .word 0xffff
+
+i.e. it does not change any register and does not change the program
+status (SREG).
+
+Example:
+
+    #include "avrtest.h"  
+
+    .text
+    .global func
+
+    func:
+        LOG_ON
+        ret
+
+And then call this function from assembler or from C code after
+declaring it with "extern void func (void);".

@@ -27,3 +27,5 @@ Georg-Johann Lay              Support XMEGA cores.
                               -args, -runtime, -ticks, -q, -e.
                               Support TICKS_PORT, LOG_PORT.
                               Support performance-meter.
+
+Martin Ettl                   Fix a resource leak in gen-flag-tables.c.

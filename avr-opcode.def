@@ -4,7 +4,7 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
    
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -130,6 +130,7 @@ AVR_OPCODE (LDI,         1, 1,    "LDI"    )
 AVR_OPCODE (LDD_Y,       1, 2,    "LDD Y+q")
 AVR_OPCODE (LDD_Z,       1, 2,    "LDD Z+q")
 AVR_OPCODE (LDS,         2, 2+CX, "LDS"    )
+AVR_OPCODE (LDS1,        1, 1,    "LDS"    ) // Tiny
 AVR_OPCODE (LD_X,        1, 2,    "LD X"   )
 AVR_OPCODE (LD_X_decr,   1, 2,    "LD -X"  )
 AVR_OPCODE (LD_X_incr,   1, 2,    "LD X+"  )
@@ -174,6 +175,7 @@ AVR_OPCODE (SPM,         1, 1,    "SPM"    )
 AVR_OPCODE (STD_Y,       1, 2,    "STD Y+q")
 AVR_OPCODE (STD_Z,       1, 2,    "STD Z+q")
 AVR_OPCODE (STS,         2, 2,    "STS"    )
+AVR_OPCODE (STS1,        1, 1,    "STS"    ) // Tiny
 AVR_OPCODE (ST_X,        1, 2,    "ST X"   )
 AVR_OPCODE (ST_X_decr,   1, 2,    "ST -X"  )
 AVR_OPCODE (ST_X_incr,   1, 2,    "ST X+"  )

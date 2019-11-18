@@ -4,13 +4,13 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
-   
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
+
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
-  
+
   avrtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -280,7 +280,7 @@ lpush (list_t **head, edge_t *e)
 }
 
 
-/* Remove first elment of list *HEAD and add it to the free list `yfree'.  */
+/* Remove first element of list *HEAD and add it to the free list `yfree'.  */
 
 static void
 lpop (list_t **head)
@@ -299,8 +299,8 @@ lpop (list_t **head)
 }
 
 
-static inline
-bool is_func_prefix (const char *prefix, const char *fun)
+static inline bool
+is_func_prefix (const char *prefix, const char *fun)
 {
   size_t len = strlen (prefix);
   return (str_prefix (prefix, fun)
@@ -469,7 +469,7 @@ graph_add_symbol (const char *name, unsigned pc, bool is_func)
 
 
 /* Priority of some known symbols as a specific address might be featured
-   with mode than one symbol.  */
+   with more than one symbol.  */
 
 static int
 rate_symbol (const char *s)
@@ -514,7 +514,7 @@ graph_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func)
 }
 
 
-/* Called from ELF reader as is comes across the symbol table.  */
+/* Called from ELF reader as it is traversing the symbol table.  */
 
 void
 graph_set_string_table (char *stab, size_t size, int n_entries)
@@ -704,7 +704,7 @@ static void
 update_call_stack (symbol_t *sym, int delta, bool is_longjmp)
 {
   list_t *l;
-  int sp = pSP[0] | (pSP[1] << 8);
+  int sp = get_nonglitch_SP();
 
   account_cycles ();
 
@@ -856,7 +856,7 @@ update_call_stack (symbol_t *sym, int delta, bool is_longjmp)
 }
 
 
-/* Log each transition,i.e. change of call stack.  This maked it much more
+/* Log each transition, i.e. change of call stack.  This makes it much more
    convenient to track execution logs.  */
 
 static void
@@ -929,6 +929,9 @@ graph_update_call_depth (const decoded_t *deco)
     case ID_ICALL: case ID_CALL: case ID_EICALL:
       call = 1;
       break;
+    case ID_RETI:
+      call = -1;
+      break;
     case ID_RET:
       // GCC might use push/push/ret for indirect jump,
       // don't account these for call depth
@@ -942,7 +945,7 @@ graph_update_call_depth (const decoded_t *deco)
   symbol_t *fun = func_sym[cpu_PC];
   symbol_t *cur = ystack->sym;
 
-  // Pretty-print __prologure_saves__ and __epilogue_restores__ when logging,
+  // Pretty-print __prologue_saves__ and __epilogue_restores__ when logging,
   // but don't show them in the call tree:  the tree might be cluttered up
   // because too many functions are using these helpers from libgcc.
   static symbol_t *pro_ep = NULL;
@@ -979,7 +982,7 @@ graph_update_call_depth (const decoded_t *deco)
     maybe_longjmp = jump_indirect;
   else if (maybe_longjmp || jump_indirect)
     {
-      int sp = pSP[0] | (pSP[1] << 8);
+      int sp = get_nonglitch_SP();
       maybe_longjmp = ystack && sp > ystack->sp;
     }
 
@@ -1026,7 +1029,7 @@ graph_update_call_depth (const decoded_t *deco)
       // main returns.  If immediately after return from main exit or _exit
       // are entered, show an edge from main to the respective function.
       static char str[20];
-      byte *r24 = log_cpu_address (24, AR_REG);
+      byte *r24 = cpu_address (24, AR_REG);
       int16_t ret_val = r24[0] | (r24[1] << 8);
       sprintf (str, "return %d", ret_val);
       ystack->edge->s_label = str;
@@ -1082,8 +1085,8 @@ write_dot_node (FILE *stream, symbol_t *n, const char *extra)
   else if (! n->cycles.account)
     fprintf (stream, "[color=gray][fontcolor=gray]");
   else
-    fprintf (stream, "[style=filled fillcolor=\"%1.3lf %1.3lf %1.3lf\"]",
-             0.4 * (1 - pow(per,0.3)), pow (per, 0.5), 1.0);
+    fprintf (stream, "[style=filled fillcolor=\"%1.3f %1.3f %1.3f\"]",
+             0.4 * fabs (1 - pow(per,0.3)), pow (per, 0.5), 1.0);
   fprintf (stream, ";\n");
 }
 
@@ -1176,11 +1179,12 @@ make_dot_filename (void)
   if ((p = strrchr (s, '/')))  s = p;
   if ((p = strrchr (s, '\\'))) s = p;
   size_t len = (p = strrchr (s, '.'))
-    ? (size_t) (p - program.name) - 1
+    ? (size_t) (p - program.name)
     : strlen (program.name);
 
   char *fname = get_mem (len + 1 + strlen (suffix), sizeof (char), ".dot");
   strncpy (fname, program.name, len);
+  fname[len] = '\0';
   return strcat (fname, suffix);
 }
 
@@ -1202,6 +1206,7 @@ graph_write_dot (void)
     {
     case LEAVE_EXIT:  sprintf (reason, "exit %d", program.exit_value); break;
     case LEAVE_ABORTED: strcpy (reason, "abort");   break;
+    case LEAVE_CODE:    strcpy (reason, "haywire code"); break;
     case LEAVE_TIMEOUT: strcpy (reason, "timeout"); break;
     default:            strcpy (reason, "unknown"); break;
     }

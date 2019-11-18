@@ -1,3 +1,397 @@
+2019-11-16  Georg-Johann Lay  <avr@gjlay.de>
+
+	Refurbish leave codes so that LEAVE_ABORTED is only used when the
+	target program actually called abort().
+
+2019-11-16  Georg-Johann Lay  <avr@gjlay.de>
+
+	Implement host file i/o access via new syscall.
+
+	* Makefile: Simplify object file dependencies.
+	(fileio, fileio-%.o, clean-fileio): New targets.
+	(all-avr): Depend on fileio.
+	(FILEIO_MCUS, FILEIO_O): New vars.
+	* avrtest.h (AVRTEST_fopen, AVRTEST_fclose, AVRTEST_fgetc,
+	AVRTEST_fputc, AVRTEST_feof, AVRTEST_clearerr, AVRTEST_fread,
+	AVRTEST_fwrite, AVRTEST_fseek, AVRTEST_fflush): New enum values.
+	(AVRTEST_DEF_SYSCALL2_R20): New syscall def macro.
+	(avrtest_fileio_p/1/2/4) [!IN_AVRTEST]: New inline functions.
+	* avrtest.c (put_word_reg_raw, _log_va, sys_fileio): New static funcs.
+	(log_va): New global function pointer.
+	(func_SYSCALL): Handle syscall 26.
+	* testavr.h (stdarg.h): Include it.
+	(log_va): New proto.
+	(log_append_va): New macro.
+	* logging.c (log_append_va): New function.
+	* host.h (host_fileio): New proto.
+	* host.c (stdint.h, stdlib.h, stdio.h, stdarg.h, string.h,
+	avrtest.h): Include them.
+	(log_add_, find_file, host_fopen, host_fclose, host_fputc,
+	host_fgetc, host_feof, host_clearerr, host_fflush, host_fseek,
+	host_fread, host_fwrite): New static function.
+	(handle_t, file_t, avrlibc_stdio_seek_t): New typedefs.
+	(host_fileio): New function.
+	* options.def (AVRTEST_OPT): Add -sbox.
+	* options.h (fileio_sandbox): New proto.
+	* options.c (USAGE) <-sbox SANDBOX>: Explain.
+	(fileio_sandbox): New global var.
+	(parse_args) <OPT_sandbox>: Handle.
+	* fileio.h: New target header.
+	* dejagnuboards/fileio.c: New target module.
+	* README: Typo. Document file i/o.
+
+2019-11-11  Georg-Johann Lay  <avr@gjlay.de>
+
+ 	* host.c (get_mem_value): New function and...
+ 	* host.h (get_mem_value): ...proto.
+
+2019-11-11  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add a new module host.c for some routines that serve
+	host <-> target transportation.
+
+	* logging.h (avr_float_t, get_r20_value, get_r18_value)
+	(decode_avr_float, read_string): Move typedef and protos to...
+	* host.h: ...this new file.
+	* avrtest.c (host.h): Include.
+	(cpu_address): Renamed from log_cpu_address.
+	* testavr.h: Same.
+	* graph.c (graph_update_call_depth): Same.
+	* logging.c (sys_ticks_cmd): Same.
+	(host.h): Include.
+	(math.h): Don't include.
+ 	(decode_avr_float, read_string, get_r20_value, get_r18_value):
+ 	Move to...
+ 	* host.c: ...this new file.
+	* perf.c (host.h): Include.
+	* Makefile (DEP_OPTIONS) <host.h>: Add.
+	(DEPS_HOST): New var.
+	(host.o, host$(W).o): New rules to build them.
+
+2019-10-30  Georg-Johann Lay  <avr@gjlay.de>
+
+	Bump copyrigth years.
+
+2019-10-19  Georg-Johann Lay  <avr@gjlay.de>
+
+ 	* avrtest.h (LOG_FMT_STR, LOG_FMT_PSTR, LOG_PFMT_STR, LOG_PFMT_PSTR): Use
+ 	const char* for the type of _x instead of __typeof__(X).
+
+2019-09-09  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avrtest.c (load_indirect, store_indirect): Show the address offset
+	of LDD, STD when logging.
+
+2019-09-09  Georg-Johann Lay  <avr@gjlay.de>
+
+	BUGFIX: Don't read SP during an update when measuring performance.
+		Fix a fatal error that might occor with with LOG_PERF.
+
+	* avrtest.c (func_OUT): Call log_maybe_change_SP.
+	(addr_SPL): New global variable.
+
+	* testavr.h (addr_SPL, get_nonglitch_SP, log_maybe_change_SP): New protos.
+
+	* logging.c (maybe_SP_glitch): New global variable.
+	(log_maybe_change_SP, get_nonglitch_SP): New functions.
+	(log_add_instr) <maybe_SP_glitch>: Update it.
+	<maybe_used>: Syscall #5 might turn on logging.
+
+	* logging.h (maybe_SP_glitch): New proto.
+
+	* perf.c (perf_instruction): Use get_nonglitch_SP to get SP.
+
+	* graph.c (update_call_stack, graph_update_call_depth): Same.
+
+2019-08-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support LOG_PUSH_ON, LOG_PUSH_OFF, LOG_POP to push / pop logging status.
+
+	* avrtest.h (avrtest_syscall_9/10/11): New AVRTEST_DEF_SYSCALLs.
+	(LOG_PUSH_ON, LOG_PUSH_OFF, LOG_POP) [C/C++, Assembler]: New macros.
+
+	* avrtest.c (func_SYSCALL) [sysno=9,10,11]: Forward to do_syscall().
+
+	* logging.c (log_stack_t): New typedef.
+	(do_syscall) [sysno=9,10,11]: Forward to... 
+	(sys_log_pushpop): ...this new static function.
+	(log_set_logging): New static function.
+	(sys_log_config): Use it instead of this...
+	(SYS_LOGGING): ...removed macro.
+	(log_add_instr, log_init): Syscalls 10 and 11 might turn on logging.
+	(pc_string): New static function.
+
+	* README: Document LOG_PUSH_ON, LOG_PUSH_OFF, LOG_POP.
+
+2019-08-21  Georg-Johann Lay  <avr@gjlay.de>
+
+	BUGFIX: Correctly decode sub-normal floats
+
+	* logging.c (decode_avr_float) <af.exp> [FT_DENORM]: For sub-normals,
+	the exponent is 1 - bias, not -bias.
+
+	* avrtest.h (LOG_DUMP_F): Avoid early-clobber of F
+	if X is a function call with side-effect on F.
+	(LOG_FMT_*, LOG_PFMT_*): Adjust accordingly.
+
+2019-08-13  Georg-Johann Lay  <avr@gjlay.de>
+
+	BUGFIX: Don't use entry points from ELF header that are an
+		address	in the RAM address space (or above).  This
+		allows a global	variable to be named 'start' which
+		is a specuial symbol name for the GNU linker.
+
+	* load-flash.c (load_elf) <program.entry_point>: Don't use
+	ehdr.e_entry that appear to be in .data as program entry int.
+
+2019-08-10  Georg-Johann Lay  <avr@gjlay.de>
+
+	* Makefile (clean-host): New phony target.
+	(clean): Depend on: clean-host, clean-exit.
+
+2019-08-08  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/exit.c (avrtest_init_argc_argv) [pargs]: Set
+	to 0x1600 for avrxmega3.
+
+2019-07-27  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add new option '-pm OFFSET' to set the address where the program
+	memory is seen in the RAM address space.  This can be used to
+	simulate programs for ATmega4808 from -mmcu=avrxmega3 that use
+	an offset of 0x4000 instead of the avrxmega3 default of 0x8000.
+
+	* options.def (-pm): Add new option.
+
+	* options.c (flash_pm_offset): New static variable.
+	(parse_args) [OPT_flash_pm_offset]: Set it from the -pm option.
+	[arch.flash_pm_offset]: Set it from flash_pm_offset after all
+	args have been parsed.
+	(USAGE) [-pm OFFSET]: Document it.
+
+	* README: Document the new option.
+
+2018-07-19  Georg-Johann Lay  <avr@gjlay.de>
+
+	Correctly adjust RAMPX, RAMPY, RAMPZ in pre-decrement and
+	post-increment loads and stores.
+
+	* avrtest.c (update_reg_and_ramp, add_address): New static
+	functions.
+	(load_indirect, store_indirect): Use them to adjust the full
+	address, including RAMPX/Y/Z if appropriate, for pre-decrement
+	and post-increment loads and stores.
+	(ram_valid_mask): New static var.
+	(execute): Initialize it.
+	(load_program_memory): Only log writeback of RAMPZ if it is
+	actually changed by ELPM Z+.
+
+2018-07-18  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support -mmcu=avrxmega7 that uses RAMPX, RAMPY, RAMPZ
+	resp. RAMPD as bits 16...23 for RAM accesses.
+
+	* options.h (arch_t): Add field .has_rampd.
+	* options.c (arch_desc): Add entry for "avrxmega7".
+	Add initializers for new field .has_rampd.
+	* testavr.h (MAX_RAM_SIZE) [ISA_XMEGA]: Increase size to 256 * 64 KiB.
+	* avrtest.c (RAMPX, RAMPY, RAMPD): New macros.
+	(named_sfr) [ISA_XMEGA]: Add entries for RAMPX/Y/D.
+	(get_ramp): New static function.
+	(load_indirect, store_indirect) [ISA_XMEGA & arch.has_rampd]:
+	Extend effective address by content of RAMPX/Y/Z.
+	(func_LDS, func_STS) [ISA_XMEGA & arch.has_rampd]: Extend effective
+	address by content of RAMPD.
+	* logging.c (log_add_data_mov) [addr >= 0x10000 & arch.has_rampd]:
+	Print address as %02x:%04x.
+
+2018-02-01  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/avrtest.exp (sim_load): If a test PASSes, then
+	also return the program's output.
+
+2018-01-24  Georg-Johann Lay  <avr@gjlay.de>
+
+	Make LOG_PSTR etc. also work for flash-strings in .rodata.
+
+	* logging.c (read_string) [flash_p=true]: If addr appears to
+	be a RAM address due to addr >= arch.flash_pm_offset,
+	then read from RAM.
+
+2018-01-24  Georg-Johann Lay  <avr@gjlay.de>
+
+	* .dejagnurc: Adjust comments.
+	(avrlibc_include_dir): Set it.
+	* dejagnuboards/gen-exp.sh: New script to generate *-sim.exp
+	board descriptions.
+	* dejagnuboards/*.exp: Regenerate.  No more set extra_cflags.
+	* dejagnuboards/atxmega128-sim.exp: Rename to atxmega128a3-sim.exp
+
+2018-01-23  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/exit.c (avrtest_init_argc_argv) [pargs]: Set
+	to 0x7000 for avrxmega3.
+
+2018-01-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	* .dejagnurc (avrtest_dir): Set it.  Add more comments.
+	* README (Running avr-gcc testsuite): Adjust.
+	* dejagnuboards/*.exp: No more set avrtest_dir.  Adjust comments.
+
+2018-01-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add support for devices with program memory seen in RAM
+	address space (avrxmega3).
+
+	* README: Mention avrxmega3 as valid option.
+	* Makefile (EXIT_MCUS): Add attiny3216.
+	* load-flash.c (load_elf) [arch.flash_pm_offset != 0]: Copy
+	flash-data to RAM at offset arch.flash_pm_offset.
+	* avrtest.c (load_indirect) [AVR_TINY, AVR_XMEGA]: Use
+	arch.flash_pm_offset nstead of magic 0x4000.  Always read from RAM.
+	(func_LDS): Also log flash address if LDS actually reads from flash.
+	* options.h (arch_t) [flash_pm_offset]: New field.
+	* options.c (arch_desc): Add "avrxmega3" row.  Add initializer
+	for .flash_pm_offset.
+	* dejagnuboards/attiny3216-sim.exp: New file.
+
+2018-01-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add DejaGnu board description for ATmega8.
+
+	* dejagnuboards/atmega8-sim.exp: New file.
+
+2017-07-03  Georg-Johann Lay  <avr@gjlay.de>
+
+	Handle RETI in call-depth computation.
+
+	* graph.c (graph_update_call_depth) [ID_RETI]: Adjust depth by -1.
+
+2016-12-16  Georg-Johann Lay  <avr@gjlay.de>
+
+	Fix problems with negative colors and with .dot file name.
+
+	* graph.c (make_dot_filename): Fix problem with basename length
+	which was 1 character too short.
+	(write_dot_node): Use fabs() aroung value for red color component.
+	Use "%f" print modifier for double.
+
+2016-12-12  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add assembler support to avrtest.h.
+
+	* avrtest.h: Protect C-code with #if !defined (__ASSEMBLER__).
+	(LOG_ON, LOG_OFF) [ASSEMBLER]: New C macros.
+	(AVRTEST_ABORT, AVRTEST_EXIT) [ASSEMBLER]: New C macros.
+	(avrtest_syscall <N>) [ASSEMBLER]: New asm macro.
+
+2016-12-12  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support logging of 64-bit values.
+
+	* avrtest.h (LOG_U64_CMD, LOG_S64_CMD, LOG_S64_CMD): New macros.
+	(LOG_U64, LOG_S64, LOG_X64): New macros.
+	(LOG_FMT_U64, LOG_FMT_S64, LOG_FMT_X64): New macros.
+	(LOG_PFMT_U64, LOG_PFMT_S64, LOG_PFMT_X64): New macros.
+	(avrtest_syscall_8_u64): New inline function.
+	(avrtest_syscall_8_s64): New inline function.
+	* logging.h (get_r18_value): New prototype.
+	* logging.c (get_r18_value): New function.
+	(sys_log_dump) [LOG_U64_CMD, LOG_S64_CMD, LOG_S64_CMD]: Handle.
+	(do_syscall) [sysno=8]: Handle.
+	(layout) [LOG_U64_CMD, LOG_S64_CMD, LOG_S64_CMD]: Add entries.
+	* avrtest.c (func_SYSCALL) [sysno=8]: Handle.
+	* README (Logging values to the host computer): Adjust.
+
+2016-12-12  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/attiny40-sim.exp (extra_ldflags)
+	[__DATA_REGION_LENGTH__]: Increase from 2K to 8K.
+
+2016-11-23  Martin Ettl  <ettlmartin@users.sf.net>
+
+	* gen-flag-tables.c (main): Close input file in case of an error.
+
+2016-11-21  Georg-Johann Lay  <avr@gjlay.de>
+
+	For ATtiny40, use a linker description file which leaves .rodata
+	in flash and adds 0x4000 to VMAs (virtual memory addresses).
+
+	* avrtiny-rodata.x: New file.
+	* dejagnuboards/attiny40-sim.exp (extra_ldflags):
+	Add -Tavrtiny-rodata.x.
+
+2016-11-21  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/atmega2560-sim.exp (extra_ldflags) [__stack]:
+	Define symbol to 0x1fff.
+
+2016-07-11  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support reduced AVR Tiny cores in new avrtest-tiny[_log].
+	Supply boad description for ATtiny40.
+
+	* Makefile: Add rules to build avrtest-tiny, avrtest-tiny_log as
+	simulator variants for ISA_TINY.
+	(EXIT_MCUS): Add attiny40.
+	* avr-opcode.def (LDS1, STS1): New AVR_OPCODE.
+	* testavr.h (is_tiny): New prototype.
+	* avrtest.c (is_tiny): New global const variable.
+	(IOBASE, CX, cpu_reg): Set depending on ISA_TINY.
+	(get_reg, put_reg) [ISA_TINY]: Abort if regno < 16.
+	(load_indirect): Handle ISA_TINY.
+	(func_LDS1, func_STS1): Implement Tiny's LDS, STS.
+	* load-flash.c (decode_opcode) [is_tiny]: Only decode to ID_LDD_Y,
+	ID_STD_Y, ID_LDD_Z, ID_STD_Z if offset is 0.
+	Handle LDS1 and STS1.
+	(tiny_opcode_maybe_illegal): New static function.
+	(decode_flash) [is_tiny]: Use it to invalidate opcodes that are
+	not valid for Tiny.
+	* logging.c (log_patch_mnemo): Patch "LDD Y+q" etc. to "LD Y".
+	* options.h (arch_t.is_tiny): New field.
+	* options.c (arch_desc) ["avrtiny"]: New entry.
+	(usage, parse_args): Handle is_tiny cases.
+	* dejagnuboards/exit.c (avrtest_init_argc_argv): Use placement of
+	argv[] that does not interfere with __AVR_TINY_PM_BASE_ADDRESS__.
+	(exit) [__AVR_TINY__]: Use ST instead of STS in inline asm.
+	* dejagnuboards/attiny40-sim.exp: New board description for ATtiny40.
+	* dejagnuboards/avrtest.exp (sim_load): Query avrtest_mcu for
+	"tiny" so we can select the right simulator executable: avrtest-tiny.
+
+2016-07-11  Georg-Johann Lay  <avr@gjlay.de>
+
+	Fix some build warnings.
+
+	* perf.c (print_tag): Don't use printf without format string.
+	(perf_stop) [call_only.sp]:  Compare against INT_MAX, ont LONG_MAX.
+	* testavr.h (FASTCALL): Only define if __i386__ or __i686__.
+
+2016-06-27  Georg-Johann Lay  <avr@gjlay.de>
+
+	Use new file avrtest.exp that holds common parts of the board
+	description files.
+
+	* dejagnuboards/atmega103-sim.exp:
+	* dejagnuboards/atxmega128-sim.exp:
+	* dejagnuboards/atmega128-sim.exp: Factor out common code to...
+	* dejagnuboards/avrtest.exp: ...this new file.
+	* dejagnuboards/atmega2560-sim.exp: New file.
+	* dejagnuboards/atmega64-sim.exp: New file.
+	* README: Adjust.
+
+2016-06-27  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avrtest.h:  Don't use // comments.
+	[!IN_AVRTEST]: Use __extension__ with enum outside of range of int.
+
+2016-06-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	BUGFIX: Fix wrong decoding of 1st instruction if entry-point
+	        is not 0x0.
+
+	* load-flash.c (decode_flash): Decode first opcode from
+	program.code_start, not from 0x0.
+
 2014-11-13  Georg-Johann Lay  <avr@gjlay.de>
 
 	Add call graph generation with -graph.

@@ -10,12 +10,12 @@
 # > cd ${avrtest_dir}
 # > make exit-${mmcu}.o
 
-set mmcu "atmega103"
+set mmcu "attiny3216"
 
 # MCU for avrtest.
 # One of: "avr51", "avr6", "avrxmega6", "avrxmega3", "avrtiny".
 
-set avrtest_mmcu "avr51"
+set avrtest_mmcu "avrxmega3"
 
 # "avrlibc_include_dir" will be used as search path for include
 # files from AVR-LibC where stdio.h etc. is located.  You can set
@@ -37,6 +37,6 @@ set avrtest_mmcu "avr51"
 # that are FAILing due to small memory.  The simulator has plenty
 # of memory, and there is no need to stick to AVR harware limitations.
 
-set extra_ldflags "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+set extra_ldflags "-Tdata=0x802000 -Wl,--defsym=__stack=0x1fff,--defsym=__heap_end=0x807fff"
 
 load_generic_config "avrtest"

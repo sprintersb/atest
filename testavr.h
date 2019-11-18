@@ -4,7 +4,7 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
    
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,13 +27,19 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 // ---------------------------------------------------------------------------
 //     configuration values (in bytes).
 
-#define MAX_RAM_SIZE     (64 * 1024)
-#define MAX_FLASH_SIZE  (256 * 1024)  // Must be at least 128KB
-#define MAX_EEPROM_SIZE  (16 * 1024)  // .eeprom is read from ELF but unused
+#ifdef ISA_XMEGA
+#define MAX_RAM_SIZE    (0x1000000)     // 3-byte addresses due to RAMPx.
+#else
+#define MAX_RAM_SIZE    (0x10000)
+#endif // ISA_XMEGA
+
+#define MAX_FLASH_SIZE  (0x40000)       // Must be at least 128KiB
+#define MAX_EEPROM_SIZE (16 * 1024)     // .eeprom is read from ELF but unused
 
 #define REGX    26
 #define REGY    28
@@ -97,6 +103,7 @@ extern program_t program;
 extern unsigned cpu_PC;
 extern const int io_base;
 extern const bool is_xmega;
+extern const bool is_tiny;
 extern const bool is_avrtest_log;
 extern const unsigned invalid_opcode;
 
@@ -105,18 +112,26 @@ extern bool have_syscall[32];
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
 #define NORETURN __attribute__((noreturn))
+
+#if defined (__i386__) || defined (__i868__)
 #define FASTCALL __attribute__((fastcall))
+#else
+#define FASTCALL /* empty */
+#endif
 
 enum
   {
     LEAVE_EXIT,
     LEAVE_ABORTED,
     LEAVE_TIMEOUT,
-    LEAVE_FILE,
+    LEAVE_ELF,
+    LEAVE_CODE,
+    LEAVE_SYMBOL,
+    LEAVE_HOSTIO,
     // Something went badly wrong
     LEAVE_USAGE,
     LEAVE_MEMORY,
-    LEAVE_IO,
+    LEAVE_FOPEN,
     LEAVE_FATAL
   };
 
@@ -137,10 +152,11 @@ enum
 
 extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
 extern void qprintf (const char *fmt, ...);
-extern byte* log_cpu_address (int, int);
+extern byte* cpu_address (int, int);
 extern void* get_mem (unsigned, size_t, const char*);
 
 extern const int addr_SREG;
+extern const int addr_SPL;
 extern byte* const pSP;
 
 typedef struct
@@ -166,6 +182,7 @@ typedef struct
   short cycles;
 } opcode_t;
 
+extern void (*log_va)(const char*,va_list);
 
 #ifndef AVRTEST_LOG
 
@@ -173,6 +190,7 @@ typedef struct
 
 #define log_init(...)          (void) 0
 #define log_append(...)        (void) 0
+#define log_append_va(...)     (void) 0
 #define log_add_instr(...)     (void) 0
 #define log_add_data_mov(...)  (void) 0
 #define log_add_flag_read(...) (void) 0
@@ -181,6 +199,7 @@ typedef struct
 #define log_set_func_symbol(...)      (void) 0
 #define log_set_string_table(...)     (void) 0
 #define log_finish_string_table(...)  (void) 0
+#define log_maybe_change_SP(...)  (void) 0
 
 #else
 
@@ -188,6 +207,7 @@ extern unsigned old_PC, old_old_PC;
 extern bool log_unused;
 extern void log_init (unsigned);
 extern void log_append (const char *fmt, ...);
+extern void log_append_va (const char *fmt, va_list);
 extern void log_add_instr (const decoded_t *op);
 extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
@@ -197,6 +217,7 @@ extern void do_syscall (int x, int val);
 extern void log_set_func_symbol (int, size_t, bool);
 extern void log_set_string_table (char*, size_t, int);
 extern void log_finish_string_table (void);
+extern void log_maybe_change_SP (int);
 
 typedef struct
 {
@@ -225,6 +246,8 @@ typedef struct
 // Objects hosted by logging.c.
 extern need_t need;
 extern string_table_t string_table;
+
+extern int get_nonglitch_SP();
 
 #endif  // AVRTEST_LOG
 

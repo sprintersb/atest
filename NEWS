@@ -3,6 +3,82 @@
                           avrtest NEWS
                           ============
 
+* Add basic support for stdio.h functions to interact      r265  2019-11-19
+  with the host's file system has been added.  The files
+  that are to be accessed must be located in a sandbox
+  folder specified by the new command line option
+
+      -sbox SANDBOX
+
+  A new target module fileio.c has been added that
+  provides implementation of functions like:
+
+      fopen, fclose, feof, fflush, clearerr, fopen,
+      fread, fwrite
+
+  from stdio.h.  In addition, the new module provides
+  functions that use file handles in place of FILE*
+  pointers.  For details see the README file.
+
+
+* Add support to push the current state of instruction     r221  2019-08-25
+  logging to an internal stack in the simulator.
+  The state can be popped back when needed.  Support is
+  available from the avrtest_log family and available by
+  new (C/C++, Assembler) macros in avrtest.h:
+
+  -  LOG_PUSH_ON
+  -  LOG_POP_OFF
+  -  LOG_POP
+
+
+* BUGFIX don't use entry points in the data address	   r218  2019-08-13
+  range.
+
+
+* Add support for '-pm OFFSET' command line option.        r214  2019-07-27
+  Devices like ATmega4808 from avrxmega3 see the
+  program memory at address 0x4000 in the RAM address
+  space.  The default for avrxmega3 is 0x8000, however.
+  This option can be used to specify the right offset.
+
+  - Support avrtest-xmega -mmcu=avrxmega3 -pm OFFSET
+  
+
+* Add support for avrxmega7 devices that use               r212  2018-07-18
+  RAMPX, RAMPY, RAMPZ resp. RAMPD as high-byte
+  for RAM accesses.
+
+  - Support avrtest-xmega -mmcu=avrxmega7
+
+
+* Add support for avrxmega3 devices that see flash         r203  2018-01-22
+  in RAM address space like ATtiny212, ATtiny1617, etc.
+
+  - Support avrtest-xmega -mmcu=avrxmega3
+  - Add a DejaGNU board description for ATtiny3216.
+
+
+* Add assembler support to avrtest.h for:                  r196  2016-12-12  
+
+  -  LOG_ON
+  -  LOG_OFF
+  -  AVRTEST_EXIT
+  -  AVRTEST_ABORT
+  -  avrtest_syscall <sysno>
+
+  
+* Support logging of 64-bit values.                        r194  2016-12-12
+
+  
+* Support the reduced AVR Tiny cores with only 16 GPRs.    r186  2016-07-11
+  The new executables for that core architecture are
+  avrtest-tiny and avrtest-tiny_log.
+
+
+* BUGFIX of wrong decoding of first instruction if         r181  2016-06-25
+  entry-point is not 0x0.
+
 
 * Support call graph generation                            r178  2014-11-13
   - -graph[=FILE]  New option to generate .dot graph

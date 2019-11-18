@@ -4,7 +4,7 @@
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
-  Copyright (C) 2008-2014 Free Software Foundation, Inc.
+  Copyright (C) 2008-2019 Free Software Foundation, Inc.
    
   avrtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,8 +36,14 @@ typedef struct
   bool has_eind;
   // True if this is XMEGA
   bool is_xmega;
+  // True if the architecture has the RAMPD special function register.
+  bool has_rampd;
+  // True if this is reduced TINY
+  bool is_tiny;
   // Mask to detect whether cpu_PC is out of bounds
   unsigned int flash_addr_mask;
+  // Offset where flash is seen in RAM address space, or 0.
+  unsigned int flash_pm_offset;
 } arch_t;
 
 extern arch_t arch;
@@ -77,5 +83,6 @@ extern char** comma_list_to_array (const char *tokens, int *n);
 extern options_t options;
 extern args_t args;
 extern arch_t arch;
+extern const char *fileio_sandbox;
 
 #endif // OPTIONS_H

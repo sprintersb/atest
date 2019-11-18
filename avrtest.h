@@ -3,15 +3,17 @@
 
 #define AVRTEST_INVALID_OPCODE 0xffff
 
+#if !defined (__ASSEMBLER__)
+
 enum
   {
     LOG_ADDR_CMD,
     LOG_STR_CMD,  LOG_SET_FMT_ONCE_CMD,  LOG_SET_FMT_CMD, LOG_UNSET_FMT_CMD,
     LOG_PSTR_CMD, LOG_SET_PFMT_ONCE_CMD, LOG_SET_PFMT_CMD,
 
-    LOG_U8_CMD, LOG_U16_CMD, LOG_U24_CMD, LOG_U32_CMD,
-    LOG_S8_CMD, LOG_S16_CMD, LOG_S24_CMD, LOG_S32_CMD,
-    LOG_X8_CMD, LOG_X16_CMD, LOG_X24_CMD, LOG_X32_CMD,
+    LOG_U8_CMD, LOG_U16_CMD, LOG_U24_CMD, LOG_U32_CMD, LOG_U64_CMD,
+    LOG_S8_CMD, LOG_S16_CMD, LOG_S24_CMD, LOG_S32_CMD, LOG_S64_CMD,
+    LOG_X8_CMD, LOG_X16_CMD, LOG_X24_CMD, LOG_X32_CMD, LOG_X64_CMD,
     LOG_FLOAT_CMD,
 
     LOG_TAG_FMT_CMD, LOG_TAG_PFMT_CMD,
@@ -52,20 +54,29 @@ enum
     PERF_TAG_FMT_CMD, PERF_TAG_PFMT_CMD
   };
 
+enum
+  {
+    AVRTEST_fopen, AVRTEST_fclose,
+    AVRTEST_fgetc, AVRTEST_fputc,
+    AVRTEST_feof,  AVRTEST_clearerr,
+    AVRTEST_fread, AVRTEST_fwrite,
+    AVRTEST_fseek, AVRTEST_fflush
+  };
+
 #ifdef IN_AVRTEST
 
 /* This defines are for avrtest itself.  */
 
-// bits 5..3
+/* bits 5..3 */
 #define PERF_CMD(n) (0xf & ((n) >> 4))
 
 #define PERF_TAG_CMD(n) (0xf & ((n) >> 4))
 
-// bits 2..0 (LOG_CMD = 0)
-// bits 2..0 (LOG_CMD = LOG_TAG_PERF)
+/* bits 2..0 (LOG_CMD = 0) */
+/* bits 2..0 (LOG_CMD = LOG_TAG_PERF) */
 #define PERF_N(n)   ((n) & 0x7)
 
-// mask
+/* mask */
 #define PERF_ALL    0xfe
 
 #else /* IN_AVRTEST */
@@ -101,6 +112,10 @@ enum
 #define LOG_X24(X) avrtest_syscall_7_u24 ((X), LOG_X24_CMD)
 #define LOG_X32(X) avrtest_syscall_7_u32 ((X), LOG_X32_CMD)
 
+#define LOG_U64(X) avrtest_syscall_8_u64 ((X), LOG_U64_CMD)
+#define LOG_S64(X) avrtest_syscall_8_s64 ((X), LOG_S64_CMD)
+#define LOG_X64(X) avrtest_syscall_8_u64 ((X), LOG_X64_CMD)
+
 /* Format string for next action only */
 #define LOG_SET_FMT_ONCE(F)  avrtest_syscall_7_a ((F), LOG_SET_FMT_ONCE_CMD)
 #define LOG_SET_PFMT_ONCE(F) avrtest_syscall_7_a ((F), LOG_SET_PFMT_ONCE_CMD)
@@ -113,49 +128,63 @@ enum
 #define LOG_UNSET_FMT(F) avrtest_syscall_7 (LOG_UNSET_FMT_CMD)
 
 /* Logging with custom format string (from RAM) */
-#define LOG_FMT_ADDR(F,X)  LOG_DUMP_F_ (FMT, (F), LOG_ADDR(X))
-#define LOG_FMT_PSTR(F,X)  LOG_DUMP_F_ (FMT, (F), LOG_PSTR(X))
-#define LOG_FMT_STR(F,X)   LOG_DUMP_F_ (FMT, (F), LOG_STR(X))
-#define LOG_FMT_FLOAT(F,X) LOG_DUMP_F_ (FMT, (F), LOG_FLOAT(X))
+#define LOG_FMT_ADDR(F,X)  LOG_DUMP_F_ (FMT, (F), (X), LOG_ADDR(_x))
+#define LOG_FMT_PSTR(F,X)  LOG_DUMP_S_ (FMT, (F), (X), LOG_PSTR(_x))
+#define LOG_FMT_STR(F,X)   LOG_DUMP_S_ (FMT, (F), (X), LOG_STR(_x))
+#define LOG_FMT_FLOAT(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_FLOAT(_x))
 
-#define LOG_FMT_U8(F,X)  LOG_DUMP_F_ (FMT, (F), LOG_U8(X))
-#define LOG_FMT_U16(F,X) LOG_DUMP_F_ (FMT, (F), LOG_U16(X))
-#define LOG_FMT_U24(F,X) LOG_DUMP_F_ (FMT, (F), LOG_U24(X))
-#define LOG_FMT_U32(F,X) LOG_DUMP_F_ (FMT, (F), LOG_U32(X))
+#define LOG_FMT_U8(F,X)  LOG_DUMP_F_ (FMT, (F), (X), LOG_U8(_x))
+#define LOG_FMT_U16(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_U16(_x))
+#define LOG_FMT_U24(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_U24(_x))
+#define LOG_FMT_U32(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_U32(_x))
+#define LOG_FMT_U64(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_U64(_x))
 
-#define LOG_FMT_S8(F,X)  LOG_DUMP_F_ (FMT, (F), LOG_S8(X))
-#define LOG_FMT_S16(F,X) LOG_DUMP_F_ (FMT, (F), LOG_S16(X))
-#define LOG_FMT_S24(F,X) LOG_DUMP_F_ (FMT, (F), LOG_S24(X))
-#define LOG_FMT_S32(F,X) LOG_DUMP_F_ (FMT, (F), LOG_S32(X))
+#define LOG_FMT_S8(F,X)  LOG_DUMP_F_ (FMT, (F), (X), LOG_S8(_x))
+#define LOG_FMT_S16(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_S16(_x))
+#define LOG_FMT_S24(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_S24(_x))
+#define LOG_FMT_S32(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_S32(_x))
+#define LOG_FMT_S64(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_S64(_x))
 
-#define LOG_FMT_X8(F,X)  LOG_DUMP_F_ (FMT, (F), LOG_X8(X))
-#define LOG_FMT_X16(F,X) LOG_DUMP_F_ (FMT, (F), LOG_X16(X))
-#define LOG_FMT_X24(F,X) LOG_DUMP_F_ (FMT, (F), LOG_X24(X))
-#define LOG_FMT_X32(F,X) LOG_DUMP_F_ (FMT, (F), LOG_X32(X))
+#define LOG_FMT_X8(F,X)  LOG_DUMP_F_ (FMT, (F), (X), LOG_X8(_x))
+#define LOG_FMT_X16(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_X16(_x))
+#define LOG_FMT_X24(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_X24(_x))
+#define LOG_FMT_X32(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_X32(_x))
+#define LOG_FMT_X64(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_X64(_x))
 
 /* Logging with custom format string (from Flash) */
-#define LOG_PFMT_ADDR(F,X)  LOG_DUMP_F_ (PFMT, (F), LOG_ADDR(X))
-#define LOG_PFMT_PSTR(F,X)  LOG_DUMP_F_ (PFMT, (F), LOG_PSTR(X))
-#define LOG_PFMT_STR(F,X)   LOG_DUMP_F_ (PFMT, (F), LOG_STR(X))
-#define LOG_PFMT_FLOAT(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_FLOAT(X))
+#define LOG_PFMT_ADDR(F,X)  LOG_DUMP_F_ (PFMT, (F), (X), LOG_ADDR(_x))
+#define LOG_PFMT_PSTR(F,X)  LOG_DUMP_S_ (PFMT, (F), (X), LOG_PSTR(_x))
+#define LOG_PFMT_STR(F,X)   LOG_DUMP_S_ (PFMT, (F), (X), LOG_STR(_x))
+#define LOG_PFMT_FLOAT(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_FLOAT(_x))
 
-#define LOG_PFMT_U8(F,X)  LOG_DUMP_F_ (PFMT, (F), LOG_U8(X))
-#define LOG_PFMT_U16(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_U16(X))
-#define LOG_PFMT_U24(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_U24(X))
-#define LOG_PFMT_U32(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_U32(X))
+#define LOG_PFMT_U8(F,X)  LOG_DUMP_F_ (PFMT, (F), (X), LOG_U8(_x))
+#define LOG_PFMT_U16(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_U16(_x))
+#define LOG_PFMT_U24(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_U24(_x))
+#define LOG_PFMT_U32(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_U32(_x))
+#define LOG_PFMT_U64(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_U64(_x))
 
-#define LOG_PFMT_S8(F,X)  LOG_DUMP_F_ (PFMT, (F), LOG_S8(X))
-#define LOG_PFMT_S16(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_S16(X))
-#define LOG_PFMT_S24(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_S24(X))
-#define LOG_PFMT_S32(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_S32(X))
+#define LOG_PFMT_S8(F,X)  LOG_DUMP_F_ (PFMT, (F), (X), LOG_S8(_x))
+#define LOG_PFMT_S16(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_S16(_x))
+#define LOG_PFMT_S24(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_S24(_x))
+#define LOG_PFMT_S32(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_S32(_x))
+#define LOG_PFMT_S64(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_S64(_x))
 
-#define LOG_PFMT_X8(F,X)  LOG_DUMP_F_ (PFMT, (F), LOG_X8(X))
-#define LOG_PFMT_X16(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_X16(X))
-#define LOG_PFMT_X24(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_X24(X))
-#define LOG_PFMT_X32(F,X) LOG_DUMP_F_ (PFMT, (F), LOG_X32(X))
+#define LOG_PFMT_X8(F,X)  LOG_DUMP_F_ (PFMT, (F), (X), LOG_X8(_x))
+#define LOG_PFMT_X16(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_X16(_x))
+#define LOG_PFMT_X24(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_X24(_x))
+#define LOG_PFMT_X32(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_X32(_x))
+#define LOG_PFMT_X64(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_X64(_x))
 
-#define LOG_DUMP_F_(W, F, C)                                \
+#define LOG_DUMP_F_(W, F, X, C)                             \
   do {                                                      \
+      __typeof__(X) _x = (X);                               \
+      avrtest_syscall_7_a ((F), LOG_SET_## W ##_ONCE_CMD);  \
+      C;                                                    \
+    } while (0)
+
+#define LOG_DUMP_S_(W, F, X, C)                             \
+  do {                                                      \
+      const char *_x = (X);                                 \
       avrtest_syscall_7_a ((F), LOG_SET_## W ##_ONCE_CMD);  \
       C;                                                    \
     } while (0)
@@ -202,6 +231,9 @@ enum
 
 /* Instruction logging control */
 
+#define LOG_POP       avrtest_syscall_11 ()
+#define LOG_PUSH_ON   avrtest_syscall_10 ()
+#define LOG_PUSH_OFF  avrtest_syscall_9 ()
 #define LOG_SET(N)    avrtest_syscall_3 (N)
 #define LOG_PERF      avrtest_syscall_2 ()
 #define LOG_ON        avrtest_syscall_1 ()
@@ -229,7 +261,7 @@ enum
   (((0UL + AVRTEST_INVALID_OPCODE) << 16)   \
    | 0x1000 | (r << 4) | (r & 0xf) | ((r & 0x10) << 5))
 
-enum
+__extension__ enum
 {
   SYSCo_0 = CPSE_rr_(0),  SYSCo_10 = CPSE_rr_(10),  SYSCo_20 = CPSE_rr_(20),
   SYSCo_1 = CPSE_rr_(1),  SYSCo_11 = CPSE_rr_(11),  SYSCo_21 = CPSE_rr_(21),
@@ -300,15 +332,37 @@ enum
   }
 
 
+#define AVRTEST_DEF_SYSCALL2_R20(S, N, T2)                  \
+  static AT_INLINE                                          \
+  unsigned long avrtest_syscall ## S (unsigned char _v1_, T2 _v2_) \
+  {                                                         \
+    register unsigned long _r22 __asm ("22");               \
+    register unsigned char _r24 __asm ("24") = _v1_;        \
+    register T2 _r20 __asm ("20") = _v2_;                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "=r" (_r22)                       \
+                        : "n" (N), "n" (SYSCo_ ## N),       \
+                          "r" (_r24), "r" (_r20)            \
+                        : "memory");                        \
+    return _r22;                                            \
+  }
+
+AVRTEST_DEF_SYSCALL2_R20 (_26_p, 26, const void*);
+AVRTEST_DEF_SYSCALL2_R20 (_26_1, 26, unsigned char);
+AVRTEST_DEF_SYSCALL2_R20 (_26_2, 26, unsigned);
+AVRTEST_DEF_SYSCALL2_R20 (_26_4, 26, unsigned long);
 AVRTEST_DEF_SYSCALL1 (_27, 27, void*, 24)
 AVRTEST_DEF_SYSCALL1_0 (_28, 28, int, 24)
 AVRTEST_DEF_SYSCALL1 (_29, 29, char, 24)
 AVRTEST_DEF_SYSCALL1 (_30, 30, int, 24)
 AVRTEST_DEF_SYSCALL0 (_31, 31)
 
-AVRTEST_DEF_SYSCALL0 (_0, 0) // LOG_OFF
-AVRTEST_DEF_SYSCALL0 (_1, 1) // LOG_ON
-AVRTEST_DEF_SYSCALL0 (_2, 2) // LOG_PERF
+AVRTEST_DEF_SYSCALL0 (_0, 0) /* LOG_OFF  */
+AVRTEST_DEF_SYSCALL0 (_1, 1) /* LOG_ON   */
+AVRTEST_DEF_SYSCALL0 (_2, 2) /* LOG_PERF */
+AVRTEST_DEF_SYSCALL0 (_9,   9) /* LOG_PUSH 0 */
+AVRTEST_DEF_SYSCALL0 (_10, 10) /* LOG_PUSH 1 */
+AVRTEST_DEF_SYSCALL0 (_11, 11) /* LOG_POP */
 
 /* LOG_SET (N) */
 AVRTEST_DEF_SYSCALL1 (_3, 3, unsigned, 24)
@@ -350,6 +404,9 @@ AVRTEST_DEF_SYSCALL2 (_7_u24, 7, unsigned long, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_s24, 7,   signed long, 20, unsigned char, 24)
 #endif
 
+/* Logging 64-bit values */
+AVRTEST_DEF_SYSCALL2 (_8_u64, 8, unsigned long long, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL2 (_8_s64, 8,   signed long long, 18, unsigned char, 26)
 
 #undef AVRTEST_DEF_SYSCALL0
 #undef AVRTEST_DEF_SYSCALL1
@@ -372,13 +429,37 @@ avrtest_exit (int _status)
 static AT_INLINE void
 avrtest_putchar (int _c)
 {
-  avrtest_syscall_29 (_c);
+  avrtest_syscall_29 ((char) _c);
 }
 
 static AT_INLINE int
 avrtest_getchar (void)
 {
   return avrtest_syscall_28 ();
+}
+
+static AT_INLINE unsigned long
+avrtest_fileio_p (unsigned char _what, const void *_pargs)
+{
+  return avrtest_syscall_26_p (_what, _pargs);
+}
+
+static AT_INLINE unsigned long
+avrtest_fileio_1 (unsigned char _what, unsigned char _args)
+{
+  return avrtest_syscall_26_1 (_what, _args);
+}
+
+static AT_INLINE unsigned long
+avrtest_fileio_2 (unsigned char _what, unsigned _args)
+{
+  return avrtest_syscall_26_2 (_what, _args);
+}
+
+static AT_INLINE unsigned long
+avrtest_fileio_4 (unsigned char _what, unsigned long _args)
+{
+  return avrtest_syscall_26_4 (_what, _args);
 }
 
 static AT_INLINE unsigned long
@@ -433,4 +514,21 @@ avrtest_reset_all (void)
 
 #endif /* IN_AVRTEST */
 
+#else /* ASSEMBLER */
+
+.macro avrtest_syscall _sysno
+    cpse r\_sysno, r\_sysno
+    .word AVRTEST_INVALID_OPCODE
+.endm
+
+#define LOG_OFF        avrtest_syscall 0
+#define LOG_ON         avrtest_syscall 1
+#define LOG_PUSH_OFF   avrtest_syscall 9
+#define LOG_PUSH_ON    avrtest_syscall 10
+#define LOG_POP        avrtest_syscall 11
+
+#define AVRTEST_ABORT  avrtest_syscall 31
+#define AVRTEST_EXIT   avrtest_syscall 30
+
+#endif /* ASSEMBLER */
 #endif /* AVRTEST_H */

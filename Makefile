@@ -7,6 +7,7 @@ CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
 
 # compile for i386-mingw32 at *-linux-*
 WINCC	= i386-mingw32-gcc
+WINCC	= i686-w64-mingw32-gcc
 
 ifneq (,$(findstring Window,$(OS)))
 # For the host
@@ -25,9 +26,10 @@ CFLAGS_FOR_AVR	= -Os
 
 .SUFFIXES:
 
-A	= $(patsubst *%, avrtest%, * *_log *-xmega *-xmega_log)
-A_log	= $(patsubst *%, avrtest%, *_log *-xmega_log)
+A	= $(patsubst *%, avrtest%, * *_log *-xmega *-xmega_log *-tiny *-tiny_log)
+A_log	= $(patsubst *%, avrtest%, *_log *-xmega_log *-tiny_log)
 A_xmega	= $(patsubst *%, avrtest%, *-xmega *-xmega_log)
+A_tiny	= $(patsubst *%, avrtest%, *-tiny *-tiny_log)
 
 EXE	= $(A:=$(EXEEXT))
 
@@ -37,46 +39,56 @@ all-avrtest: $(A:=$(EXEEXT))
 
 all-host : $(EXE)
 
-all-avr	: exit
+all-avr	: exit fileio
 
 all-build : flag-tables
 
-EXIT_MCUS = atmega8 atmega168 atmega128 atmega103 atmega2560 atxmega128a3 atxmega128a1
+EXIT_MCUS = atmega8 atmega168 atmega128 atmega103 atmega2560 \
+	    atxmega128a3 atxmega128a1 attiny40 attiny3216
 
 EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 
 exit	: $(EXIT_O)
 
-DEP_OPTIONS	= options.def options.h testavr.h Makefile
-DEPS_PERF	= $(DEP_OPTIONS) perf.h logging.h avrtest.h
-DEPS_GRAPH	= $(DEP_OPTIONS) graph.h
-DEPS_LOGGING	= $(DEP_PERF) sreg.h graph.h
-DEPS_LOAD_FLASH = $(DEP_OPTIONS)
-DEPS		= $(DEP_OPTIONS) sreg.h flag-tables.h
+# !!! When using a fileio module, link with:
+# !!! -Wl,-wrap,feof -Wl,-wrap,clearerr -Wl,-wrap,fclose -Wl,-wrap,fread -Wl,-wrap,fwrite
+
+FILEIO_MCUS = $(EXIT_MCUS)
+
+FILEIO_O = $(patsubst %,fileio-%.o, $(FILEIO_MCUS))
+
+fileio	: $(FILEIO_O)
+
+DEPS += options.def options.h testavr.h avr-opcode.def host.h Makefile
+DEPS += graph.h perf.h logging.h avrtest.h sreg.h flag-tables.h
 
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
+$(A_tiny:=.s)	: XDEF += -DISA_TINY
 
-$(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o flag-tables.o
-$(A:=$(EXEEXT))     : options.o load-flash.o flag-tables.o
+$(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o flag-tables.o host.o
+$(A:=$(EXEEXT))     : options.o load-flash.o flag-tables.o host.o
 
 $(A_log:=$(EXEEXT)) : XOBJ += logging.o graph.o perf.o
 $(A_log:=$(EXEEXT)) : XLIB += -lm
 $(A_log:=$(EXEEXT)) : logging.o graph.o perf.o
 
-options.o: options.c $(DEP_OPTIONS)
+options.o: options.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging.o: logging.c $(DEPS_LOGGING)
+host.o: host.c $(DEPS)
+	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+logging.o: logging.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-graph.o: graph.c $(DEPS_GRAPH)
+graph.o: graph.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-perf.o: perf.c $(DEPS_PERF)
+perf.o: perf.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-load-flash.o: load-flash.c $(DEPS_LOAD_FLASH)
+load-flash.o: load-flash.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 flag-tables.o: flag-tables.c Makefile
@@ -86,7 +98,7 @@ $(A:=.s) : avrtest.c $(DEPS)
 	$(CC) $(CFLAGS_FOR_HOST) -S $< -o $@ $(XDEF)
 
 $(EXE) : avrtest%$(EXEEXT) : avrtest%.s
-	$(CC) $< -o $@ $(XOBJ) $(XLIB)
+	$(CC) $< -o $@ $(XOBJ) $(CFLAGS_FOR_HOST) $(XLIB)
 
 # Build some auto-generated files
 
@@ -102,34 +114,39 @@ gen-flag-tables$(BUILD_EXEEXT): gen-flag-tables.c sreg.h Makefile
 # Cross-compile Windows executables on Linux
 
 ifneq ($(EXEEXT),.exe)
-exe: avrtest.exe avrtest-xmega.exe avrtest_log.exe avrtest-xmega_log.exe
+exe:	avrtest.exe avrtest-xmega.exe avrtest-tiny.exe \
+	avrtest_log.exe avrtest-xmega_log.exe avrtest-tiny_log.exe
 
 W=-mingw32
 
 $(A_log:=$(W).s)   : XDEF += -DAVRTEST_LOG
 $(A_xmega:=$(W).s) : XDEF += -DISA_XMEGA
+$(A_tiny:=$(W).s)  : XDEF += -DISA_TINY
 
-$(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o
-$(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o
+$(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o host$(W).o
+$(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o host$(W).o
 
 $(A_log:=.exe) : XOBJ_W += logging$(W).o graph$(W).o perf$(W).o 
 $(A_log:=.exe) : XLIB += -lm
 $(A_log:=.exe) : logging$(W).o graph$(W).o perf$(W).o
 
 
-options$(W).o: options.c $(DEP_OPTIONS)
+options$(W).o: options.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
-logging$(W).o: logging.c $(DEPS_LOGGING)
+host$(W).o: host.c $(DEPS)
+	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
+
+logging$(W).o: logging.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-graph$(W).o: graph.c $(DEPS_GRAPH)
+graph$(W).o: graph.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-perf$(W).o: perf.c $(DEPS_PERF)
+perf$(W).o: perf.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@ -DAVRTEST_LOG
 
-load-flash$(W).o: load-flash.c $(DEPS_LOAD_FLASH)
+load-flash$(W).o: load-flash.c $(DEPS)
 	$(WINCC) $(CFLAGS_FOR_HOST) -c $< -o $@
 
 flag-tables$(W).o: flag-tables.c Makefile
@@ -140,7 +157,7 @@ $(A:=$(W).s) : avrtest.c $(DEPS)
 
 EXE_W = $(A:=.exe)
 $(EXE_W) : avrtest%.exe : avrtest%$(W).s
-	$(WINCC) $< -o $@ $(XOBJ_W) $(XLIB)
+	$(WINCC) $< -o $@ $(XOBJ_W) $(CFLAGS_FOR_HOST) $(XLIB)
 
 endif
 
@@ -151,14 +168,21 @@ all-mingw32: $(EXE_W)
 exit-%.o: dejagnuboards/exit.c avrtest.h Makefile
 	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps -dp
 
-.PHONY: all all-host all-avr clean clean-exit exe exit all-mingw32 all-avrtest
+fileio-%.o: dejagnuboards/fileio.c fileio.h avrtest.h Makefile
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps -dp
 
-clean: clean-exit
-	rm -f $(wildcard *.o *.i *.s)
-	rm -f $(EXE)
-	rm -f $(A:=.s) $(A:=.i) $(A:=.o)
-	rm -f $(wildcard *.exe)
-	rm -f gen-flag-tables
+.PHONY: all all-host all-avr clean clean-host clean-exit exe exit all-mingw32 all-avrtest
+
+clean-host:
+	rm -f $(filter-out exit-%.o exit.s exit.i, $(wildcard *.o *.i *.s))
+	rm -f $(wildcard *.exe gen-flag-tables)
+	rm -f $(wildcard $(A:=.s) $(A:=.i) $(A:=.o))
+	rm -f $(wildcard $(EXE))
 
 clean-exit:
-	rm -f $(wildcard exit-*.o)
+	rm -f $(wildcard exit-*.o exit.s exit.i)
+
+clean-fileio:
+	rm -f $(wildcard fileio-*.o fileio.s fileio.i)
+
+clean: clean-host clean-exit
