@@ -10,7 +10,7 @@ Eric B. Weddington            Import into CVS.
 Paulo Marques                 General code clean-ups.
                               Optimize execution speed.
                               Improve instruction logging.
-                             
+
 Tristan Gingold               Add ELF support.
                               Add support for -d.
                               Add -mmcu= support for multiple architectures.

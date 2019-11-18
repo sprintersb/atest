@@ -91,12 +91,12 @@ You can also use the respective primitive functions directly:
 int main (void)
 {
     char c;
-    
+
     avrtest_putchar ('Q');
 
     c = avrtest_getchar();
     avrtest_putchar (c + 1);
-    
+
     return 0;
 }
 
@@ -647,14 +647,14 @@ produces an output like
            Min round Max round    Min tag           /   Max tag
     Calls       -all-same-                          /
     Stack       -all-same-                          /
-    Instr.         1       315     sin (0.00000)    /   sin (3.14000) 
-    Ticks          1       315     sin (0.00000)    /   sin (3.14000) 
+    Instr.         1       315     sin (0.00000)    /   sin (3.14000)
+    Ticks          1       315     sin (0.00000)    /   sin (3.14000)
 
  Stat  T2 "" (315 Values)
     Mean:       3.589886e-001     round    tag
     Stand.Dev:  5.247231e-001
-    Min:        0.000000e+000         1     x=0.00000 
-    Max:        2.021442e+000       315     x=3.14000 
+    Min:        0.000000e+000         1     x=0.00000
+    Max:        2.021442e+000       315     x=3.14000
 
 
 The computation of sin (x) took 1029..1952 cycles (with an average
@@ -708,7 +708,7 @@ Following functions return a 32-bit value:
     avrtest_prand();        A 32-bit pseudo random number
     avrtest_rand();         A 32-bit random number
 
-The values are "owned" by the program and are distinct from the 
+The values are "owned" by the program and are distinct from the
 counters used by performance meters or that are displayed when avrtest
 terminates.  Except rand, the values can be reset to their value at
 program start:
@@ -746,7 +746,7 @@ status (SREG).
 
 Example:
 
-    #include "avrtest.h"  
+    #include "avrtest.h"
 
     .text
     .global func

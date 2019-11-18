@@ -22,7 +22,7 @@ CFLAGS_FOR_BUILD= -W -Wall -std=c99 -O2 -g
 
 # compile for AVR at build
 CC_FOR_AVR	= avr-gcc$(BUILD_EXEEXT)
-CFLAGS_FOR_AVR	= -Os 
+CFLAGS_FOR_AVR	= -Os
 
 .SUFFIXES:
 
@@ -126,7 +126,7 @@ $(A_tiny:=$(W).s)  : XDEF += -DISA_TINY
 $(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o host$(W).o
 $(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o host$(W).o
 
-$(A_log:=.exe) : XOBJ_W += logging$(W).o graph$(W).o perf$(W).o 
+$(A_log:=.exe) : XOBJ_W += logging$(W).o graph$(W).o perf$(W).o
 $(A_log:=.exe) : XLIB += -lm
 $(A_log:=.exe) : logging$(W).o graph$(W).o perf$(W).o
 

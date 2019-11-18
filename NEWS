@@ -1,4 +1,4 @@
-                                 
+
 
                           avrtest NEWS
                           ============
@@ -43,7 +43,7 @@
   This option can be used to specify the right offset.
 
   - Support avrtest-xmega -mmcu=avrxmega3 -pm OFFSET
-  
+
 
 * Add support for avrxmega7 devices that use               r212  2018-07-18
   RAMPX, RAMPY, RAMPZ resp. RAMPD as high-byte
@@ -59,7 +59,7 @@
   - Add a DejaGNU board description for ATtiny3216.
 
 
-* Add assembler support to avrtest.h for:                  r196  2016-12-12  
+* Add assembler support to avrtest.h for:                  r196  2016-12-12
 
   -  LOG_ON
   -  LOG_OFF
@@ -67,10 +67,10 @@
   -  AVRTEST_ABORT
   -  avrtest_syscall <sysno>
 
-  
+
 * Support logging of 64-bit values.                        r194  2016-12-12
 
-  
+
 * Support the reduced AVR Tiny cores with only 16 GPRs.    r186  2016-07-11
   The new executables for that core architecture are
   avrtest-tiny and avrtest-tiny_log.
@@ -94,7 +94,7 @@
 
 
 * Show function names from ELF symbol table                r153  2014-10-09
-  when logging. 
+  when logging.
 
   - -no-syms       New option to switch that off.
 
@@ -103,7 +103,7 @@
 
 
 * New magic LOG_PORT for avrtest_log:                      r150  2014-10-06
-  (ignored by avrtest)  
+  (ignored by avrtest)
 
   - Turn on / off logging by the simulated program.
   - Capture and print performance data.
@@ -112,7 +112,7 @@
 
 
 * New options for avrtest_log:                             r144  2014-09-30
-  (ignored by avrtest)  
+  (ignored by avrtest)
 
   - -no-log        Don't log instructions as they are simulated.
 
@@ -155,7 +155,7 @@
   -no-stdin        Disable wait and magic action when reading STDIN_PORT.
 
   -no-stdout       Disable magic action when writing to STDOUT_PORT.
-                    
+
 
 * New header "avrtest.h"
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, Bjoern Haase 
+/* Copyright (c) 2004, Bjoern Haase
    All rights reserved.
 
    Anatoly Sokolov added code to make more tests PASS.
