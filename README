@@ -497,16 +497,19 @@ Due to peculiarities of avr-libc's stdio.h implementation, the
 following rules have to be obeyed when using file i/o via fileio.c:
 
 * The linker must be called with -wrap for the following symbols:
-  feof, fwrite, fread, fclose, cleaerr,  i.e. avr-gcc has to be called with
+
+    feof, fwrite, fread, fclose, cleaerr
+
+  i.e. avr-gcc has to be called with
 
     avr-gcc ... -Wl,-wrap,feof -Wl,-wrap,fwrite -Wl,-wrap,fread ...
 
 when linking.  For the documentation of -wrap, see
 http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
 
-* When using avrtest to run the avr-gcc test suite, the host interactions
-that exit-*.o supplies vie stdout and stderr should be sufficient.  The
-complexity of fileio is not needed for the test suite.
+* When using avrtest to run the GCC test suite for AVR, the host interactions
+that exit-*.o supplies via stdout and stderr should be sufficient.
+The complexity of fileio is not needed for the GCC test suite.
 
 ----------------------------------------------------------------
  File I/O:  Special streams for the host's stdin, stdout, stderr

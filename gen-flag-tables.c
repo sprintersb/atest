@@ -87,9 +87,9 @@ table_add (uint8_t x)
   if (theNum % 16 == 0)
     printf ("\n    ");
 
+  printf ("0x%02x%s", x,
+          theNum == theSize - 1 ? "" : theNum % 16 == 15 ? "," : ", ");
   theNum++;
-
-  printf ("0x%02x%s", x, theNum == theSize ? "" : ", ");
 }
 
 
