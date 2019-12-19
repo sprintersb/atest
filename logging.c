@@ -385,89 +385,6 @@ log_add_data_mov (const char *format, int addr, int value)
 }
 
 
-typedef struct
-{
-  // Offset set by RESET.
-  dword n_insns;
-  dword n_cycles;
-  // Current value for PRAND mode
-  uint32_t pvalue;
-} ticks_port_t;
-
-
-static void
-sys_ticks_cmd (int cfg)
-{
-  static ticks_port_t ticks_port;
-
-  // a prime m
-  const uint32_t prand_m = 0xfffffffb;
-  // phi (m)
-  // uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
-  // a primitive root of (Z/m*Z)^*
-  const uint32_t prand_root = 0xcafebabe;
-
-  cfg &= 0xff;
-  ticks_port_t *tp = &ticks_port;
-
-  if (cfg & TICKS_RESET_ALL_CMD)
-    {
-      log_append ("ticks reset:");
-      if (cfg & TICKS_RESET_CYCLES_CMD)
-        {
-          log_append (" cycles");
-          tp->n_cycles = program.n_cycles;
-        }
-      if (cfg & TICKS_RESET_INSNS_CMD)
-        {
-          log_append (" insns");
-          tp->n_insns = program.n_insns;
-        }
-      if (cfg & TICKS_RESET_PRAND_CMD)
-        {
-          log_append (" prand");
-          tp->pvalue = 0;
-        }
-      return;
-    }
-
-  const char *what = "???";
-  uint32_t value = 0;
-
-  switch (cfg)
-    {
-    case TICKS_GET_CYCLES_CMD:
-      what = "cycles";
-      value = program.n_cycles - tp->n_cycles;
-      break;
-    case TICKS_GET_INSNS_CMD:
-      what = "insn";
-      value = program.n_insns - tp->n_insns;
-      break;
-    case TICKS_GET_PRAND_CMD:
-      what = "prand";
-      value = tp->pvalue ? tp->pvalue : 1;
-      value = ((uint64_t) value * prand_root) % prand_m;
-      tp->pvalue = value;
-      break;
-    case TICKS_GET_RAND_CMD:
-      what = "rand";
-      value = rand();
-      value ^= (unsigned) rand() << 11;
-      value ^= (unsigned) rand() << 22;
-      break;
-    }
-
-  log_append ("ticks get %s: R22<-(%08x) = %u", what, value, value);
-  byte *p = cpu_address (22, AR_REG);
-
-  *p++ = value;
-  *p++ = value >> 8;
-  *p++ = value >> 16;
-  *p++ = value >> 24;
-}
-
-
 static void
 sys_log_dump (int what)
 {
@@ -532,6 +449,14 @@ sys_log_dump (int what)
       {
         log_append ("log float");
         avr_float_t af = decode_avr_float (val);
+        printf (fmt, af.x);
+      }
+      break;
+
+    case LOG_D64_CMD:
+      {
+        log_append ("log double");
+        avr_float_t af = decode_avr_double (get_r18_value (lay));
         printf (fmt, af.x);
       }
       break;
@@ -679,7 +604,6 @@ do_syscall (int sysno, int val)
     case 1: sys_log_config (LOG_ON_CMD, 0);     break;
     case 2: sys_log_config (LOG_PERF_CMD, 0);   break;
     case 3: sys_log_config (LOG_SET_CMD, val);  break;
-    case 4: sys_ticks_cmd (val);    break;
     case 5: sys_perf_cmd (val);     break;
     case 6: sys_perf_tag_cmd (val); break;
     case 7:
@@ -765,6 +689,7 @@ layout[LOG_X_sentinel] =
     [LOG_ADDR_CMD]  = { 2, " 0x%04x ", false, false },
 
     [LOG_FLOAT_CMD] = { 4, " %.6f ", false, false },
+    [LOG_D64_CMD]   = { 8, " %.6f ", false, false },
 
     [LOG_U8_CMD]  = { 1, " %u ", false, false },
     [LOG_U16_CMD] = { 2, " %u ", false, false },

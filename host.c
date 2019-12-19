@@ -60,7 +60,7 @@ read_string (char *p, unsigned addr, bool flash_p, size_t len_max)
   if (flash_p
       && arch.flash_pm_offset
       && addr >= arch.flash_pm_offset)
-  {
+    {
       // README states that LOG_PSTR etc. can be used to print strings in
       // flash.  This is ambiguous for devices that see flash in RAM:
       // A variable can reside in flash due to __flash or PROGMEM and
@@ -68,7 +68,7 @@ read_string (char *p, unsigned addr, bool flash_p, size_t len_max)
       // If the address appears as a .rodata address, then access RAM
       // space (which holds a copy of flash at arch.flash_pm_offset).
       flash_p = false;
-  }
+    }
 
   byte *p_avr = cpu_address (addr, flash_p ? AR_FLASH : AR_RAM);
 
@@ -137,6 +137,62 @@ decode_avr_float (unsigned val)
 }
 
 
+// IEEE 754 double
+avr_float_t
+decode_avr_double (uint64_t val)
+{
+  // float =  s  bbbbbbbbbbb mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+  //         63
+  // s = sign (1)
+  // b = biased exponent
+  // m = mantissa
+
+  int one;
+  const int DIG_MANT = 52;
+  const int DIG_EXP  = 11;
+  const int EXP_BIAS = 1023;
+  avr_float_t af;
+
+  int r = (1 << DIG_EXP) -1;
+  uint64_t mant = af.mant = val & (((uint64_t)1 << DIG_MANT) -1);
+  val >>= DIG_MANT;
+  af.exp_biased = val & r;
+  af.exp = af.exp_biased - EXP_BIAS;
+
+  val >>= DIG_EXP;
+  af.sign_bit = val & 1;
+
+  // Denorm?
+  if (af.exp_biased == 0)
+    af.fclass = FT_DENORM;
+  else if (af.exp_biased < r)
+    af.fclass = FT_NORM;
+  else if (mant == 0)
+    af.fclass = FT_INF;
+  else
+    af.fclass = FT_NAN;
+
+  switch (af.fclass)
+    {
+    case FT_NORM:
+    case FT_DENORM:
+      one = af.fclass == FT_NORM;
+      af.mant1 = mant | ((uint64_t)one << DIG_MANT);
+      af.x = ldexp ((double) af.mant1, af.exp + 1 - one - DIG_MANT);
+      af.x = copysign (af.x, af.sign_bit ? -1.0 : 1.0);
+      break;
+    case FT_NAN:
+      af.x = nan ("");
+      break;
+    case FT_INF:
+      af.x = af.sign_bit ? -HUGE_VAL : HUGE_VAL;
+      break;
+    }
+
+  return af;
+}
+
+
 /* Read a value as unsigned from R20.  Bytesize (1..4) and signedness are
    determined by respective layout[].  If the value is signed a cast to
    signed will do the conversion.  */
@@ -189,14 +245,14 @@ get_mem_value (unsigned addr, const layout_t *lay)
   if (flash_p
       && arch.flash_pm_offset
       && addr >= arch.flash_pm_offset)
-  {
+    {
       // "Flash" is ambiguous for devices that see flash in RAM:
       // A variable can reside in flash due to __flash or PRGMEM and
       // hence in .progmem.data, or it can be located in .rodata.
       // If the address appears as a .rodata address, then access RAM
       // (which holds a copy of flash at arch.flash_pm_offset).
       flash_p = false;
-  }
+    }
 
   byte *p = cpu_address (addr, flash_p ? AR_FLASH : AR_RAM);
   unsigned val = 0;
@@ -208,6 +264,89 @@ get_mem_value (unsigned addr, const layout_t *lay)
     val = (val << 8) | p[--n];
 
   return val;
+}
+
+
+typedef struct
+{
+  // Offset set by RESET.
+  dword n_insns;
+  dword n_cycles;
+  // Current value for PRAND mode
+  uint32_t pvalue;
+} ticks_port_t;
+
+
+void
+sys_ticks_cmd (int cfg)
+{
+  static ticks_port_t ticks_port;
+
+  // a prime m
+  const uint32_t prand_m = 0xfffffffb;
+  // phi (m)
+  // uint32_t prand_phi_m = m-1; // = 2 * 5 * 19 * 22605091
+  // a primitive root of (Z/m*Z)^*
+  const uint32_t prand_root = 0xcafebabe;
+
+  cfg &= 0xff;
+  ticks_port_t *tp = &ticks_port;
+
+  if (cfg & TICKS_RESET_ALL_CMD)
+    {
+      log_add ("ticks reset:");
+      if (cfg & TICKS_RESET_CYCLES_CMD)
+        {
+          log_add (" cycles");
+          tp->n_cycles = program.n_cycles;
+        }
+      if (cfg & TICKS_RESET_INSNS_CMD)
+        {
+          log_add (" insns");
+          tp->n_insns = program.n_insns;
+        }
+      if (cfg & TICKS_RESET_PRAND_CMD)
+        {
+          log_add (" prand");
+          tp->pvalue = 0;
+        }
+      return;
+    }
+
+  const char *what = "???";
+  uint32_t value = 0;
+
+  switch (cfg)
+    {
+    case TICKS_GET_CYCLES_CMD:
+      what = "cycles";
+      value = program.n_cycles - tp->n_cycles;
+      break;
+    case TICKS_GET_INSNS_CMD:
+      what = "insn";
+      value = program.n_insns - tp->n_insns;
+      break;
+    case TICKS_GET_PRAND_CMD:
+      what = "prand";
+      value = tp->pvalue ? tp->pvalue : 1;
+      value = ((uint64_t) value * prand_root) % prand_m;
+      tp->pvalue = value;
+      break;
+    case TICKS_GET_RAND_CMD:
+      what = "rand";
+      value = rand();
+      value ^= (unsigned) rand() << 11;
+      value ^= (unsigned) rand() << 22;
+      break;
+    }
+
+  log_add ("ticks get %s: R22<-(%08x) = %u", what, value, value);
+  byte *p = cpu_address (22, AR_REG);
+
+  *p++ = value;
+  *p++ = value >> 8;
+  *p++ = value >> 16;
+  *p++ = value >> 24;
 }
 
 
@@ -258,11 +397,11 @@ find_file (int handle)
           sprintf (files[i].name, AT "%d", files[i].handle);
         }
 
-#define STD_INIT(f) \
-        files[-1 - HANDLE_##f] = (file_t) { HANDLE_##f, true, true, f, AT #f }
-    STD_INIT (stdin);
-    STD_INIT (stdout);
-    STD_INIT (stderr);
+#define STD_INIT(f)                                                     \
+      files[-1 - HANDLE_##f] = (file_t) { HANDLE_##f, true, true, f, AT #f }
+      STD_INIT (stdin);
+      STD_INIT (stdout);
+      STD_INIT (stderr);
 #undef STD_INIT
     }
 
@@ -293,7 +432,7 @@ find_file (int handle)
             {
               if (file->handle != i + 1 - N_STD_FILES)
                 leave (LEAVE_FATAL, "file %s handle %d should be %d",
-                 file->name, file->handle, i + 1 - N_STD_FILES);
+                       file->name, file->handle, i + 1 - N_STD_FILES);
               return file;
             }
         }
@@ -533,15 +672,15 @@ dword
 host_fileio (byte what, dword r20)
 {
   static const struct
-    {
-      // The handler that takes care of what R24 tells us to perform.
-      dword (*hnd)(dword);
+  {
+    // The handler that takes care of what R24 tells us to perform.
+    dword (*hnd)(dword);
 
-      // The name of the C function and the number of bytes used from args.
-      // Only used for logging.
-      const char *label;
-      int n_bytes;
-    } host_hnd[] =
+    // The name of the C function and the number of bytes used from args.
+    // Only used for logging.
+    const char *label;
+    int n_bytes;
+  } host_hnd[] =
       {
 #define HANDLER(n, f)   [AVRTEST_##f] = { host_##f, #f, n }
         HANDLER (4, fopen),

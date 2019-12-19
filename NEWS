@@ -3,6 +3,15 @@
                           avrtest NEWS
                           ============
 
+* Support logging of 64-bit floating point values:         r292  2019-12-16
+
+  -  LOG_DOUBLE (X)
+  -  LOG_LDOUBLE (X)
+  -  LOG_D64 (X)
+  
+  and respective macros with custom format string.
+  For details, see README.
+
 * Add basic support for stdio.h functions to interact      r265  2019-11-19
   with the host's file system has been added.  The files
   that are to be accessed must be located in a sandbox

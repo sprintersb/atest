@@ -22,6 +22,7 @@
 #ifndef HOST_H
 #define HOST_H
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -35,12 +36,12 @@ enum
     FT_NAN
   };
 
-// Decomposed IEEE 754 single
+// Decomposed IEEE 754 floating point number.
 typedef struct
 {
   int sign_bit;
-  // Mantissa without (23 bits) and with the leading (implicit) 1 (24 bits)
-  unsigned mant, mant1;
+  // Mantissa without and with the leading (implicit) 1.
+  uint64_t mant, mant1;
   int exp;
   int exp_biased;
   int fclass;
@@ -52,6 +53,8 @@ extern unsigned get_r20_value (const layout_t*);
 extern unsigned long long get_r18_value (const layout_t*);
 extern unsigned get_mem_value (unsigned, const layout_t*);
 extern avr_float_t decode_avr_float (unsigned);
+extern avr_float_t decode_avr_double (uint64_t);
+extern void sys_ticks_cmd (int);
 
 extern dword host_fileio (byte, dword);
 #endif // HOST_H

@@ -214,7 +214,7 @@ The following exit stati will be returned with -q:
   - 11  Something is wrong with the program file:  Does not fit into
         memory, not an AVR executable, ELF headers broken, ...
   - 12  The program goes haywire:  Stack overflow, illegal instruction or PC.
-  - 13  Problem with symbol information like an off function address.
+  - 13  Problem with symbol information like an odd function address.
   - 14  Problem with using file i/o with the host's file system: Bad file
         handle or file name, illegal argument.  This does *not* encompass
         when fopen cannot open the file; this will just return a 0-handle.
@@ -330,8 +330,8 @@ for the surrounding code (register allocation, jump offsets, ...).
 The commands have low overhead; it's not more than an avrtest syscall.
 
 LOG_ON, LOG_OFF, LOG_PUSH_ON, LOG_PUSH_OFF and LOG_POP are also supplied
-as macros that can be used from assembly code.  These the macros have no
-effect on the internal state of the program (except for the program counter:
+as macros that can be used from assembly code.  These the have no effect
+on the internal state of the program (except for the program counter:
 the respective syscalls consume 4 bytes of code).
 
 ====================================
@@ -357,9 +357,13 @@ etc.  Moreover, there are the following commands:
 
     LOG_STR (X);        log string X located in RAM
     LOG_PSTR (X);       log string X located in Flash
-    LOG_FLOAT (X);      log float X
     LOG_ADDR (X);       log address X
-
+    LOG_FLOAT (X);      log float X
+    LOG_DOUBLE (X);     log double X
+    LOG_LDOUBLE (X);    log long double X
+    LOG_D64 (X);        log a 64-bit unsigned integer, the bit representation
+                        of which is interpreted as a 64-bit IEEE floating point
+                        number (11-bit exponent, 52-bit mantissa)
 
 All of these logging commands have variants that take a custom
 printf format string to print the supplied value:
@@ -373,8 +377,8 @@ printf format string to print the supplied value:
 !!! Notice that the %-formats below refer to the HOST machine, i.e. the
 !!! machine that executes avrtest_log!
 
-avrtest_log uses "double" to represent float and "unsigned int" for all
-other values up to 4 bytes.  The default format strings for the vanilla
+avrtest_log uses "double" to represent floating point values and "unsigned int"
+for all other values up to 4 bytes.  The default format strings for the vanilla
 LOG_XXX are:
 
     " %u "              for the "U" variants
@@ -383,8 +387,9 @@ LOG_XXX are:
     ...                 ...
     " 0x%08x "          for the 32-bit "X" variants
     "%s"                for strings
-    " %.6f "            for floats
     " 0x%04x "          for addresses
+    " %.6f "            for float, double, long double and 64-bit unsigned
+                        interpreted as a 64-bit IEEE floating point number
 
 For 8-byte values, the internal representation is "unsigned long long", and
 the default format strings are:
@@ -698,8 +703,6 @@ the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 ==============================
  Timing data and random values
 ==============================
-
-* This feature is only supported by avrtest_log.
 
 Following functions return a 32-bit value:
 

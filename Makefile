@@ -166,10 +166,10 @@ all-mingw32: $(EXE_W)
 # Cross-compile AVR exit*.o objects
 
 exit-%.o: dejagnuboards/exit.c avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps -dp
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps=obj -dp
 
 fileio-%.o: dejagnuboards/fileio.c fileio.h avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps -dp
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps=obj -dp
 
 .PHONY: all all-host all-avr clean clean-host clean-exit exe exit all-mingw32 all-avrtest
 

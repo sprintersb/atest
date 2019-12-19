@@ -1,3 +1,36 @@
+2019-12-18  Georg-Johann Lay  <avr@gjlay.de>
+
+	Make parallel builds work.
+
+	* Makefile (exit-%.o, fileio-%.o): Use save-temps=obj instead
+	of -save-temps.
+
+2019-12-17  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support avrtest_cycles/insns/rand/prand also in avrtest.
+
+	* logging.c (ticks_port_t, sys_ticks_cmd): Move to...
+	* host.c (ticks_port_t, sys_ticks_cmd): ...here.
+	Replace	calls to log_append by calls to lod_add.
+	* host.h (sys_ticks_cmd): New proto.
+	* avrtest.c (do_syscall) [sysno=4]: Call sys_ticks_cmd
+	instead of do_syscall.
+
+2019-12-16  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support printing 64-bit floating point values.
+
+	* host.c (decode_avr_double): New function.
+	* host.h (stdint.h): Include.
+	(decode_avr_double): New proto.
+	(avr_float_t) <mant,mant1>: Use uint64_t for these components.
+	* logging.c (sys_log_dump) [what=LOG_D64_CMD]: Handle.
+	(layout) <LOG_D64_CMD>: New element.
+	* avrtest.h (LOG_D64_CMD): New enum.
+	(LOG_D64, LOG_FMT_D64, LOG_PFMT_D64): New macros.
+	(LOG_DOUBLE, LOG_FMT_DOUBLE, LOG_PFMT_DOUBLE): New macros.
+	(LOG_LDOUBLE, LOG_FMT_LDOUBLE, LOG_PFMT_LDOUBLE): New macros.
+
 2019-11-16  Georg-Johann Lay  <avr@gjlay.de>
 
 	Refurbish leave codes so that LEAVE_ABORTED is only used when the

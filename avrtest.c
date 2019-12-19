@@ -1828,7 +1828,6 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 31: sys_abort();      break;
 
     case 0: case 1: case 2: case 3:  // Logging control
-    case 4:                          // Get / reset cycles, insns, rand ...
     case 5: case 6:                  // Performance metering
     case 7:                          // Logging values
     case 9: case 10: case 11:        // Logging push / pop
@@ -1836,6 +1835,9 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       break;
     case 8:                          // Logging 64-bit values
       do_syscall (sysno, get_word_reg_raw (26));
+      break;
+    case 4:                          // Get / reset cycles, insns, rand ...
+      sys_ticks_cmd (get_word_reg_raw (24));
       break;
     }
 }
