@@ -223,8 +223,7 @@ int get_nonglitch_SP()
    STOFF is the offset into the string table string_table.data[].
    According to ELF, STOFF is non-null as the first char in
    the string table is always '\0'.
-   IS_FUNC is 1 if the symbol table type is STT_FUNC,
-   0 otherwise. */
+   IS_FUNC is 1 if the symbol table type is STT_FUNC, 0 otherwise.  */
 
 void
 log_set_func_symbol (int addr, size_t stoff, bool is_func)
@@ -519,8 +518,8 @@ typedef struct
   bool perf;
   unsigned count_val;
   unsigned countdown;
-
 } log_stack_t;
+
 
 static void
 sys_log_pushpop (int sysno, int what)

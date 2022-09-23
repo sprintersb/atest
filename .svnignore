@@ -10,6 +10,8 @@
 .git
 avrtest
 avrtest-xmega
+avrtest-tiny
 avrtest_log
 avrtest-xmega_log
+avrtest-tiny_log
 gen-flag-tables

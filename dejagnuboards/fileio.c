@@ -50,7 +50,7 @@ static fileio_file_t files[FILEIO_N_FILES];
 static const uint8_t n_files = sizeof (files) / sizeof (*files);
 
 
-/* Map FILE* to the associated file_t*, or occupy a slot in files[]
+/* Map FILE* to the associated fileio_file_t*, or occupy a slot in files[]
    if NULL is passed.  */
 
 static fileio_file_t* find_file (const FILE *theFILE)
@@ -74,7 +74,7 @@ static fileio_file_t* find_file (const FILE *theFILE)
 }
 
 
-/* Some local helper functions that operate on file_t*.  */
+/* Some local helper functions that operate on fileio_file_t*.  */
 
 static int file_fclose (fileio_file_t *file)
 {
@@ -228,7 +228,7 @@ int host_fclose (fileio_handle_t handle)
 }
 
 
-/* Now implementthe stiff for stdio.h.  Many of the functions are provided
+/* Now implement the stuff for stdio.h.  Many of the functions are provided
    as __wrap_FUNC so that the link stage has to use -Wl,-wrap,FUNC.  The
    linker will use symbol __real_FUNC for the implementation of FUNC, and
    references to FUNC will reference __wrap_FUNC instead.  */
@@ -339,7 +339,7 @@ size_t __wrap_fread (void *ptr, size_t size, size_t nmemb, FILE *pFILE)
     return host_fread (ptr, size, nmemb, file->handle);
 }
 
-/* Set up the special host 's stdxx file objects.  */
+/* Set up the host's special stdxx file objects.  */
 
 FILE *host_stdin  = & files[n_files - 1].theFILE;
 FILE *host_stdout = & files[n_files - 2].theFILE;

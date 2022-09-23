@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <inttypes.h>
 
 // ---------------------------------------------------------------------------
 //     configuration values (in bytes).
@@ -79,14 +80,14 @@ typedef struct
   unsigned code_start, code_end;
 
   // Maximum number of instructions to be executed,
-  // used as a timeout.  Can be set my -m CYCLES
-  dword max_insns;
+  // used as a timeout.  Can be set by -m CYCLES
+  uint64_t max_insns;
 
   // Number of instructions simulated so far.
-  dword n_insns;
+  uint64_t n_insns;
 
   // Cycles consumed by the program so far.
-  dword n_cycles;
+  uint64_t n_cycles;
 
   //
   int leave_status, exit_value;

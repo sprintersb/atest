@@ -330,7 +330,7 @@ for the surrounding code (register allocation, jump offsets, ...).
 The commands have low overhead; it's not more than an avrtest syscall.
 
 LOG_ON, LOG_OFF, LOG_PUSH_ON, LOG_PUSH_OFF and LOG_POP are also supplied
-as macros that can be used from assembly code.  These the have no effect
+as macros that can be used from assembly code.  They have no effect
 on the internal state of the program (except for the program counter:
 the respective syscalls consume 4 bytes of code).
 
@@ -472,7 +472,7 @@ wrappers from the fileio module.
 
 You can use fileio.c/h as a module in your application, or you can link
 against one of the pre-compiled object files built by make.  For a program
-that simulates ATmega128 for example, the link would be
+that simulates ATmega128 for example, the link command would read
 
     avr-gcc -mmcu=atmega128 fileio-atmega128.o -Wl,-wrap,fclose -Wl,-wrap,feof ...
 

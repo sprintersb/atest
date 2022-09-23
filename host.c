@@ -81,7 +81,7 @@ read_string (char *p, unsigned addr, bool flash_p, size_t len_max)
 }
 
 
-// IEEE 754 single
+// IEEE-754 single
 avr_float_t
 decode_avr_float (unsigned val)
 {
@@ -137,11 +137,11 @@ decode_avr_float (unsigned val)
 }
 
 
-// IEEE 754 double
+// IEEE-754 double
 avr_float_t
 decode_avr_double (uint64_t val)
 {
-  // float =  s  bbbbbbbbbbb mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+  // double = s bbbbbbbbbbb mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
   //         63
   // s = sign (1)
   // b = biased exponent
@@ -270,8 +270,8 @@ get_mem_value (unsigned addr, const layout_t *lay)
 typedef struct
 {
   // Offset set by RESET.
-  dword n_insns;
-  dword n_cycles;
+  uint64_t n_insns;
+  uint64_t n_cycles;
   // Current value for PRAND mode
   uint32_t pvalue;
 } ticks_port_t;
@@ -320,11 +320,11 @@ sys_ticks_cmd (int cfg)
     {
     case TICKS_GET_CYCLES_CMD:
       what = "cycles";
-      value = program.n_cycles - tp->n_cycles;
+      value = (uint32_t) (program.n_cycles - tp->n_cycles);
       break;
     case TICKS_GET_INSNS_CMD:
       what = "insn";
-      value = program.n_insns - tp->n_insns;
+      value = (uint32_t) (program.n_insns - tp->n_insns);
       break;
     case TICKS_GET_PRAND_CMD:
       what = "prand";
@@ -397,7 +397,7 @@ find_file (int handle)
           sprintf (files[i].name, AT "%d", files[i].handle);
         }
 
-#define STD_INIT(f)                                                     \
+#define STD_INIT(f) \
       files[-1 - HANDLE_##f] = (file_t) { HANDLE_##f, true, true, f, AT #f }
       STD_INIT (stdin);
       STD_INIT (stdout);

@@ -34,8 +34,8 @@
 
 static const char USAGE[] =
   "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-runtime]\n"
-  "                 [-no-log] [-no-stdin] [-no-stdout] [-q] [-graph[=FILE]]\n"
-  "                 [-sbox=FOLDER]\n"
+  "                 [-no-log] [-no-stdin] [-no-stdout] [-flush] [-q] \n"
+  "                 [-graph[=FILE]] [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
   "Options:\n"
@@ -55,6 +55,8 @@ static const char USAGE[] =
   "                the running program, cf. README.\n"
   "  -no-stdin     Disable avrtest_getchar (syscall 28) from avrtest.h.\n"
   "  -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.\n"
+  "  -flush        Flush the host's stdout stream after each call of\n"
+  "                avrtest_putchar (syscall 29).\n"
   "  -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the\n"
   "                target program can access via file i/o (syscall 26).\n"
   "  -graph[=FILE] Write a .dot FILE representing the dynamic call graph.\n"
@@ -196,16 +198,16 @@ options_t options =
   };
 
 
-static unsigned long
+static uint64_t
 get_valid_number (const char *str, const char *opt)
 {
   char *end;
-  unsigned long val = strtoul (str, &end, 0);
+  unsigned long long val = strtoull (str, &end, 0);
   if (*end && opt)
     usage ("invalid number '%s' in '%s'", str, opt);
   if (*end)
     usage ("invalid number '%s'", str);
-  return val;
+  return (uint64_t) val;
 }
 
 static unsigned int flash_pm_offset;
@@ -285,11 +287,12 @@ parse_args (int argc, char *argv[])
             usage ("missing program ENTRY point after '%s'", argv[i-1]);
           if (on)
             {
-              cpu_PC = get_valid_number (argv[i], "-e ENTRY");
-              if (cpu_PC % 2 != 0)
+              uint64_t pc =  get_valid_number (argv[i], "-e ENTRY");
+              if (pc % 2 != 0)
                 usage ("odd byte address as ENTRY point in '-e %s'", argv[i]);
-              if (cpu_PC >= MAX_FLASH_SIZE)
+              if (pc >= MAX_FLASH_SIZE)
                 usage ("ENTRY point is too big in '-e %s'", argv[i]);
+              cpu_PC = (unsigned) pc;
             }
           else
             cpu_PC = 0;
@@ -302,9 +305,10 @@ parse_args (int argc, char *argv[])
             usage ("missing OFFSET after '%s'", argv[i-1]);
           if (on)
             {
-              flash_pm_offset = get_valid_number (argv[i], "-pm OFFSET");
-              if (flash_pm_offset != 0x4000 && flash_pm_offset != 0x8000)
+              uint64_t offs =  get_valid_number (argv[i], "-pm OFFSET");
+              if (offs != 0x4000 && offs != 0x8000)
                 usage ("OFFSET must be 0x4000 or 0x8000 in '-pm %s'", argv[i]);
+              flash_pm_offset = (unsigned) offs;
             }
           else
               flash_pm_offset = 0;

@@ -3,6 +3,13 @@
                           avrtest NEWS
                           ============
 
+* Option -m MAXCOUNT now handles 64-bit numbers            r306  2022-09-19
+  correctly.
+
+* Support new command line option -flush that              r303  2022-09-19
+  flushes the host's stdout stream for each call of
+  avrtest_putchar (syscall 29).
+
 * Support logging of 64-bit floating point values:         r292  2019-12-16
 
   -  LOG_DOUBLE (X)

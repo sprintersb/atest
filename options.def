@@ -68,6 +68,9 @@ AVRTEST_OPT (stdin, 1, stdin)
 // Whether STDOUT_PORT is active
 AVRTEST_OPT (stdout, 1, stdout)
 
+// Whether avrtest_putchar (syscall 29) flushes the host's stdout.
+AVRTEST_OPT (flush, 0, flush)
+
 // The folder to use as a SANDBOX for AVR <-> Host I/O (syscall 26).
 AVRTEST_OPT (sbox, 0, sandbox)
 

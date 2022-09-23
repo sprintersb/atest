@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include <sys/time.h>
 
 #include "testavr.h"
@@ -48,8 +49,8 @@
 #define RAMPD   (0x38 + IOBASE)
 
 // ----------------------------------------------------------------------------
-// information about program incarnation (avrtest_log, avrtest-xmega, ...)
-// use the global constants only at places where performance does not
+// Information about program incarnation (avrtest_log, avrtest-xmega, ...).
+// Use the global constants only at places where performance does not
 // matter e.g. in option parsing, so that these modules are independent
 // of ISA_XMEGA and AVRTEST_LOG.
 
@@ -206,9 +207,9 @@ leave (int n, const char *reason, ...)
           if (program.entry_point != 0)
             printf (" entry point: %06x\n", program.entry_point);
           printf ("exit address: %06x\n"
-                  "total cycles: %u\n"
-                  "total instr.: %u\n\n", cpu_PC * 2, program.n_cycles,
-                  program.n_insns);
+                  "total cycles: %" PRIu64 "\n"
+                  "total instr.: %" PRIu64 "\n\n", cpu_PC * 2,
+                  program.n_cycles, program.n_insns);
         }
 
       va_end (args);
@@ -1663,7 +1664,7 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 /* Supply logging facility for modules other than logging.c that are
    present in avrtest.  This way, the module does not depend on macro
    AVRTEST_LOG.  This approach should only be used if loss of speed
-   of execution of logging is *not* available is no issue, i.e. the
+   of execution if logging is *not* available is *no* issue, i.e. the
    following function should not be used by avrtest.c.  */
 
 static void _log_va (const char *fmt, va_list args)
@@ -1727,7 +1728,12 @@ static void sys_stdout (void)
   if (options.do_stdout)
     {
       log_append ("stdout ");
-      putchar ((char) get_reg (24));
+      char c = (char) get_reg (24);
+      putchar (c);
+      if (options.do_flush)
+        fflush (stdout);
+      if (isprint (c))
+        log_append ("'%c'", c);
     }
   else
     log_append ("-no-stdout");
@@ -1880,7 +1886,7 @@ execute (void)
 {
   ram_valid_mask = (is_xmega && arch.has_rampd) ? 0xffffff : 0xffff;
 
-  dword max_insns = program.max_insns;
+  uint64_t max_insns = program.max_insns;
 
   for (;;)
     {

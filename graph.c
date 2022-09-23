@@ -645,8 +645,8 @@ account (list_t *l, list_t *base, unsigned cycles)
 static void
 account_cycles (void)
 {
-  static unsigned cycle;
-  unsigned cycles = program.n_cycles - cycle;
+  static uint64_t cycle;
+  unsigned cycles = (unsigned) (program.n_cycles - cycle);
   cycle = program.n_cycles;
 
   // Find a "base" symbol from bottom of callstack as end point
@@ -1065,7 +1065,7 @@ write_dot_node (FILE *stream, symbol_t *n, const char *extra)
     fprintf (stream, "\\n0x%x", 2 * n->pc);
 
   if (n->type == T_TERMINATE)
-    fprintf (stream, "\\ncycles:%u", program.n_cycles);
+    fprintf (stream, "\\ncycles:%" PRIu64, program.n_cycles);
   else if (n->cycles.account && n->cycles.childs)
     fprintf (stream, "\\nch:%u own:%u", n->cycles.childs, n->cycles.own);
   else if (n->cycles.account)

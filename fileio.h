@@ -7,7 +7,7 @@
 /* avr-libc implements fflush as an inline function.  Work around that now.
    For the work-around to work, the following #include <stdio.h> must actually
    include stdio.h, i.e. the include guard must not be satisfied yet.
-   The is the reason for why we throw the following #error.  */
+   This is the reason for why we throw the following #error.  */
 #ifdef _STDIO_H_
 #error This file must be included prior to #include <stdio.h>
 #endif

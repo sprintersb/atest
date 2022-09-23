@@ -1,3 +1,27 @@
+2022-09-19  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support 64-bit values in option -m MAXCOUNT.
+
+	* options.c (get_valid_number): Return uint64_t.
+	(parse_args): Adjust accordingly.
+	* testavr.h (inttypes.h): Include it.
+	(program_t) [max_insns, n_insns, n_cycles]: Turn to uint64_t.
+	* avrtest.c (leave, execute): Adjust accordingly.
+	* host.c (ticks_port_t) [n_insns, n_cycles]: Turn to uint64_t.
+	(sys_ticks_cmd): Adjust to it.
+	* perf.c (perf_start, perf_stop, perf_instruction): Adjust to
+	new type of program.n_cycles, and program.n_insns.
+
+2022-09-19  Georg-Johann Lay  <avr@gjlay.de>
+
+        Introduce new command line option -flush that flushes the host's
+        stdout stream in each call of avrtest_putchar (syscall 29).
+
+        * options.def (AVRTEST_OPT) [flush]: New option.
+        * options.c (USAGE) [-flush]: Document it.
+        * avrtest.c (sys_stdout): Also log a "%c" version if the char that's
+        just being printed provided it is isprint().
+
 2020-01-15  Georg-Johann Lay  <avr@gjlay.de>
 
 	Adjust copyright years.

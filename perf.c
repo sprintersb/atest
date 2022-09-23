@@ -369,8 +369,8 @@ perf_start (perfs_t *p, int i, int call_depth)
       p->valid = PERF_START_CMD;
       p->n = 0;
       p->insns = p->ticks = 0;
-      minmax_init (& p->insn,  program.n_insns);
-      minmax_init (& p->tick,  program.n_cycles);
+      minmax_init (& p->insn,  (long) program.n_insns);
+      minmax_init (& p->tick,  (long) program.n_cycles);
       minmax_init (& p->calls, call_depth);
       minmax_init (& p->sp,    perf.sp);
       minmax_init (& p->pc,    p->pc_start = cpu_PC);
@@ -383,8 +383,8 @@ perf_start (perfs_t *p, int i, int call_depth)
   p->call_only.insns = 0;
   p->call_only.ticks = 0;
   p->n++;
-  p->insn.at_start = program.n_insns;
-  p->tick.at_start = program.n_cycles;
+  p->insn.at_start = (long) program.n_insns;
+  p->tick.at_start = (long) program.n_cycles;
 
   if (!options.do_quiet)
     {
@@ -422,7 +422,7 @@ perf_stop (perfs_t *p, int i, bool dump_all, int cmd, int call_depth, int sp)
       int insns;
       p->on = false;
       p->pc.at_end = p->pc_end = old_old_PC;
-      p->insn.at_end = program.n_insns -1;
+      p->insn.at_end = (long) program.n_insns - 1;
       p->tick.at_end = perf.tick;
       p->calls.at_end = call_depth;
       p->sp.at_end = sp;
@@ -618,7 +618,7 @@ perf_instruction (int id, int call_depth)
   // must run after the instruction has performed and we might need
   // the values from before the instruction.
   perf.sp  = sp;
-  perf.tick = program.n_cycles;
+  perf.tick = (dword) program.n_cycles;
 }
 
 
