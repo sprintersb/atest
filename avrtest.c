@@ -529,9 +529,9 @@ FUT_ADD_SUB_INDEX (unsigned v1, unsigned v2, unsigned res)
 //     helper functions
 
 static INLINE void
-add_program_cycles (dword cycles)
+add_program_cycles (int64_t cycles)
 {
-  program.n_cycles += cycles;
+    program.n_cycles += (uint64_t) cycles;
 }
 
 
