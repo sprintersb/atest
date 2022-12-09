@@ -132,6 +132,34 @@ There are more functions available for program <-> simulator interaction,
 see the respective sections below.
 
 
+===================
+Speed of Simulation
+===================
+
+The main incentive behind avrtest is speed of execution.  For avrtest
+compiled with a reasonably optimizing compiler (like with "gcc -O3"),
+the speed of a simulated program is around
+
+  45 MHz/GHz  for  avrtest              on x86_64
+  12 MHz/GHz  for  avrtest_log -no-log  on x86_64
+
+measured on an Intel Core2 Duo (x86_64).  On x86, the performance is
+ca 70% of the above, i.e. around
+
+  30 MHz/GHz  for  avrtest              on x86
+   8 MHz/GHz  for  avrtest_log -no-log  on x86
+
+The GHz-values refer to the execution speed of the host computer,
+and the MHz-values refer to an AVR microcontroller.  For example,
+with a x86_64 host running at 2 GHz, avrtest will perform as fast
+as an AVR running at around 90 MHz.
+
+avrtest is a single-core application.  The speed values are under
+the assumption that the simulator performs no logging or printing.
+The timing will also depend slighly on which instructions are being
+simulated.
+
+
 =================================================
 Running avr-gcc testsuite using avrtest simulator
 =================================================
