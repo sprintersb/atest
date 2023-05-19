@@ -3,6 +3,10 @@
                           avrtest NEWS
                           ============
 
+* Add some rudimentary check that the supplied ELF         r314  2023-05-19
+  executable matches the architecture and PC size
+  of the simulation.
+
 * Option -m MAXCOUNT now handles 64-bit numbers            r306  2022-09-19
   correctly.
 

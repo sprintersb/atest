@@ -140,6 +140,9 @@ typedef struct
 #define ET_EXEC 2
 #define EM_AVR 0x53
 
+// Processor specific flags for the ELF header e_flags field.
+#define EF_AVR_MACH 0x7F
+
 // Program Header Type
 #define PT_LOAD 1
 
@@ -327,6 +330,47 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
   return have_strtab;
 }
 
+
+/* Check arch supplied by command line options in arch against
+   the arch of the ELF file.  */
+
+static void
+check_arch (int elf_arch)
+{
+  // Check that simulation is consistent with is_xmega and is_tiny.
+
+  bool elf_tiny = elf_arch == 100;
+  bool elf_xmega = elf_arch >= 102;
+
+  const char *target
+    = elf_tiny ? "Reduced Tiny AVR"
+    : elf_xmega ? "Xmega AVR"
+    : "Classic AVR";
+
+  const char *prog
+    = elf_tiny ? "avrtest-tiny"
+    : elf_xmega ? "avrtest-xmega"
+    : "avrtest";
+
+  const char *l = is_avrtest_log ? "_log" : "";
+
+  if (elf_tiny != is_tiny
+      || elf_xmega != is_xmega)
+    leave (LEAVE_USAGE, "ELF file was generated for %s (avr:%d), use %s%s"
+           " for simulation", target, elf_arch, prog, l);
+
+  // Check that simulation is consistent with PC size of 2 or 3 bytes.
+
+  bool elf_pc_3bytes = elf_arch == 6 || elf_arch >= 106;
+  int n_pc = 2 + elf_pc_3bytes;
+
+  if (elf_pc_3bytes != arch.pc_3bytes)
+    leave (LEAVE_USAGE, "ELF file was generated for AVR core with %d-byte PC"
+           " (avr:%d), but simulating for -mmcu=%s has a %d-byte PC",
+           n_pc, elf_arch, arch.name, 5 - n_pc);
+}
+
+
 static bool
 load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 {
@@ -336,16 +380,21 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
   rewind (f);
   if (fread (&ehdr, sizeof (ehdr), 1, f) != 1)
     leave (LEAVE_ELF, "can't read ELF header");
+
   if (ehdr.e_ident[EI_CLASS] != ELFCLASS32
       || ehdr.e_ident[EI_DATA] != ELFDATA2LSB
       || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
     leave (LEAVE_ELF, "bad ELF header");
+
   if (get_elf32_half (&ehdr.e_type) != ET_EXEC
       || get_elf32_half (&ehdr.e_machine) != EM_AVR
       || get_elf32_word (&ehdr.e_version) != EV_CURRENT
       || get_elf32_half (&ehdr.e_phentsize) != sizeof (Elf32_Phdr))
     leave (LEAVE_ELF, "ELF file is not an AVR executable");
 
+  int elf_arch = EF_AVR_MACH & get_elf32_word (&ehdr.e_flags);
+  check_arch (elf_arch);
+  
   if (!options.do_entry_point)
     {
       unsigned pc = get_elf32_word (&ehdr.e_entry);

@@ -28,7 +28,7 @@
 
 typedef struct
 {
-  // Name of the architecture
+  // Name of the architecture from -mmcu=
   const char *name;
   // True if PC is 3 bytes, false if only 2 bytes
   bool pc_3bytes;
