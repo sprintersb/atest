@@ -55,6 +55,9 @@ AVRTEST_OPT (e, 0, entry_point)
 // space (avrxmega3 only).
 AVRTEST_OPT (pm, 0, flash_pm_offset)
 
+// -s size.  Set flash size in bytes.  Used for PC wrap-around.
+AVRTEST_OPT (s, 0, size)
+
 // Whether just to print messages that are explicitly requested
 // Use return status
 AVRTEST_OPT (q, 0, quiet)

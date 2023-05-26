@@ -103,8 +103,28 @@ program_t program;
 // ---------------------------------------------------------------------------
 // vars that hold AVR states: PC, RAM and Flash
 
+static NOINLINE NORETURN void bad_PC (unsigned pc);
+
 // Word address of current PC and offset into decoded_flash[].
 unsigned cpu_PC;
+
+// Set the PC to a new absolute value.
+static INLINE void
+set_pc (unsigned pc)
+{
+  cpu_PC = pc;
+  if (cpu_PC > program.max_pc)
+    bad_PC (cpu_PC);
+}
+
+// Add DELTA to PC.  Relative jumps like RJMP wrap around.
+static INLINE void
+add_pc (int delta)
+{
+  cpu_PC = (cpu_PC + (unsigned) delta) & program.pc_mask;
+  if (cpu_PC > program.max_pc)
+    bad_PC (cpu_PC);
+}
 
 #if defined ISA_XMEGA || defined ISA_TINY
 static byte cpu_reg[0x20];
@@ -583,19 +603,12 @@ pop_PC (void)
   unsigned pc = 0;
   int sp = data_read_word (SPL);
   if (arch.pc_3bytes)
-    {
-      pc = data_read_byte (++sp) << 16;
-      if (pc >= MAX_FLASH_SIZE / 2)
-        {
-          pc |= data_read_byte (++sp) << 8;
-          pc |= data_read_byte (++sp);
-          bad_PC (pc);
-        }
-    }
+    pc = data_read_byte (++sp) << 16;
+
   pc |= data_read_byte (++sp) << 8;
   pc |= data_read_byte (++sp);
   data_write_word (SPL, sp);
-  cpu_PC = pc;
+  set_pc (pc);
 }
 
 
@@ -773,7 +786,7 @@ skip_instruction_on_condition (bool condition, int words_to_skip)
 {
   if (condition)
     {
-      cpu_PC = (cpu_PC + words_to_skip) & PC_VALID_MASK;
+      set_pc (cpu_PC + words_to_skip);
       add_program_cycles (words_to_skip);
     }
 }
@@ -786,7 +799,7 @@ branch_on_sreg_condition (int rd, int rr, int flag_value)
   if ((flag != 0) == flag_value)
     {
       int8_t delta = rd;
-      cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
+      add_pc (delta);
       add_program_cycles (1);
     }
 }
@@ -855,9 +868,7 @@ static OP_FUNC_TYPE func_EICALL (int rd, int rr)
     func_ILLEGAL (IL_ARCH, 1);
 
   push_PC();
-  cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
-  if (cpu_PC >= MAX_FLASH_SIZE / 2)
-    bad_PC (cpu_PC);
+  set_pc (get_word_reg (REGZ) | (data_read_byte (EIND) << 16));
 }
 
 /* 1001 0100 0001 1001 | EIJMP */
@@ -866,9 +877,7 @@ static OP_FUNC_TYPE func_EIJMP (int rd, int rr)
   if (!arch.has_eind)
     func_ILLEGAL (IL_ARCH, 1);
 
-  cpu_PC = get_word_reg (REGZ) | (data_read_byte (EIND) << 16);
-  if (cpu_PC >= MAX_FLASH_SIZE / 2)
-    bad_PC (cpu_PC);
+  set_pc (get_word_reg (REGZ) | (data_read_byte (EIND) << 16));
 }
 
 /* 1001 0101 1101 1000 | ELPM */
@@ -887,14 +896,14 @@ static OP_FUNC_TYPE func_ESPM (int rd, int rr)
 static OP_FUNC_TYPE func_ICALL (int rd, int rr)
 {
   push_PC();
-  cpu_PC = get_word_reg (REGZ);
+  set_pc (get_word_reg (REGZ));
   add_program_cycles (arch.pc_3bytes);
 }
 
 /* 1001 0100 0000 1001 | IJMP */
 static OP_FUNC_TYPE func_IJMP (int rd, int rr)
 {
-  cpu_PC = get_word_reg (REGZ);
+  set_pc (get_word_reg (REGZ));
 }
 
 /* 1001 0101 1100 1000 | LPM */
@@ -1481,14 +1490,14 @@ static OP_FUNC_TYPE func_STD_Z (int rd, int rr)
 /* 1001 010k kkkk 110k | JMP */
 static OP_FUNC_TYPE func_JMP (int rd, int rr)
 {
-  cpu_PC = rr | (rd << 16);
+  set_pc (rr | (rd << 16));
 }
 
 /* 1001 010k kkkk 111k | CALL */
 static OP_FUNC_TYPE func_CALL (int rd, int rr)
 {
   push_PC();
-  cpu_PC = rr | (rd << 16);
+  set_pc (rr | (rd << 16));
   add_program_cycles (arch.pc_3bytes);
 }
 
@@ -1604,7 +1613,7 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
   // special case: endless loop usually means that the program has ended
   if (delta == -1)
     leave (LEAVE_EXIT, "infinite loop detected (normal exit)");
-  cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
+  add_pc (delta);
 }
 
 /* 1101 kkkk kkkk kkkk | RCALL */
@@ -1612,7 +1621,7 @@ static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 {
   int delta = (int16_t) rr;
   push_PC();
-  cpu_PC = (cpu_PC + delta) & PC_VALID_MASK;
+  add_pc (delta);
   add_program_cycles (arch.pc_3bytes);
 }
 
@@ -1873,7 +1882,7 @@ do_step (void)
   // execute instruction
   const opcode_t *insn = &opcodes[id];
   log_add_instr (&d);
-  cpu_PC += insn->size;
+  set_pc (cpu_PC + insn->size);
   add_program_cycles (insn->cycles);
   int op1 = d.op1;
   int op2 = d.op2;

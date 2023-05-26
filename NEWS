@@ -3,6 +3,10 @@
                           avrtest NEWS
                           ============
 
+* Support a new option -s SIZE that specifies the          r316  2023-05-26
+  flash size in bytes of the simulation.  SIZE is
+  used when the program counter needs wrap-around.
+
 * Add some rudimentary check that the supplied ELF         r314  2023-05-19
   executable matches the architecture and PC size
   of the simulation.

@@ -33,8 +33,9 @@
 //     parse command line arguments
 
 static const char USAGE[] =
-  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-runtime]\n"
-  "                 [-no-log] [-no-stdin] [-no-stdout] [-flush] [-q] \n"
+  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s size]\n"
+  "                 [-no-log] [-no-stdin] [-no-stdout] \n"
+  "                 [-q] [-flush] [-runtime]\n"
   "                 [-graph[=FILE]] [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
@@ -47,6 +48,8 @@ static const char USAGE[] =
   "  -pm OFFSET    Set OFFSET where the program memory is seen in the\n"
   "                LD's instruction address space (avrxmega3 only).\n"
   "  -m MAXCOUNT   Execute at most MAXCOUNT instructions.\n"
+  "  -s SIZE       The size of the simulated flash.  For a program built\n"
+  "                for ATmega8, SIZE would be 8K or 8192 or 0x2000.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
   "                requested.  Pass exit status from the program.\n"
   "  -runtime      Print avrtest execution time.\n"
@@ -204,10 +207,34 @@ get_valid_number (const char *str, const char *opt)
   char *end;
   unsigned long long val = strtoull (str, &end, 0);
   if (*end && opt)
-    usage ("invalid number '%s' in '%s'", str, opt);
+    usage ("invalid number '%s' in option '%s'", str, opt);
   if (*end)
     usage ("invalid number '%s'", str);
   return (uint64_t) val;
+}
+
+static unsigned
+get_valid_kilo (const char *str, const char *opt)
+{
+  char *end;
+  unsigned val = strtoul (str, &end, 0);
+  if ((*end == 'k' || *end == 'K')
+      && end[1] == '\0')
+    {
+      ++end;
+      val *= 1024;
+    }
+  if (*end)
+    usage ("invalid number '%s' in option '%s'", str, opt);
+
+  if (val == 0
+      || (val & (val - 1)) != 0)
+    usage ("number '%s' in option '%s' is not a power of 2", str, opt);
+
+  if (val < 512)
+    usage ("number '%s' in option '%s' is too small", str, opt);
+
+  return val;
 }
 
 static unsigned int flash_pm_offset;
@@ -334,6 +361,13 @@ parse_args (int argc, char *argv[])
             program.max_insns = get_valid_number (argv[i], "-m MAXCOUNT");
           break; // -m
 
+        case OPT_size:
+          if (++i >= argc)
+            usage ("missing SIZE after '%s'", argv[i-1]);
+          if (on)
+            options.do_size = get_valid_kilo (argv[i], "-s SIZE");
+          break; // -s SIZE
+
         case OPT_graph:
           options.do_graph_filename &= on;
           break;
@@ -353,6 +387,10 @@ parse_args (int argc, char *argv[])
           usage ("'-pm OFFSET' is only valid for avrxmega3");
       arch.flash_pm_offset = flash_pm_offset;
     }
+
+  program.pc_mask = options.do_size
+    ? (unsigned) options.do_size / 2 - 1
+    : arch.flash_addr_mask >> 1;
 }
 
 

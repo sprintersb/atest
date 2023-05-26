@@ -1,3 +1,19 @@
+2023-05-26  Georg-Johann Lay  <avr@gjlay.de>
+
+Add command line option -s SIZE to specify the size of the
+simulated program memory.  The value is used when the program
+counter needs wrap-around.  SIZE must be a power of 2.
+
+	* testavr.h (program_t) [max_pc, pc_mask]: New fields.
+	* options.def (-s): New option.
+	* options.c (USAGE) [-s SIZE]: Document.
+	(get_valid_kilo): New static function.
+	(parse_args) [OPT_size]: Handle.
+	Set program.pc_mask.
+	* load-flash.c (decode_flash) [program.max_pc]: Set.
+	* avrtest.c (set_pc, add_pc): New static functions to set PC.
+	Use them throughout the module.
+
 2023-05-22  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/avrtest.exp: set_board_info gcc,signal_suppress

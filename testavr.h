@@ -79,6 +79,12 @@ typedef struct
   // contain non-executable code like ELF headers that are part of PHDRs.
   unsigned code_start, code_end;
 
+  // Max word address the PC can ever have.  Anything bigger is bad_PC().
+  unsigned max_pc;
+
+  // A word mask to implement PC wrap-around for relative jumps.
+  unsigned pc_mask;
+
   // Maximum number of instructions to be executed,
   // used as a timeout.  Can be set by -m CYCLES
   uint64_t max_insns;

@@ -966,4 +966,6 @@ decode_flash (decoded_t d[], const byte flash[])
         tiny_opcode_maybe_illegal (&d[i / 2]);
       opcode1 = opcode2;
     }
+
+  program.max_pc = program.code_end / 2;
 }
