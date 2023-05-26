@@ -1,3 +1,8 @@
+2023-05-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/avrtest.exp: set_board_info gcc,signal_suppress
+	in order to skip more tests involving <signal.h> etc.
+
 2023-05-19  Georg-Johann Lay  <avr@gjlay.de>
 
 	* load-flash.c (check_elf): New function.

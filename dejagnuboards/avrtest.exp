@@ -88,6 +88,7 @@ set_board_info cflags  " -DSIGNAL_SUPPRESS -mmcu=${mmcu} ${extra_cflags}"
 set_board_info gcc,stack_size 2048
 set_board_info gcc,no_trampolines 1
 set_board_info gcc,no_pch_tests 1
+set_board_info gcc,signal_suppress 1
 
 # target-supports.exp::check_effective_target_keeps_null_pointer_checks
 # states:
