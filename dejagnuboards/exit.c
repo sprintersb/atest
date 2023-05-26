@@ -95,6 +95,11 @@ avrtest_init_argc_argv (void)
      and to start command args (argv[0]) at `pargs'.  */
 
   avrtest_syscall_27 (pargs);
+
+  /* syscall 25 */
+  /* Initialization and call of main is supposed to be executed only
+     once.  Trigger abort() if we execute the next syscall a 2nd time.  */
+  avrtest_abort_2nd_hit ();
 }
 
 

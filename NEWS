@@ -3,6 +3,12 @@
                           avrtest NEWS
                           ============
 
+* Support a new syscall avrtest_abort_2nd_hit() that       r318  2023-05-26
+  calls abort if it is executed more than once.  This
+  is useful for programs that go haywire and execute
+  startup code more than once.  The startup code in
+  dejagnuboards/exit.c now calls this syscall.
+
 * Support a new option -s SIZE that specifies the          r316  2023-05-26
   flash size in bytes of the simulation.  SIZE is
   used when the program counter needs wrap-around.

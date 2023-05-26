@@ -371,8 +371,9 @@ AVRTEST_DEF_SYSCALL2_R20 (_26_4, 26, unsigned long);
 AVRTEST_DEF_SYSCALL1 (_27, 27, void*, 24)
 AVRTEST_DEF_SYSCALL1_0 (_28, 28, int, 24)
 AVRTEST_DEF_SYSCALL1 (_29, 29, char, 24)
-AVRTEST_DEF_SYSCALL1 (_30, 30, int, 24)
-AVRTEST_DEF_SYSCALL0 (_31, 31)
+AVRTEST_DEF_SYSCALL1 (_30, 30, int, 24) /* exit */
+AVRTEST_DEF_SYSCALL0 (_31, 31) /* abort */
+AVRTEST_DEF_SYSCALL0 (_25, 25) /* abort_2nd_hit */
 
 AVRTEST_DEF_SYSCALL0 (_0, 0) /* LOG_OFF  */
 AVRTEST_DEF_SYSCALL0 (_1, 1) /* LOG_ON   */
@@ -460,6 +461,13 @@ avrtest_getchar (void)
 {
   return avrtest_syscall_28 ();
 }
+
+static AT_INLINE void
+avrtest_abort_2nd_hit (void)
+{
+  avrtest_syscall_25 ();
+}
+
 
 static AT_INLINE unsigned long
 avrtest_fileio_p (unsigned char _what, const void *_pargs)
@@ -552,6 +560,7 @@ avrtest_reset_all (void)
 
 #define AVRTEST_ABORT  avrtest_syscall 31
 #define AVRTEST_EXIT   avrtest_syscall 30
+#define AVRTEST_ABORT_2ND_HIT avrtest_syscall 25
 
 #endif /* ASSEMBLER */
 #endif /* AVRTEST_H */

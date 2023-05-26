@@ -766,6 +766,7 @@ avrtest.h adds assembler support for a few avrtest features:
     LOG_POP             ;; Same as "avrtest_syscall 11"
     AVRTEST_ABORT       ;; Same as "avrtest_syscall 31"
     AVRTEST_EXIT        ;; Same as "avrtest_syscall 30", exit value = R25:R24.
+    AVRTEST_ABORT_2ND_HIT ;; Same as "avrtest_syscall 25"
 
 "avrtest_syscall <sysno>" is an assembler macro which expands to
 

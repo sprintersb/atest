@@ -1,5 +1,20 @@
 2023-05-26  Georg-Johann Lay  <avr@gjlay.de>
 
+Support a new syscall avrtest_abort_2nd_hit() that calls abort if
+it is executed more than once.  This is useful for programs that go
+haywire and execute startup code more than once.  The startup code in
+dejagnuboards/exit.c now calls this syscall.
+
+	* avrtest.c (sys_abort_2nd_hit): New static function.
+	(func_SYSCALL) [sysno=25]: Call it.
+	* acrtest.h (avr_syscall_25, avrtest_abort_2nd_hit): New static
+	inline functions.
+	[assembler] <AVRTEST_ABORT_2ND_HIT>: New define.
+	* dejagnuboards/exit.c (avrtest_init_argc_argv): Call
+	avrtest_abort_2nd_hit.
+
+2023-05-26  Georg-Johann Lay  <avr@gjlay.de>
+
 Add command line option -s SIZE to specify the size of the
 simulated program memory.  The value is used when the program
 counter needs wrap-around.  SIZE must be a power of 2.

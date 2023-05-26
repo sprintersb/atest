@@ -1685,6 +1685,14 @@ static void _log_va (const char *fmt, va_list args)
 
 void (*log_va)(const char*,va_list) = _log_va;
 
+static void sys_abort_2nd_hit (void)
+{
+  static int hits;
+  log_append ("abort_2nd_hit: hit #%d", 1 + hits);
+
+  if (++hits > 1)
+    leave (LEAVE_ABORTED, "abort function called");
+}
 
 static void sys_fileio (void)
 {
@@ -1835,6 +1843,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       log_append ("not implemented ");
       return;
 
+    case 25: sys_abort_2nd_hit(); break;
     case 26: sys_fileio();     break;
     case 27: sys_argc_argv();  break;
     case 28: sys_stdin();      break;
