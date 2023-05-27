@@ -157,7 +157,9 @@ enum
     IL_TODO
   };
 
+__attribute__((__format__(printf,2,3)))
 extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
+__attribute__((__format__(printf,1,2)))
 extern void qprintf (const char *fmt, ...);
 extern byte* cpu_address (int, int);
 extern void* get_mem (unsigned, size_t, const char*);
@@ -213,6 +215,7 @@ extern void (*log_va)(const char*,va_list);
 extern unsigned old_PC, old_old_PC;
 extern bool log_unused;
 extern void log_init (unsigned);
+__attribute__((__format__(printf,1,2)))
 extern void log_append (const char *fmt, ...);
 extern void log_append_va (const char *fmt, va_list);
 extern void log_add_instr (const decoded_t *op);
