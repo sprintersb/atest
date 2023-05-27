@@ -33,7 +33,7 @@
 #define IN_AVRTEST
 #include "avrtest.h"
 
-
+__attribute__((__format__(printf,1,2)))
 static void log_add_ (const char *fmt, ...)
 {
   va_list args;
