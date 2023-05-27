@@ -144,7 +144,7 @@ typedef struct
 } option_t;
 
 
-static void
+static void __attribute__((__format__(printf,1,2)))
 usage (const char *fmt, ...)
 {
   static char reason[300];
