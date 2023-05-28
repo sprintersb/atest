@@ -1,3 +1,9 @@
+2023-05-28  Georg-Johann Lay  <avr@gjlay.de>
+
+Ignore some labels with non-printable characters in them.
+
+	* logging.c (log_set_function_symbol): Ignore symbols like "L0^A".
+
 2023-05-26  Georg-Johann Lay  <avr@gjlay.de>
 
 Support a new syscall avrtest_abort_2nd_hit() that calls abort if
