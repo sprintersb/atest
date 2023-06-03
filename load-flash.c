@@ -967,5 +967,8 @@ decode_flash (decoded_t d[], const byte flash[])
       opcode1 = opcode2;
     }
 
-  program.max_pc = program.code_end / 2;
+  // Allow a PC past the last code address so that no abort occurs
+  // when the last instruction is a [R]JMP or RET:  do_step() sets
+  // the new PC *before* executing an instruction.
+  program.max_pc = 1 + program.code_end / 2;
 }
