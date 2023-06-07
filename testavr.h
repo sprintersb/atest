@@ -257,7 +257,7 @@ typedef struct
 extern need_t need;
 extern string_table_t string_table;
 
-extern int get_nonglitch_SP();
+extern int get_nonglitch_SP (void);
 
 #endif  // AVRTEST_LOG
 

@@ -206,7 +206,7 @@ void log_maybe_change_SP (int address)
 }
 
 
-int get_nonglitch_SP()
+int get_nonglitch_SP (void)
 {
   static int nonglitch_SP;
 
@@ -513,7 +513,7 @@ sys_log_config (int cmd, int val)
 }
 
 static const char*
-pc_string ()
+pc_string (void)
 {
   static char str[20];
   sprintf (str, arch.pc_3bytes ? "%06x" : "%04x", cpu_PC * 2);

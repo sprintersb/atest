@@ -319,7 +319,7 @@ size_t __wrap_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *pFILE)
     fileio_file_t *file = find_file (pFILE);
     if (!file)
     {
-        extern typeof (fwrite) __real_fwrite;
+        extern __typeof__ (fwrite) __real_fwrite;
         return __real_fwrite (ptr, size, nmemb, pFILE);
     }
 
@@ -332,7 +332,7 @@ size_t __wrap_fread (void *ptr, size_t size, size_t nmemb, FILE *pFILE)
     fileio_file_t *file = find_file (pFILE);
     if (!file)
     {
-        extern typeof (fread) __real_fread;
+        extern __typeof__ (fread) __real_fread;
         return __real_fread (ptr, size, nmemb, pFILE);
     }
 
@@ -341,9 +341,9 @@ size_t __wrap_fread (void *ptr, size_t size, size_t nmemb, FILE *pFILE)
 
 /* Set up the host's special stdxx file objects.  */
 
-FILE *host_stdin  = & files[n_files - 1].theFILE;
-FILE *host_stdout = & files[n_files - 2].theFILE;
-FILE *host_stderr = & files[n_files - 3].theFILE;
+FILE *host_stdin  = & files[FILEIO_N_FILES - 1].theFILE;
+FILE *host_stdout = & files[FILEIO_N_FILES - 2].theFILE;
+FILE *host_stderr = & files[FILEIO_N_FILES - 3].theFILE;
 
 __attribute__((__constructor__,__used__))
 static void
