@@ -1,7 +1,7 @@
 # Compile for host at build (cross if desired)
 CC	= gcc
 WARN	= -W -Wall -Wno-unused-parameter -pedantic \
-	  # -Wstrict-prototypes -Wmissing-prototypes
+	  -Wstrict-prototypes -Wmissing-prototypes
 
 CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
 
@@ -20,10 +20,11 @@ endif
 CC_FOR_BUILD	= gcc$(BUILD_EXEEXT)
 CFLAGS_FOR_BUILD= -W -Wall -std=c99 -O2 -g
 
-# compile for AVR at build
+# Compile for AVR at build.
 CC_FOR_AVR	= avr-gcc$(BUILD_EXEEXT)
 CFLAGS_FOR_AVR	= -Os
 
+# Ditch built-in rules.
 .SUFFIXES:
 
 A	= $(patsubst *%, avrtest%, * *_log *-xmega *-xmega_log *-tiny *-tiny_log)
@@ -163,26 +164,29 @@ endif
 
 all-mingw32: $(EXE_W)
 
-# Cross-compile AVR exit*.o objects
+# Cross-compile AVR exit-*.o and fileio-*.o objects.
 
 exit-%.o: dejagnuboards/exit.c avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps=obj -dp
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*
 
 fileio-%.o: dejagnuboards/fileio.c fileio.h avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -mmcu=$* -I. $< -c -o $@ -save-temps=obj -dp
+	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*
 
-.PHONY: all all-host all-avr clean clean-host clean-exit exe exit all-mingw32 all-avrtest
+.PHONY: all all-host all-avr exe exit all-mingw32 all-avrtest
+.PHONY: clean clean-host clean-exit clean-fileio clean-avr
 
 clean-host:
-	rm -f $(filter-out exit-%.o exit.s exit.i, $(wildcard *.o *.i *.s))
+	rm -f $(filter-out $(wildcard exit-*.[iso] fileio-*.[iso]) , $(wildcard *.[iso]))
 	rm -f $(wildcard *.exe gen-flag-tables)
 	rm -f $(wildcard $(A:=.s) $(A:=.i) $(A:=.o))
 	rm -f $(wildcard $(EXE))
 
 clean-exit:
-	rm -f $(wildcard exit-*.o exit.s exit.i)
+	rm -f $(wildcard exit-*.[iso])
 
 clean-fileio:
-	rm -f $(wildcard fileio-*.o fileio.s fileio.i)
+	rm -f $(wildcard fileio-*.[iso])
 
-clean: clean-host clean-exit
+clean-avr: clean-exit clean-fileio
+
+clean: clean-host clean-avr
