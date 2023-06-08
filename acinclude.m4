@@ -44,6 +44,30 @@ AC_DEFUN([atest_DEFINE_IF_ATTRIBUTE],
 ])
 
 
+AC_DEFUN(
+  CHECK_AVR_DEVICE,
+  [
+    old_CC=${CC}
+    old_CFLAGS=${CFLAGS}
+    CFLAGS="-mmcu=$1"
+    CC=`echo "${CC_FOR_AVR}"`
+    AC_MSG_CHECKING(if ${CC} has support for $1)
+    AC_COMPILE_IFELSE(
+      [AC_LANG_SOURCE([],[])],
+      [has_dev_support=yes],
+      [has_dev_support=no]
+    )
+    if test "x$has_dev_support" = "xyes"; then
+       eval "$2=\"$$2 $1\""
+    fi
+    AC_MSG_RESULT([$has_dev_support])
+    CC=${old_CC}
+    CFLAGS=${old_CFLAGS}
+  ]
+)
+
+
+
 dnl This macro searches for a C compiler that generates native
 dnl executables, that is a C compiler that surely is not a
 dnl cross-compiler. This can be useful if you have to generate source
