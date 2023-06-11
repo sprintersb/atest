@@ -484,7 +484,7 @@ rate_symbol (const char *s)
 /* Called from ELF reader as is comes across a new symbol.
    NAME is the name of the symbol and STOFF is its byte offset into
    the string table as supplied with `graph_set_string_table'.
-   PC is the word location ans IS_FUNC is the set iff the symbol
+   PC is the word location, and IS_FUNC is set iff the symbol
    type is STT_FUNC.  */
 
 void
