@@ -1756,6 +1756,22 @@ static void sys_stdout (void)
     log_append ("-no-stdout");
 }
 
+static void sys_stderr (void)
+{
+  if (options.do_stderr)
+    {
+      log_append ("stderr ");
+      char c = (char) get_reg (24);
+      fputc (c, stderr);
+      if (options.do_flush)
+        fflush (stderr);
+      if (isprint (c))
+        log_append ("'%c'", c);
+    }
+  else
+    log_append ("-no-stderr");
+}
+
 static void sys_exit (void)
 {
   int r24 = (int16_t) get_word_reg_raw (24);
@@ -1819,6 +1835,10 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
        SYSCALL 30:     void avrtest_exit (int)
        SYSCALL 29:     void avrtest_putchar (int)
        SYSCALL 28:     int avrtest_getchar (void)
+       SYSCALL 27:     sys_argc_argv()
+       SYSCALL 26:     sys_fileio()
+       SYSCALL 25:     avrtest_abort_2nd_hit (void)
+       SYSCALL 24:     void avrtest_putchar_stderr (int)  /  fputc (*, stderr)
 
    There are more syscalls to interact with avrtest_log and that have no effect
    on avrtest.
@@ -1843,6 +1863,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       log_append ("not implemented ");
       return;
 
+    case 24: sys_stderr();     break;
     case 25: sys_abort_2nd_hit(); break;
     case 26: sys_fileio();     break;
     case 27: sys_argc_argv();  break;

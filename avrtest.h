@@ -370,6 +370,7 @@ AVRTEST_DEF_SYSCALL2_R20 (_26_2, 26, unsigned);
 AVRTEST_DEF_SYSCALL2_R20 (_26_4, 26, unsigned long);
 AVRTEST_DEF_SYSCALL1 (_27, 27, void*, 24)
 AVRTEST_DEF_SYSCALL1_0 (_28, 28, int, 24)
+AVRTEST_DEF_SYSCALL1 (_24, 24, char, 24)
 AVRTEST_DEF_SYSCALL1 (_29, 29, char, 24)
 AVRTEST_DEF_SYSCALL1 (_30, 30, int, 24) /* exit */
 AVRTEST_DEF_SYSCALL0 (_31, 31) /* abort */
@@ -454,6 +455,12 @@ static AT_INLINE void
 avrtest_putchar (int _c)
 {
   avrtest_syscall_29 ((char) _c);
+}
+
+static AT_INLINE void
+avrtest_putchar_stderr (int _c)
+{
+  avrtest_syscall_24 ((char) _c);
 }
 
 static AT_INLINE int

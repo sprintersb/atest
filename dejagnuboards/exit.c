@@ -54,14 +54,28 @@ avrtest_fputc (char c, FILE *stream)
   return 0;
 }
 
+static int
+avrtest_fputc_stderr (char c, FILE *stream)
+{
+  (void) stream;
+
+  /* sycall 24 */
+  avrtest_putchar_stderr (c);
+
+  return 0;
+}
+
 
 static void __attribute__ ((constructor, used))
 avrtest_init_stream (void)
 {
-  static FILE avrtest_output_stream
+  static FILE avrtest_stdout
     = FDEV_SETUP_STREAM (avrtest_fputc, NULL, _FDEV_SETUP_WRITE);
+  static FILE avrtest_stderr
+    = FDEV_SETUP_STREAM (avrtest_fputc_stderr, NULL, _FDEV_SETUP_WRITE);
 
-  stderr = stdout = &avrtest_output_stream;
+  stdout = &avrtest_stdout;
+  stderr = &avrtest_stderr;
 }
 
 

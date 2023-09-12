@@ -3,6 +3,17 @@
                           avrtest NEWS
                           ============
 
+* Calls like fputc (c, stream) now write to the            r326  2023-09-12
+  host's stderr stream.
+
+  Support a new syscall avrtest_putchar_stderr (int)
+  that writes a character to stderr on the host.
+
+  A new command line option -no-stderr has been added
+  that (works similar to -no-stdout and) suppresses
+  all output to the host's stderr that originates from
+  target writes to stderr.
+
 * Support a new syscall avrtest_abort_2nd_hit() that       r318  2023-05-26
   calls abort if it is executed more than once.  This
   is useful for programs that go haywire and execute
