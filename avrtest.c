@@ -1691,7 +1691,7 @@ static void sys_abort_2nd_hit (void)
   log_append ("abort_2nd_hit: hit #%d", 1 + hits);
 
   if (++hits > 1)
-    leave (LEAVE_ABORTED, "abort function called");
+    leave (LEAVE_CODE, "avrtest_abort_2nd_hit called a 2nd time");
 }
 
 static void sys_fileio (void)
