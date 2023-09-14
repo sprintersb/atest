@@ -3,7 +3,7 @@
                           avrtest NEWS
                           ============
 
-* Calls like fputc (c, stream) now write to the            r326  2023-09-12
+* Calls like fputc (c, stderr) now write to the            r326  2023-09-12
   host's stderr stream.
 
   Support a new syscall avrtest_putchar_stderr (int)

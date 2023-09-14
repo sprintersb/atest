@@ -132,34 +132,6 @@ There are more functions available for program <-> simulator interaction,
 see the respective sections below.
 
 
-===================
-Speed of Simulation
-===================
-
-The main incentive behind avrtest is speed of execution.  For avrtest
-compiled with a reasonably optimizing compiler (like with "gcc -O3"),
-the speed of a simulated program is around
-
-  45 MHz/GHz  for  avrtest              on x86_64
-  12 MHz/GHz  for  avrtest_log -no-log  on x86_64
-
-measured on an Intel Core2 Duo (x86_64).  On x86, the performance is
-ca 70% of the above, i.e. around
-
-  30 MHz/GHz  for  avrtest              on x86
-   8 MHz/GHz  for  avrtest_log -no-log  on x86
-
-The GHz-values refer to the execution speed of the host computer,
-and the MHz-values refer to an AVR microcontroller.  For example,
-with a x86_64 host running at 2 GHz, avrtest will perform as fast
-as an AVR running at around 90 MHz.
-
-avrtest is a single-core application.  The speed values are under
-the assumption that the simulator performs no logging or printing.
-The timing will also depend slighly on which instructions are being
-simulated.
-
-
 =================================================
 Running avr-gcc testsuite using avrtest simulator
 =================================================
@@ -227,7 +199,7 @@ Voila!
  -q : Quiet operation
 =============================================
 
-With -q turned on avrtest will print no messages except the ones
+With -q turned on, avrtest will print no messages except the ones
 explicitly requested by:
 
   - -runtime
@@ -243,7 +215,7 @@ The following exit stati will be returned with -q:
         memory, not an AVR executable, ELF headers broken, ...
   - 12  The program goes haywire:  Stack overflow, illegal instruction or PC.
   - 13  Problem with symbol information like an odd function address.
-  - 14  Problem with using file i/o with the host's file system: Bad file
+  - 14  Problem with using file I/O with the host's file system: Bad file
         handle or file name, illegal argument.  This does *not* encompass
         when fopen cannot open the file; this will just return a 0-handle.
 
@@ -252,6 +224,34 @@ The following exit stati will be returned with -q:
   - 22  Program file could not be found / read.
 
   - 42  Fatal error in avrtest.
+
+
+===================
+Speed of Simulation
+===================
+
+The main incentive behind avrtest is speed of execution.  For avrtest
+compiled with a reasonably optimizing compiler (like with "gcc -O3"),
+the speed of a simulated program is around
+
+  45 MHz/GHz  for  avrtest              on x86_64
+  12 MHz/GHz  for  avrtest_log -no-log  on x86_64
+
+measured on an Intel Core2 Duo (x86_64).  On x86, the performance is
+ca 70% of the above, i.e. around
+
+  30 MHz/GHz  for  avrtest              on x86
+   8 MHz/GHz  for  avrtest_log -no-log  on x86
+
+The GHz-values refer to the execution speed of the host computer,
+and the MHz-values refer to an AVR microcontroller.  For example,
+with a x86_64 host running at 2 GHz, avrtest will perform as fast
+as an AVR running at around 90 MHz.
+
+avrtest is a single-core application.  The speed values are under
+the assumption that the simulator performs no logging or printing.
+The timing will also depend slighly on which instructions are being
+simulated.
 
 
 =============================================
@@ -431,7 +431,7 @@ the default format strings are:
  File I/O with the file system of the host computer
 ===================================================
 
-avrtest supports basic file i/o capabilities that enable the target program
+avrtest supports basic file I/O capabilities that enable the target program
 to communicate with the host's file system.  In order to enable this, option
 
     -sbox SANDBOX
@@ -478,7 +478,7 @@ low-byte of ARGS.
 -------------------------------------
 
 For convenience, avrtest comes with a target module that supplies wrappers
-for the available file i/o functions.  The interface of these functions is
+for the available file I/O functions.  The interface of these functions is
 as specified by the C standard, and fileio.c then tries to map the FILE*
 pointer to an associated handle that's needed for the respective avrtest
 syscall.  The following functions from stdio.h are implemented:
@@ -527,7 +527,7 @@ These functions with their obvious semantics are:
 -------------------------------------------------
 
 Due to peculiarities of avr-libc's stdio.h implementation, the
-following rules have to be obeyed when using file i/o via fileio.c:
+following rules have to be obeyed when using file I/O via fileio.c:
 
 * The linker must be called with -wrap for the following symbols:
 
