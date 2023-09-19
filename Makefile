@@ -3,7 +3,7 @@ CC	= gcc
 WARN	= -W -Wall -Wno-unused-parameter -pedantic \
 	  -Wstrict-prototypes -Wmissing-prototypes
 
-CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 -dp $(WARN) $(CFLAGS)
+CFLAGS_FOR_HOST= -O3 -fomit-frame-pointer -std=c99 $(WARN) $(CFLAGS)
 
 # compile for i386-mingw32 at *-linux-*
 WINCC	= i386-mingw32-gcc
@@ -63,6 +63,8 @@ fileio	: $(FILEIO_O)
 DEPS += options.def options.h testavr.h avr-opcode.def host.h Makefile
 DEPS += graph.h perf.h logging.h avrtest.h sreg.h flag-tables.h
 
+XLIB += -lm
+
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 $(A_tiny:=.s)	: XDEF += -DISA_TINY
@@ -71,7 +73,6 @@ $(A:=$(EXEEXT))     : XOBJ += options.o load-flash.o flag-tables.o host.o
 $(A:=$(EXEEXT))     : options.o load-flash.o flag-tables.o host.o
 
 $(A_log:=$(EXEEXT)) : XOBJ += logging.o graph.o perf.o
-$(A_log:=$(EXEEXT)) : XLIB += -lm
 $(A_log:=$(EXEEXT)) : logging.o graph.o perf.o
 
 options.o: options.c $(DEPS)
@@ -128,7 +129,6 @@ $(A:=.exe)     : XOBJ_W += options$(W).o load-flash$(W).o flag-tables$(W).o host
 $(A:=.exe)     : options$(W).o load-flash$(W).o flag-tables$(W).o host$(W).o
 
 $(A_log:=.exe) : XOBJ_W += logging$(W).o graph$(W).o perf$(W).o
-$(A_log:=.exe) : XLIB += -lm
 $(A_log:=.exe) : logging$(W).o graph$(W).o perf$(W).o
 
 
