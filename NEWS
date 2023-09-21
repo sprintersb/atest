@@ -3,6 +3,9 @@
                           avrtest NEWS
                           ============
 
+* Support -mmcu=avrxmega4 for XMEGA devices with           r311  2023-09-21
+  a 2-byte PC and with .rodata in RAM.
+
 * Calls like fputc (c, stderr) now write to the            r326  2023-09-12
   host's stderr stream.
 
