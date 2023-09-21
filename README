@@ -8,7 +8,7 @@ microcontrollers distributed under the GNU General Public License.
 
 The main intention of avrtest is to supply a fast, easy-to-use simulator
 to run the GCC testsuite for avr-gcc.  Thus, its main audience are guys
-and ladies that develop parts of the AVR toolchain like avr-gcc or avr-libc.
+and ladies that develop parts of the AVR toolchain like avr-gcc or AVR-LibC.
 
 avrtest is an instruction set simulator for AVR core families
     avr51: ATmega128*, AT90can128, AT90usb128*, ATtiny2313, ...
@@ -138,7 +138,7 @@ Running avr-gcc testsuite using avrtest simulator
 
 http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
-* Get avr-gcc, Binutils and avr-libc built from sources and working.
+* Get avr-gcc, Binutils and AVR-LibC built from sources and working.
 
 * Install DejaGNU, expect and TCL
 
@@ -219,7 +219,7 @@ The following exit stati will be returned with -q:
         handle or file name, illegal argument.  This does *not* encompass
         when fopen cannot open the file; this will just return a 0-handle.
 
-  - 20  Out of memory (avrtest_log only).
+  - 20  Out of memory.
   - 21  Wrong avrtest usage: Unknown options, etc.
   - 22  Program file could not be found / read.
 
@@ -491,7 +491,7 @@ syscall.  The following functions from stdio.h are implemented:
 If a handle is not found, a default action might be performed.  Suppose for
 example a call to fread.  If fileio.c finds a handle associated to the passed
 FILE*, it will call the host's fread with the host's FILE* derived from the
-handle; otherwise it calls the avr-libc implementation of fread which uses
+handle; otherwise it calls the AVR-LibC implementation of fread which uses
 FILE* and operates byte-by-byte.
 
 Most functions like fputc, fgetc, fputs, fprintf, etc. that are not included
@@ -506,7 +506,7 @@ that simulates ATmega128 for example, the link command would read
 
 and then simulate program.elf with avrtest or avrtest_log.
 
-In order to circumvent avr-libc stdio.h pecularities and also for
+In order to circumvent AVR-LibC stdio.h pecularities and also for
 better performance, the fileio module provides functions that use
 handles directly instead of the need for an intermediate FILE*.
 These functions with their obvious semantics are:
@@ -526,7 +526,7 @@ These functions with their obvious semantics are:
  File I/O:  Caveats, restrictions and limitations
 -------------------------------------------------
 
-Due to peculiarities of avr-libc's stdio.h implementation, the
+Due to peculiarities of AVR-LibC's stdio.h implementation, the
 following rules have to be obeyed when using file I/O via fileio.c:
 
 * The linker must be called with -wrap for the following symbols:

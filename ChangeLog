@@ -1,3 +1,21 @@
+2023-09-21  Georg-Johann Lay  <avr@gjlay.de>
+
+Read note section .note.gnu.avr.deviceinfo and info therein like flash size.
+
+	* avrtest.c (get_mem): Allow for avrtest.
+	* load-flash.c (Elf32_Nhdr, avr_deviceinfo_t): New typedefs.
+	(NOTE_AVR_DEVICEINFO): Define to ".note.gnu.avr.deviceinfo".
+	(have_strtab, have_deviceinfo, avr_deviceinfo, avr_devicename)
+	(decode_avr_deviceinfo): New static vars.
+	(load_symbol_table, load_string_table, load_deviceinfo_note)
+	(decode_avr_deviceinfo): New stati static functions.
+	(load_sections): Renamed from load_symbol_string_table, relevant
+	parts out-sourced to the new functions above.
+	(load_elf): Always run load_sections(), but only load symtab if
+	is_avrtest_log.  Postpone check_arch() until after deviceinfo note
+	has been read.
+	(check_arch): If available, print MCU name in diagnostics.
+
 2023-05-28  Georg-Johann Lay  <avr@gjlay.de>
 
 Ignore some labels with non-printable characters in them.

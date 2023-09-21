@@ -497,16 +497,11 @@ void set_elf_function_symbol (int addr, size_t offset, bool is_func)
 
 void* get_mem (unsigned n, size_t size, const char *purpose)
 {
-#ifdef AVRTEST_LOG
   void *p = calloc (n, size);
   if (p == NULL)
     leave (LEAVE_MEMORY, "out of memory allocating %u bytes for %s",
            (unsigned) (n * size), purpose);
   return p;
-#else
-  leave (LEAVE_FATAL, "get_mem must be unreachable");
-  return NULL;
-#endif
 }
 
 

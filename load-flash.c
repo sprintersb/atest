@@ -115,6 +115,13 @@ typedef struct
   Elf32_Word sh_entsize;       // Size of members in table
 } Elf32_Shdr;
 
+typedef struct
+{
+  Elf32_Word n_namesz;         // Length of the name.  Follows this note.
+  Elf32_Word n_descsz;         // Length of the descriptor field. Follows name.
+  Elf32_Word n_type;
+} Elf32_Nhdr;
+
 
 // Symbol table entry
 typedef struct
@@ -216,6 +223,27 @@ const char s_SHF[] = "wax.MS>..G.....................E";
 #define STT_SECTION 3          // Symbol associated to a section
 #define STT_FILE    4          // Symbol associated to a file
 
+typedef struct
+{
+  Elf32_Word flash_start;
+  Elf32_Word flash_end;
+  Elf32_Word ram_start;
+  Elf32_Word ram_size;
+  Elf32_Word eeprom_start;
+  Elf32_Word eeprom_size;
+  // 8 bytes of info for a string table that follows.
+  Elf32_Word index_len; // = 8
+  Elf32_Word devname_offset; // = 1 = Offset of "atmega*" etc. in that table.
+} avr_deviceinfo_t;
+
+#define NOTE_AVR_DEVICEINFO ".note.gnu.avr.deviceinfo"
+
+static bool have_strtab;
+
+// From .note.gnu.avr.devicename if present.
+static bool have_deviceinfo;
+static avr_deviceinfo_t avr_deviceinfo;
+static char avr_devicename[32];
 
 static Elf32_Half
 get_elf32_half (const Elf32_Half *v)
@@ -231,20 +259,177 @@ get_elf32_word (const Elf32_Word *v)
   return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
-static bool
-load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
+// Load and allocate a string table from SHDR with sh_type = SHT_STRTAB.
+static char*
+load_string_table (FILE *f, const Elf32_Shdr *shdr, Elf32_Word *psh_size,
+                   const char *name)
 {
-  bool have_strtab = false;
-  char *strtab = NULL;
-  Elf32_Shdr *shdr;
+  Elf32_Word sh_type = get_elf32_word (&shdr->sh_type);
+  if (sh_type != SHT_STRTAB)
+    leave (LEAVE_ELF, "%s header invalid", name);
+
+  Elf32_Off sh_offset = get_elf32_word (&shdr->sh_offset);
+  *psh_size = get_elf32_word (&shdr->sh_size);
+
+  char *strtab = get_mem (*psh_size, sizeof (char), name);
+
+  if (fseek (f, sh_offset, SEEK_SET) != 0
+      || fread (strtab, *psh_size, 1, f) != 1)
+    leave (LEAVE_ELF, "%s truncated", name);
+
+  return strtab;
+}
+
+// N is the index of SYMTAB in the section headers SHDR.
+static void
+load_symbol_table (FILE *f, const Elf32_Ehdr *ehdr, const Elf32_Shdr *shdr,
+                   int n)
+{
+  Elf32_Half e_shnum = get_elf32_half (&ehdr->e_shnum);
+
+  Elf32_Word sh_link = get_elf32_word (&shdr[n].sh_link);
+  Elf32_Word sh_size = get_elf32_word (&shdr[n].sh_size);
+  Elf32_Off sh_offset = get_elf32_word (&shdr[n].sh_offset);
+  size_t sh_entsize = (size_t) get_elf32_word (&shdr[n].sh_entsize);
+
+  if (sh_entsize != sizeof (Elf32_Sym)
+      || sh_size % sh_entsize != 0)
+    leave (LEAVE_ELF, "ELF symbol section header invalid");
+
+  // Read symbol table
+  size_t n_syms = sh_size / sh_entsize;
+  Elf32_Sym *symtab = get_mem ((unsigned) n_syms, sizeof (Elf32_Sym),
+                               "ELF symbol table");
+  if (fseek (f, sh_offset, SEEK_SET) != 0
+      || fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
+    leave (LEAVE_ELF, "ELF symbol table truncated");
+
+  // Read string table section header
+  if (sh_link >= e_shnum)
+    leave (LEAVE_ELF, "ELF section header truncated");
+
+  // Read string table
+  char *strtab = load_string_table (f, &shdr[sh_link], &sh_size,
+                                    "ELF string table");
+
+  set_elf_string_table (strtab, (size_t) sh_size, (unsigned) n_syms);
+
+  // Iterate all symbols
+  for (size_t n = 0; n < n_syms; n++)
+    {
+      const Elf32_Sym *sym = symtab + n;
+      int type = ELF32_ST_TYPE (sym->st_info);
+      size_t name = (size_t) get_elf32_word (&sym->st_name);
+      int shndx = get_elf32_half (&sym->st_shndx);
+      if (name >= sh_size)
+        leave (LEAVE_ELF, "ELF string table too short");
+
+      unsigned flags = 0;
+      if (type == STT_NOTYPE && shndx < SHN_LORESERVE)
+        {
+          if (shndx >= e_shnum)
+            leave (LEAVE_ELF, "ELF section header truncated");
+          Elf32_Word sh_type = get_elf32_word (&shdr[shndx].sh_type);
+          if (sh_type == SHT_PROGBITS)
+            flags = get_elf32_word (&shdr[shndx].sh_flags);
+        }
+      if (type == STT_FUNC || (flags & SHF_EXEC))
+        {
+          int value = get_elf32_word (&sym->st_value);
+          set_elf_function_symbol (value, name, type == STT_FUNC);
+        }
+    }
+
+  free (symtab);
+
+  finish_elf_string_table();
+}
+
+
+static void
+decode_avr_deviceinfo (avr_deviceinfo_t *info)
+{
+  Elf32_Word *pin = (Elf32_Word*) info;
+  for (size_t i = 0; i < sizeof (*info) / sizeof (Elf32_Word); ++i)
+    pin[i] = get_elf32_word (& pin[i]);
+}
+
+
+// Read and decode a .note.gnu.avr.deviceinfo note.
+// Return TRUE on success.
+static bool
+load_deviceinfo_note (FILE *f, const Elf32_Shdr *shdr)
+{
+  Elf32_Word sh_type = get_elf32_word (&shdr->sh_type);
+  if (sh_type != SHT_NOTE)
+    leave (LEAVE_FATAL, "expecting a %s section header", s_SHT[SHT_NOTE]);
+
+  // Read the head of the note that contains length information about the
+  // fields that follow.
+  Elf32_Off sh_offset = get_elf32_word (&shdr->sh_offset);
+  Elf32_Nhdr nhdr;
+  if (fseek (f, sh_offset, SEEK_SET) != 0
+      || fread (&nhdr, sizeof (nhdr), 1, f) != 1)
+    leave (LEAVE_ELF, "ELF note header truncated");
+
+  Elf32_Word n_namesz = get_elf32_word (&nhdr.n_namesz);
+  Elf32_Word n_descsz = get_elf32_word (&nhdr.n_descsz);
+  // Elf32_Word n_type = get_elf32_word (&nhdr.n_type);
+
+  char name[n_namesz];
+  if (fread (name, n_namesz, 1, f) != 1)
+    leave (LEAVE_ELF, "ELF note name truncated");
+  if (strcmp (name, "AVR"))
+    return false;
+
+  avr_deviceinfo_t *info = & avr_deviceinfo;
+
+  if (n_descsz <= sizeof (avr_deviceinfo_t))
+    leave (LEAVE_ELF, "ELF note descript truncated");
+  if (fread (info, sizeof (avr_deviceinfo_t), 1, f) != 1)
+    leave (LEAVE_ELF, "ELF note descript truncated");
+  decode_avr_deviceinfo (info);
+
+  char info_strtab[n_descsz - sizeof (avr_deviceinfo_t)];
+  if (fread (&info_strtab, sizeof (info_strtab), 1, f) != 1
+      || info_strtab[sizeof (info_strtab) - 1] != '\0')
+    leave (LEAVE_ELF, "ELF note descript strtab truncated");
+
+  if (strlen (info_strtab + info->devname_offset) < sizeof (avr_devicename))
+    strcpy (avr_devicename, info_strtab + info->devname_offset);
+
+  if (options.do_verbose)
+    {
+      printf (">>> Load %s %s: mcu=\"%s\": Flash 0x%x -- 0x%x-1",
+              s_SHT[SHT_NOTE], NOTE_AVR_DEVICEINFO, avr_devicename,
+              (unsigned) info->flash_start, (unsigned) info->flash_end);
+      if (info->flash_start == 0  && info->flash_end % 1024 == 0)
+        printf (" = %u KiB\n", (unsigned) info->flash_end / 1024);
+      else
+        printf (" = %u B\n", (unsigned) info->flash_end);
+    }
+
+  return true;
+}
+
+
+// Load symbols from section .symtab if LOAD_SYMTAB_P, i.e. if this
+// is avrtest_log.  As an aside, set `have_strtab' and `have_deviceinfo'.
+// `avr_deviceinfo' is read from NOTE section .note.gnu.avr.deviceinfo as
+// provided by AVR-LibC via crt<mcu>.o from crt1/gcrt1.S.
+static void
+load_sections (FILE *f, const Elf32_Ehdr *ehdr, bool load_symtab_p)
+{
+  char *shstrtab = NULL;
   Elf32_Word e_shoff = get_elf32_word (&ehdr->e_shoff);
   Elf32_Half e_shnum = get_elf32_half (&ehdr->e_shnum);
   Elf32_Half e_shentsize = get_elf32_half (&ehdr->e_shentsize);
+  Elf32_Half e_shstrndx = get_elf32_half (&ehdr->e_shstrndx);
 
   // Read section headers
   if (e_shentsize != sizeof (Elf32_Shdr))
     leave (LEAVE_ELF, "ELF section headers invalid");
-  shdr = get_mem (e_shnum, sizeof (Elf32_Shdr), "ELF section headers");
+  Elf32_Shdr shdr[e_shnum];
   if (fseek (f, e_shoff, SEEK_SET) != 0
       || fread (shdr, sizeof (Elf32_Shdr), e_shnum, f) != e_shnum)
     leave (LEAVE_ELF, "ELF section headers truncated");
@@ -253,81 +438,35 @@ load_symbol_string_table (FILE *f, const Elf32_Ehdr *ehdr)
     {
       Elf32_Word sh_type = get_elf32_word (&shdr[n].sh_type);
 
-      if (sh_type != SHT_SYMTAB)
-        continue;
-
-      Elf32_Word sh_link = get_elf32_word (&shdr[n].sh_link);
-      Elf32_Word sh_size = get_elf32_word (&shdr[n].sh_size);
-      Elf32_Off sh_offset = get_elf32_word (&shdr[n].sh_offset);
-      size_t sh_entsize = (size_t) get_elf32_word (&shdr[n].sh_entsize);
-
-      if (sh_entsize != sizeof (Elf32_Sym)
-          || sh_size % sh_entsize != 0)
-        leave (LEAVE_ELF, "ELF symbol section header invalid");
-
-      // Read symbol table
-      size_t n_syms = sh_size / sh_entsize;
-      Elf32_Sym *symtab = get_mem ((unsigned) n_syms, sizeof (Elf32_Sym),
-                                   "ELF symbol table");
-      if (fseek (f, sh_offset, SEEK_SET) != 0
-          || fread (symtab, sizeof (Elf32_Sym), n_syms, f) != n_syms)
-        leave (LEAVE_ELF, "ELF symbol table truncated");
-
-      // Read string table section header
-      if (sh_link >= e_shnum)
-        leave (LEAVE_ELF, "ELF section header truncated");
-      sh_type = get_elf32_word (&shdr[sh_link].sh_type);
-      if (sh_type != SHT_STRTAB)
-        leave (LEAVE_ELF, "ELF string table header invalid");
-
-      // Read string table
-      sh_offset = get_elf32_word (&shdr[sh_link].sh_offset);
-      sh_size   = get_elf32_word (&shdr[sh_link].sh_size);
-      strtab = get_mem (sh_size, sizeof (char), "ELF string table");
-      if (fseek (f, sh_offset, SEEK_SET) != 0
-          || fread (strtab, sh_size, 1, f) != 1)
-        leave (LEAVE_ELF, "ELF string table truncated");
-
-      set_elf_string_table (strtab, (size_t) sh_size, (unsigned) n_syms);
-
-      // Iterate all symbols
-      for (size_t n = 0; n < n_syms; n++)
+      if (load_symtab_p
+          && sh_type == SHT_SYMTAB)
         {
-          const Elf32_Sym *sym = symtab + n;
-          int type = ELF32_ST_TYPE (sym->st_info);
-          size_t name = (size_t) get_elf32_word (&sym->st_name);
-          int shndx = get_elf32_half (&sym->st_shndx);
-          if (name >= sh_size)
-            leave (LEAVE_ELF, "ELF string table too short");
-
-          unsigned flags = 0;
-          if (type == STT_NOTYPE && shndx < SHN_LORESERVE)
-            {
-              if (shndx >= e_shnum)
-                leave (LEAVE_ELF, "ELF section header truncated");
-              sh_type = get_elf32_word (&shdr[shndx].sh_type);
-              if (sh_type == SHT_PROGBITS)
-                flags = get_elf32_word (&shdr[shndx].sh_flags);
-            }
-          if (type == STT_FUNC || (flags & SHF_EXEC))
-            {
-              int value = get_elf32_word (&sym->st_value);
-              set_elf_function_symbol (value, name, type == STT_FUNC);
-            }
+          load_symbol_table (f, ehdr, shdr, n);
+          have_strtab = true;
         }
 
-      // Release data no more needed.  Retain strtab[].
-      free (symtab);
-      free (shdr);
-
-      finish_elf_string_table();
-      have_strtab = true;
-
-      // Currently ELF does not hold more than 1 symbol table
-      break;
+      // Search for note section ".note.gnu.avr.deviceinfo".
+      if (sh_type == SHT_NOTE)
+        {
+          // Need section header string tab which holds the section names.
+          if (! shstrtab
+              && e_shstrndx < e_shnum)
+            {
+              Elf32_Word sz;
+              shstrtab = load_string_table (f, shdr + e_shstrndx, &sz,
+                                            "ELF section header string table");
+            }
+          if (shstrtab)
+            {
+              Elf32_Word sh_name = get_elf32_word (&shdr[n].sh_name);
+              const char *name = shstrtab + sh_name;
+              if (0 == strcmp (name, NOTE_AVR_DEVICEINFO))
+                have_deviceinfo = load_deviceinfo_note (f, shdr + n);
+            }
+        }
     }
 
-  return have_strtab;
+  free (shstrtab);
 }
 
 
@@ -353,11 +492,14 @@ check_arch (int elf_arch)
     : "avrtest";
 
   const char *l = is_avrtest_log ? "_log" : "";
+  char mcu[40] = { 0 };
+  if (*avr_devicename)
+    sprintf (mcu, " \"%s\"", avr_devicename);
 
   if (elf_tiny != is_tiny
       || elf_xmega != is_xmega)
-    leave (LEAVE_USAGE, "ELF file was generated for %s (avr:%d), use %s%s"
-           " for simulation", target, elf_arch, prog, l);
+    leave (LEAVE_USAGE, "ELF file was generated for %s (avr:%d)%s, use %s%s"
+           " for simulation", target, elf_arch, mcu, prog, l);
 
   // Check that simulation is consistent with PC size of 2 or 3 bytes.
 
@@ -366,12 +508,12 @@ check_arch (int elf_arch)
 
   if (elf_pc_3bytes != arch.pc_3bytes)
     leave (LEAVE_USAGE, "ELF file was generated for AVR core with %d-byte PC"
-           " (avr:%d), but simulating for -mmcu=%s has a %d-byte PC",
-           n_pc, elf_arch, arch.name, 5 - n_pc);
+           " (avr:%d)%s, but simulating for -mmcu=%s has a %d-byte PC",
+           n_pc, elf_arch, mcu, arch.name, 5 - n_pc);
 }
 
 
-static bool
+static void
 load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 {
   Elf32_Ehdr ehdr;
@@ -393,8 +535,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
     leave (LEAVE_ELF, "ELF file is not an AVR executable");
 
   int elf_arch = EF_AVR_MACH & get_elf32_word (&ehdr.e_flags);
-  check_arch (elf_arch);
-  
+
   if (!options.do_entry_point)
     {
       unsigned pc = get_elf32_word (&ehdr.e_entry);
@@ -421,7 +562,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
   if (fseek (f, get_elf32_word (&ehdr.e_phoff), SEEK_SET) != 0)
     leave (LEAVE_ELF, "ELF file truncated");
   size_t res = fread (phdr, sizeof (Elf32_Phdr), nbr_phdr, f);
-  if (res != (size_t)nbr_phdr)
+  if (res != (size_t) nbr_phdr)
     leave (LEAVE_ELF, "can't read PHDRs of ELF file");
 
   for (int i = 0; i < nbr_phdr; i++)
@@ -473,7 +614,6 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 
       bool is_data_for_sram_init = (vaddr >= DATA_VADDR
                                     && vaddr + filesz -1 <= DATA_VADDR_END);
-
       if (arch.flash_pm_offset)
         {
           if (options.do_verbose
@@ -528,13 +668,13 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
         }
     }
 
-  return is_avrtest_log ? load_symbol_string_table (f, &ehdr) : false;
+  load_sections (f, &ehdr, is_avrtest_log);
+  check_arch (elf_arch);
 }
 
 void
 load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
 {
-  bool have_strtab = false;
   char buf[EI_NIDENT];
 
   program.code_start = -1U;
@@ -550,7 +690,7 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
       && buf[2] == 'L'
       && buf[3] == 'F')
     {
-      have_strtab = load_elf (fp, flash, ram, eeprom);
+      load_elf (fp, flash, ram, eeprom);
     }
   else
     {
