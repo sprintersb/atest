@@ -508,8 +508,19 @@ check_arch (int elf_arch)
 
   if (elf_pc_3bytes != arch.pc_3bytes)
     leave (LEAVE_USAGE, "ELF file was generated for AVR core with %d-byte PC"
-           " (avr:%d)%s, but simulating for -mmcu=%s has a %d-byte PC",
+           " (avr:%d)%s, but simulating for -mmcu=%s with a %d-byte PC",
            n_pc, elf_arch, mcu, arch.name, 5 - n_pc);
+
+  // Check that simulation is consistent with Flash seen in RAM address-space.
+
+  bool elf_pm_off = elf_tiny || elf_arch == 103;
+  bool pm_off = !! arch.flash_pm_offset;
+  static const char* const ro[] = { ".rodata in RAM", ".rodata in Flash" };
+
+  if (elf_pm_off != pm_off)
+    leave (LEAVE_USAGE, "ELF file was generated for AVR core with %s"
+           " (avr:%d)%s, but simulating for -mmcu=%s with %s",
+           ro[elf_pm_off], elf_arch, mcu, arch.name, ro[pm_off]);
 }
 
 

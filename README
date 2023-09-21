@@ -11,14 +11,15 @@ to run the GCC testsuite for avr-gcc.  Thus, its main audience are guys
 and ladies that develop parts of the AVR toolchain like avr-gcc or AVR-LibC.
 
 avrtest is an instruction set simulator for AVR core families
-    avr51: ATmega128*, AT90can128, AT90usb128*, ATtiny2313, ...
-    avr6:  ATmega256*
+    avr51: ATmega128*, AT90usb128*, ATtiny2313, ... with a 2-byte PC.
+    avr6:  ATmega256* with a 3-byte PC.
 
 avrtest-xmega is an instruction set simulator for AVR XMEGA core families
-    avrxmega6: ATxmega128*, ...
+    avrxmega6: ATxmega128*, ... with a 3-byte PC.
     avrxmega3: ATtiny212, ATtiny816, ... that see flash in RAM address space.
-    avrxmega7: ATXmega128A1, ATXmega128A1U, ... that use RAMPx as high-byte
-               for RAM accesses.
+    avrxmega4: ATxmega16*, ATxmega32*, ATxmega64*, ... with a 2-byte PC.
+    avrxmega7: ATxmega128A1, ATxmega128A1U, ... with a 3-byte PC and
+               that use RAMPx as high-byte for RAM accesses.
 
 avrtest-tiny is an instruction set simulator for AVR TINY core families
     avrtiny: ATtiny40, ... with only 16 GPRs and flash seen in RAM.
@@ -224,6 +225,10 @@ The following exit stati will be returned with -q:
   - 22  Program file could not be found / read.
 
   - 42  Fatal error in avrtest.
+
+Without -q, the exit status will be 1 (EXIT_FAILURE) for the cases >= 20
+from above.  For all the cases < 20 from above, 0 (EXIT_SUCCESS) will
+be returned.
 
 
 ===================
