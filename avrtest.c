@@ -1858,6 +1858,9 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       log_append ("not implemented ");
       return;
 
+    case 4:                          // Get / reset cycles, insns, rand ...
+      sys_ticks_cmd (get_word_reg_raw (24));
+      break;
     case 24: sys_stderr();     break;
     case 25: sys_abort_2nd_hit(); break;
     case 26: sys_fileio();     break;
@@ -1875,9 +1878,6 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       break;
     case 8:                          // Logging 64-bit values
       do_syscall (sysno, get_word_reg_raw (26));
-      break;
-    case 4:                          // Get / reset cycles, insns, rand ...
-      sys_ticks_cmd (get_word_reg_raw (24));
       break;
     }
 }
