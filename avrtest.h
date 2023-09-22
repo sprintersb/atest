@@ -568,6 +568,7 @@ avrtest_reset_all (void)
 #define AVRTEST_ABORT  avrtest_syscall 31
 #define AVRTEST_EXIT   avrtest_syscall 30
 #define AVRTEST_ABORT_2ND_HIT avrtest_syscall 25
+#define AVRTEST_PUTCHAR       avrtest_syscall 29
 
 #endif /* ASSEMBLER */
 #endif /* AVRTEST_H */
