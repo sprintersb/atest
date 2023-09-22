@@ -1668,17 +1668,17 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 /* Supply logging facility for modules other than logging.c that are
    present in avrtest.  This way, the module does not depend on macro
    AVRTEST_LOG.  This approach should only be used if loss of speed
-   of execution if logging is *not* available is *no* issue, i.e. the
-   following function should not be used by avrtest.c.  */
+   of execution if logging is *not* available is *no* issue, e.g. when
+   used by a syscall.
+   Hence, the following function should not be used by avrtest.c itself.  */
 
-static void _log_va (const char *fmt, va_list args)
+void log_va (const char *fmt, va_list args)
 {
   (void) fmt;
   (void) args;
   log_append_va (fmt, args);
 }
 
-void (*log_va)(const char*,va_list) = _log_va;
 
 static void sys_abort_2nd_hit (void)
 {

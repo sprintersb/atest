@@ -191,7 +191,7 @@ typedef struct
   short cycles;
 } opcode_t;
 
-extern void (*log_va)(const char*,va_list);
+extern void log_va (const char*, va_list);
 
 #ifndef AVRTEST_LOG
 
