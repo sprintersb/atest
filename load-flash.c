@@ -379,7 +379,7 @@ load_deviceinfo_note (FILE *f, const Elf32_Shdr *shdr)
   char name[n_namesz];
   if (fread (name, n_namesz, 1, f) != 1)
     leave (LEAVE_ELF, "ELF note name truncated");
-  if (strcmp (name, "AVR"))
+  if (! str_eq (name, "AVR"))
     return false;
 
   avr_deviceinfo_t *info = & avr_deviceinfo;
@@ -460,7 +460,7 @@ load_sections (FILE *f, const Elf32_Ehdr *ehdr, bool load_symtab_p)
             {
               Elf32_Word sh_name = get_elf32_word (&shdr[n].sh_name);
               const char *name = shstrtab + sh_name;
-              if (0 == strcmp (name, NOTE_AVR_DEVICEINFO))
+              if (str_eq (name, NOTE_AVR_DEVICEINFO))
                 have_deviceinfo = load_deviceinfo_note (f, shdr + n);
             }
         }
