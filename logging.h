@@ -24,20 +24,4 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
-#include <stdbool.h>
-
-// Information for LOG_<data>
-typedef struct
-{
-  // # Bytes to read starting at R20
-  int size;
-  // Default printf format string
-  const char *fmt;
-  // Whether the value is signed / loacted in flash (LOG_PSTR etc.)
-  bool signed_p, in_rom;
-} layout_t;
-
-extern const layout_t layout[];
-extern int maybe_SP_glitch;
-
 #endif // LOGGING_H

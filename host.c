@@ -33,6 +33,9 @@
 #define IN_AVRTEST
 #include "avrtest.h"
 
+#define LEN_LOG_STRING      500
+#define LEN_LOG_XFMT        500
+
 __attribute__((__format__(printf,1,2)))
 static void log_add_ (const char *fmt, ...)
 {
@@ -48,6 +51,45 @@ static void log_add_ (const char *fmt, ...)
       if (is_avrtest_log)       \
         log_add_ (__VA_ARGS__); \
     } while (0)
+
+
+const layout_t
+layout[LOG_X_sentinel] =
+  {
+    [LOG_STR_CMD]   = { 2, "%s",       false, false },
+    [LOG_PSTR_CMD]  = { 2, "%s",       false, true  },
+    [LOG_ADDR_CMD]  = { 2, " 0x%04x ", false, false },
+
+    [LOG_FLOAT_CMD] = { 4, " %.6f ", false, false },
+    [LOG_D64_CMD]   = { 8, " %.6f ", false, false },
+
+    [LOG_U8_CMD]  = { 1, " %u ", false, false },
+    [LOG_U16_CMD] = { 2, " %u ", false, false },
+    [LOG_U24_CMD] = { 3, " %u ", false, false },
+    [LOG_U32_CMD] = { 4, " %u ", false, false },
+    [LOG_U64_CMD] = { 8, " %llu ", false, false },
+
+    [LOG_S8_CMD]  = { 1, " %d ", true,  false },
+    [LOG_S16_CMD] = { 2, " %d ", true,  false },
+    [LOG_S24_CMD] = { 3, " %d ", true,  false },
+    [LOG_S32_CMD] = { 4, " %d ", true,  false },
+    [LOG_S64_CMD] = { 8, " %lld ", true,  false },
+
+    [LOG_X8_CMD]  = { 1, " 0x%02x ", false, false },
+    [LOG_X16_CMD] = { 2, " 0x%04x ", false, false },
+    [LOG_X24_CMD] = { 3, " 0x%06x ", false, false },
+    [LOG_X32_CMD] = { 4, " 0x%08x ", false, false },
+    [LOG_X64_CMD] = { 8, " 0x%016llx ", false, false },
+
+    [LOG_UNSET_FMT_CMD]     = { 0, NULL, false, false },
+    [LOG_SET_FMT_CMD]       = { 2, NULL, false, false },
+    [LOG_SET_PFMT_CMD]      = { 2, NULL, false, true  },
+    [LOG_SET_FMT_ONCE_CMD]  = { 2, NULL, false, false },
+    [LOG_SET_PFMT_ONCE_CMD] = { 2, NULL, false, true  },
+
+    [LOG_TAG_FMT_CMD]       = { 2, NULL, false, false },
+    [LOG_TAG_PFMT_CMD]      = { 2, NULL, false, true  },
+  };
 
 /* Copy a string from AVR target to the host, but not more than
    LEN_MAX characters.  */
@@ -217,7 +259,7 @@ get_r20_value (const layout_t *lay)
    signedness are determined by respective layout[].  If the value is signed
    a cast to signed will do the conversion.  */
 
-unsigned long long
+static unsigned long long
 get_r18_value (const layout_t *lay)
 {
   byte *p = cpu_address (18, AR_REG);
@@ -237,7 +279,7 @@ get_r18_value (const layout_t *lay)
    are determined by respective layout[].  If the value is signed, then
    a cast to signed will do the conversion.  */
 
-unsigned
+static unsigned
 get_mem_value (unsigned addr, const layout_t *lay)
 {
   bool flash_p = lay->in_rom;
@@ -347,6 +389,85 @@ sys_ticks_cmd (int cfg)
   *p++ = value >> 8;
   *p++ = value >> 16;
   *p++ = value >> 24;
+}
+
+
+void
+sys_log_dump (int what)
+{
+  what &= 0xff;
+  if (what >= LOG_X_sentinel)
+    {
+      log_add ("log: invalid cmd %d\n", what);
+      return;
+    }
+
+  static int fmt_once = 0;
+  static char xfmt[LEN_LOG_XFMT];
+  static char string[LEN_LOG_STRING];
+  const layout_t *lay = & layout[what];
+  unsigned val = get_r20_value (lay);
+  const char *fmt = fmt_once ? xfmt : lay->fmt;
+
+  if (fmt_once == 1)
+    fmt_once = 0;
+
+  switch (what)
+    {
+    default:
+      log_add ("log %d-byte value", lay->size);
+      printf (fmt, val);
+      break;
+
+    case LOG_S64_CMD:
+    case LOG_U64_CMD:
+    case LOG_X64_CMD:
+      log_add ("log %d-byte value", lay->size);
+      printf (fmt, get_r18_value (lay));
+      break;
+
+    case LOG_SET_FMT_ONCE_CMD:
+    case LOG_SET_PFMT_ONCE_CMD:
+      log_add ("log set format");
+      fmt_once = 1;
+      read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
+      break;
+
+    case LOG_SET_FMT_CMD:
+    case LOG_SET_PFMT_CMD:
+      log_add ("log set format");
+      fmt_once = -1;
+      read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
+      break;
+
+    case LOG_UNSET_FMT_CMD:
+      log_add ("log unset format");
+      fmt_once = 0;
+      break;
+
+    case LOG_PSTR_CMD:
+    case LOG_STR_CMD:
+      log_add ("log string");
+      read_string (string, val, lay->in_rom, sizeof (string));
+      printf (fmt, string);
+      break;
+
+    case LOG_FLOAT_CMD:
+      {
+        log_add ("log float");
+        avr_float_t af = decode_avr_float (val);
+        printf (fmt, af.x);
+      }
+      break;
+
+    case LOG_D64_CMD:
+      {
+        log_add ("log double");
+        avr_float_t af = decode_avr_double (get_r18_value (lay));
+        printf (fmt, af.x);
+      }
+      break;
+    }
 }
 
 

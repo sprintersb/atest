@@ -72,13 +72,10 @@ typedef struct
 const char s_SREG[] = "CZNVSHTI";
 
 
-#define LEN_LOG_STRING      500
-#define LEN_LOG_XFMT        500
-
 unsigned old_PC, old_old_PC;
 bool log_unused;
 need_t need;
-int maybe_SP_glitch;
+static int maybe_SP_glitch;
 
 string_table_t string_table;
 
@@ -392,85 +389,6 @@ log_add_data_mov (const char *format, int addr, int value)
 }
 
 
-static void
-sys_log_dump (int what)
-{
-  what &= 0xff;
-  if (what >= LOG_X_sentinel)
-    {
-      log_append ("log: invalid cmd %d\n", what);
-      return;
-    }
-
-  static int fmt_once = 0;
-  static char xfmt[LEN_LOG_XFMT];
-  static char string[LEN_LOG_STRING];
-  const layout_t *lay = & layout[what];
-  unsigned val = get_r20_value (lay);
-  const char *fmt = fmt_once ? xfmt : lay->fmt;
-
-  if (fmt_once == 1)
-    fmt_once = 0;
-
-  switch (what)
-    {
-    default:
-      log_append ("log %d-byte value", lay->size);
-      printf (fmt, val);
-      break;
-
-    case LOG_S64_CMD:
-    case LOG_U64_CMD:
-    case LOG_X64_CMD:
-      log_append ("log %d-byte value", lay->size);
-      printf (fmt, get_r18_value (lay));
-      break;
-
-    case LOG_SET_FMT_ONCE_CMD:
-    case LOG_SET_PFMT_ONCE_CMD:
-      log_append ("log set format");
-      fmt_once = 1;
-      read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
-      break;
-
-    case LOG_SET_FMT_CMD:
-    case LOG_SET_PFMT_CMD:
-      log_append ("log set format");
-      fmt_once = -1;
-      read_string (xfmt, val, lay->in_rom, sizeof (xfmt));
-      break;
-
-    case LOG_UNSET_FMT_CMD:
-      log_append ("log unset format");
-      fmt_once = 0;
-      break;
-
-    case LOG_PSTR_CMD:
-    case LOG_STR_CMD:
-      log_append ("log string");
-      read_string (string, val, lay->in_rom, sizeof (string));
-      printf (fmt, string);
-      break;
-
-    case LOG_FLOAT_CMD:
-      {
-        log_append ("log float");
-        avr_float_t af = decode_avr_float (val);
-        printf (fmt, af.x);
-      }
-      break;
-
-    case LOG_D64_CMD:
-      {
-        log_append ("log double");
-        avr_float_t af = decode_avr_double (get_r18_value (lay));
-        printf (fmt, af.x);
-      }
-      break;
-    }
-}
-
-
 enum
   {
     LOG_ON_CMD,
@@ -613,8 +531,6 @@ do_syscall (int sysno, int val)
     case 3: sys_log_config (LOG_SET_CMD, val);  break;
     case 5: sys_perf_cmd (val);     break;
     case 6: sys_perf_tag_cmd (val); break;
-    case 7:
-    case 8: sys_log_dump (val);     break;
     case  9: sys_log_pushpop (sysno, 0);    break;
     case 10: sys_log_pushpop (sysno, 1);    break;
     case 11: sys_log_pushpop (sysno, -1);   break;
@@ -686,42 +602,3 @@ log_dump_line (const decoded_t *d)
   if (need.perf)
     perf_instruction (d ? d->id : 0, call_depth);
 }
-
-
-const layout_t
-layout[LOG_X_sentinel] =
-  {
-    [LOG_STR_CMD]   = { 2, "%s",       false, false },
-    [LOG_PSTR_CMD]  = { 2, "%s",       false, true  },
-    [LOG_ADDR_CMD]  = { 2, " 0x%04x ", false, false },
-
-    [LOG_FLOAT_CMD] = { 4, " %.6f ", false, false },
-    [LOG_D64_CMD]   = { 8, " %.6f ", false, false },
-
-    [LOG_U8_CMD]  = { 1, " %u ", false, false },
-    [LOG_U16_CMD] = { 2, " %u ", false, false },
-    [LOG_U24_CMD] = { 3, " %u ", false, false },
-    [LOG_U32_CMD] = { 4, " %u ", false, false },
-    [LOG_U64_CMD] = { 8, " %llu ", false, false },
-
-    [LOG_S8_CMD]  = { 1, " %d ", true,  false },
-    [LOG_S16_CMD] = { 2, " %d ", true,  false },
-    [LOG_S24_CMD] = { 3, " %d ", true,  false },
-    [LOG_S32_CMD] = { 4, " %d ", true,  false },
-    [LOG_S64_CMD] = { 8, " %lld ", true,  false },
-
-    [LOG_X8_CMD]  = { 1, " 0x%02x ", false, false },
-    [LOG_X16_CMD] = { 2, " 0x%04x ", false, false },
-    [LOG_X24_CMD] = { 3, " 0x%06x ", false, false },
-    [LOG_X32_CMD] = { 4, " 0x%08x ", false, false },
-    [LOG_X64_CMD] = { 8, " 0x%016llx ", false, false },
-
-    [LOG_UNSET_FMT_CMD]     = { 0, NULL, false, false },
-    [LOG_SET_FMT_CMD]       = { 2, NULL, false, false },
-    [LOG_SET_PFMT_CMD]      = { 2, NULL, false, true  },
-    [LOG_SET_FMT_ONCE_CMD]  = { 2, NULL, false, false },
-    [LOG_SET_PFMT_ONCE_CMD] = { 2, NULL, false, true  },
-
-    [LOG_TAG_FMT_CMD]       = { 2, NULL, false, false },
-    [LOG_TAG_PFMT_CMD]      = { 2, NULL, false, true  },
-  };

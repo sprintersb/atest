@@ -78,12 +78,12 @@ AVR_OPCODE (UNDEF, 0, 0, "")
    SYSCALL 26       file I/O
    SYSCALL 25       raise abort on 2nd hit
    SYSCALL 24       write char to PC's stderr
+   SYSCALL 8        dumping 64-bit values to PC's stdout
+   SYSCALL 7        dumping values to PC's stdout
    SYSCALL 4        get / reset cycle count, instruction count, (pseudo) rand
 
    These syscalls are only supported by avrtest_log:
 
-   SYSCALL 8        dumping 64-bit values to PC's stdout
-   SYSCALL 7        dumping values to PC's stdout
    SYSCALL 6..5     performance meters
    SYSCALL 3..0     logging control
 

@@ -26,8 +26,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "logging.h" // layout_t
-
 enum
   {
     FT_NORM,
@@ -48,13 +46,25 @@ typedef struct
   double x;
 } avr_float_t;
 
-extern char* read_string (char*, unsigned, bool, size_t);
+// Information for LOG_<data>
+typedef struct
+{
+  // # Bytes to read starting at R20
+  int size;
+  // Default printf format string
+  const char *fmt;
+  // Whether the value is signed / loacted in flash (LOG_PSTR etc.)
+  bool signed_p, in_rom;
+} layout_t;
+
+extern const layout_t layout[];
+
 extern unsigned get_r20_value (const layout_t*);
-extern unsigned long long get_r18_value (const layout_t*);
-extern unsigned get_mem_value (unsigned, const layout_t*);
+extern char* read_string (char*, unsigned, bool, size_t);
 extern avr_float_t decode_avr_float (unsigned);
 extern avr_float_t decode_avr_double (uint64_t);
 extern void sys_ticks_cmd (int);
+extern void sys_log_dump (int);
 
 extern dword host_fileio (byte, dword);
 #endif // HOST_H

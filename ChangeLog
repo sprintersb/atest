@@ -1,3 +1,14 @@
+2023-09-23  Georg-Johann Lay  <avr@gjlay.de>
+
+Support logging of values like LOG_U8 or LOG_FMT_S32 also with avrtest.
+
+	* avrtest.c (func_SYSCALL): Call sys_log_dump directly.
+	* logging.c (sys_log_dump, layout, LEN_LOG_STRING)
+	(LEN_LOG_XFMT): Move to...
+	* host.c: ...here.  And use log_add() instead of log_append().
+	* logging.h (layout_t): Move to host.h.
+	* logging.c (do_syscall): Remove cases 7, 8: Don't call sys_log_dump().
+
 2023-09-21  Georg-Johann Lay  <avr@gjlay.de>
 
 Read note section .note.gnu.avr.deviceinfo and info therein like flash size.

@@ -1834,6 +1834,9 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
        SYSCALL 26:     sys_fileio()
        SYSCALL 25:     avrtest_abort_2nd_hit (void)
        SYSCALL 24:     void avrtest_putchar_stderr (int)  /  fputc (*, stderr)
+       SYSCALL 8:      sys_log_dump(): Log 64-bit values.
+       SYSCALL 7:      sys_log_dump(): Log values.
+       SYSCALL 4:      sys_ticks_cmd(): Cycles, insn. rand, prand.
 
    There are more syscalls to interact with avrtest_log and that have no effect
    on avrtest.
@@ -1858,9 +1861,13 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       log_append ("not implemented ");
       return;
 
-    case 4:                          // Get / reset cycles, insns, rand ...
-      sys_ticks_cmd (get_word_reg_raw (24));
-      break;
+    // Formerly only supported by avrtest_log, but avrtest can support
+    // them without any penalty.  Implemented in host.c.
+    case 4: sys_ticks_cmd (get_word_reg_raw (24)); break; // Cycles, rand ...
+    case 7: sys_log_dump (get_word_reg_raw (24)); break;  // Log values
+    case 8: sys_log_dump (get_word_reg_raw (26)); break;  // Log 64-bit values
+
+    // Supported by all avrtest flavours and implemented above.
     case 24: sys_stderr();     break;
     case 25: sys_abort_2nd_hit(); break;
     case 26: sys_fileio();     break;
@@ -1870,14 +1877,11 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 30: sys_exit();       break;
     case 31: sys_abort();      break;
 
+    // Only supported by avrtest_log.
     case 0: case 1: case 2: case 3:  // Logging control
     case 5: case 6:                  // Performance metering
-    case 7:                          // Logging values
     case 9: case 10: case 11:        // Logging push / pop
       do_syscall (sysno, get_word_reg_raw (24));
-      break;
-    case 8:                          // Logging 64-bit values
-      do_syscall (sysno, get_word_reg_raw (26));
       break;
     }
 }

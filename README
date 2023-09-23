@@ -371,8 +371,6 @@ the respective syscalls consume 4 bytes of code).
  Logging values to the host computer
 ====================================
 
-* This feature is only supported by avrtest_log.
-
 In order to get values out of the running program, the following
 low-overhead, low-intrusive commands might be useful:
 
