@@ -3,6 +3,10 @@
                           avrtest NEWS
                           ============
 
+* Support -mmcu=avr2, avr25, avr3, avr31, avr35,           r337  2023-09-30
+  avr4, avr5 and avrxmega2 for convenience.  They
+  are basically aliases of already existing cores.
+
 * Support logging of values (syscalls 7 and 8) also        r335  2023-09-23
   in avrtest.
 

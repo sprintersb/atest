@@ -120,7 +120,16 @@ static const arch_t arch_desc[] =
     { "avrxmega6", true,  true,  true,  false, false, 0x03ffff, 0 },
     // default if is_tiny  = 1
     { "avrtiny",   false, false, false, false, true,  0x01ffff, 0x4000 },
+    // avr2 ... avr5 and avrxmega2 are aliases for convenience
+    { "avr2",      false, false, false, false, false, 0x00ffff, 0 },
+    { "avr25",     false, false, false, false, false, 0x00ffff, 0 },
+    { "avr3",      false, false, false, false, false, 0x00ffff, 0 },
+    { "avr31",     false, false, false, false, false, 0x01ffff, 0 },
+    { "avr35",     false, false, false, false, false, 0x00ffff, 0 },
+    { "avr4",      false, false, false, false, false, 0x00ffff, 0 },
+    { "avr5",      false, false, false, false, false, 0x00ffff, 0 },
     { "avr6",      true,  true,  false, false, false, 0x03ffff, 0 },
+    { "avrxmega2", false, false, true,  false, false, 0x00ffff, 0 },
     { "avrxmega3", false, false, true,  false, false, 0x00ffff, 0x8000 },
     { "avrxmega4", false, false, true,  false, false, 0x00ffff, 0 },
     { "avrxmega7", true,  true,  true,  true,  false, 0x03ffff, 0 },

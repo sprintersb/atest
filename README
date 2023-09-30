@@ -24,6 +24,9 @@ avrtest-xmega is an instruction set simulator for AVR XMEGA core families
 avrtest-tiny is an instruction set simulator for AVR TINY core families
     avrtiny: ATtiny40, ... with only 16 GPRs and flash seen in RAM.
 
+Also supported are cores avr2, avr25, avr3, avr31, avr35, avr4, avr5
+and avrxmega2.  They are just aliases for one of the cores above.
+
 The executable that supports AVR XMEGA cores is named avrtest-xmega.
 In addition to the avrtest simulator, it supports the XMEGA instructions
 XCH, LAS, LAC and LAT.  For avrxmega3, it also supports the command line
