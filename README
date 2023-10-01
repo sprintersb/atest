@@ -199,6 +199,32 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 Voila!
 
 
+==========================================
+ -s SIZE : Specifying simulated flash size
+==========================================
+
+The simulator must know the flash size of the simulated controller
+so it can correctly simulare instructions like RJMP.  For example,
+an  RJMP .-4  located at address 0x0 will jump to 0x1ffe on ATmega8
+but to 0x7fe on ATtiny2313.
+
+For programs that use the start-up code from AVR-LibC in crt<mcu>.o,
+avrtest will read the flash size from a special note section named
+.note.gnu.avr.deviceinfo contained in that startup-code.  avrtest will
+print its contents with -v.
+
+In the following situations, -s SIZE can be used to specify flash size:
+
+* The program does not use startup-code from AVR-LibC.  In that case,
+  you can specify, say  -s 8192  or  -s 0x2000  or  -s 8k  for ATmega8.
+
+* You want to use a flash size other than shipped with crt<mcu>.o.
+
+* Use  -s -1  if you don't want to specify a flash size and also don't
+  want to use flash size from .note.gnu.avr.deviceinfo.  avrtest will
+  use a core-specific default value.
+
+
 =============================================
  -q : Quiet operation
 =============================================

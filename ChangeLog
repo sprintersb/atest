@@ -1,3 +1,13 @@
+2023-10-01  Georg-Johann Lay  <avr@gjlay.de>
+
+Use flash size from section .note.gnu.avr.deviceinfo.
+
+	* testavr.h (exact_log2): New inline function.
+	* options.c (get_valid_kilo): Use it, and allow size of -1.
+	(parse_args): Move setting of program.pc_mask from here...
+	* load-flash.c (load_to_flash): ...to here.
+	Adjust check for program size overflow.
+
 2023-09-23  Georg-Johann Lay  <avr@gjlay.de>
 
 Support logging of values like LOG_U8 or LOG_FMT_S32 also with avrtest.

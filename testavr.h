@@ -292,6 +292,20 @@ str_in (const char *s, const char * const *arr)
 }
 
 
+// Returns n if x = 2^n, and -1 otherwise.
+static INLINE int
+exact_log2 (unsigned x)
+{
+    if (x == 0 || (x & (x - 1)))
+        return -1;
+
+    int n = 0;
+    for (; x != 1; x >>= 1)
+        n = n + 1;
+    return n;
+}
+
+
 // ---------------------------------------------------------------------------
 //     auxiliary lookup tables
 

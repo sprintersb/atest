@@ -239,8 +239,11 @@ get_valid_kilo (const char *str, const char *opt)
   if (*end)
     usage ("invalid number '%s' in option '%s'", str, opt);
 
-  if (val == 0
-      || (val & (val - 1)) != 0)
+  // Allow size of -1 to turn off size inferral from .note.gnu.avr.deviceinfo.
+  if (val == -1u)
+    return val;
+
+  if (exact_log2 (val) < 0)
     usage ("number '%s' in option '%s' is not a power of 2", str, opt);
 
   if (val < 512)
@@ -399,10 +402,6 @@ parse_args (int argc, char *argv[])
           usage ("'-pm OFFSET' is only valid for avrxmega3");
       arch.flash_pm_offset = flash_pm_offset;
     }
-
-  program.pc_mask = options.do_size
-    ? (unsigned) options.do_size / 2 - 1
-    : arch.flash_addr_mask >> 1;
 }
 
 

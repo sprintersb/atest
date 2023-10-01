@@ -712,10 +712,25 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
     }
   fclose (fp);
 
-  if (program.size & ~arch.flash_addr_mask)
+  if (options.do_size == -1)
+    // Ignore info from .note.gnu.avr.deviceinfo even if we have it.
+    program.pc_mask = arch.flash_addr_mask >> 1;
+  else if (options.do_size)
+    // -s SIZE takes precedence over deviceinfo.
+    program.pc_mask = (unsigned) options.do_size / 2 - 1;
+  else if (have_deviceinfo
+           && 0 == avr_deviceinfo.flash_start
+           // flash_end is an integral power of 2.
+           && exact_log2 (avr_deviceinfo.flash_end) >= 0)
+    program.pc_mask = (unsigned) avr_deviceinfo.flash_end / 2 - 1;
+  else
+    program.pc_mask = arch.flash_addr_mask >> 1;
+
+  unsigned max_size = (program.pc_mask + 1) << 1;
+  if (program.size > max_size)
     {
       leave (LEAVE_ELF, "program is too large (size: %"PRIu32
-             ", max: %u)", program.size, arch.flash_addr_mask + 1);
+             ", max: %u)", program.size, max_size);
     }
 
   if (is_avrtest_log && !have_strtab)
