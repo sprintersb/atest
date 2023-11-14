@@ -628,7 +628,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
       if (arch.flash_pm_offset)
         {
           if (options.do_verbose
-              && (addr + memsz + arch.flash_pm_offset < 0x10000
+              && (addr + memsz + arch.flash_pm_offset <= 0x10000
                   || !is_data_for_sram_init))
             {
               printf (">>> CopyFlash 0x%06x -- 0x%06x to RAM 0x%06x -- 0x%06x"
@@ -637,7 +637,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
                       (unsigned) (addr + arch.flash_pm_offset + memsz - 1));
             }
 
-          if (addr + memsz + arch.flash_pm_offset < 0x10000)
+          if (addr + memsz + arch.flash_pm_offset <= 0x10000)
             {
               // Showing flash in RAM is possible; just copy.  This is faster
               // than special-casing LDS and LD*.  The downside of just

@@ -1,5 +1,10 @@
 2023-11-14  Georg-Johann Lay  <avr@gjlay.de>
 
+	* load-flash.c (load_elf) [arch.flash_pm_offset]: Include 0x10000
+	in the valid range for addr + memsz + arch.flash_pm_offset.
+
+2023-11-14  Georg-Johann Lay  <avr@gjlay.de>
+
 Support IEEE single and IEEE double emulation.
 
 	* avrtest.h (avrtest_<name>f, avrtest_<name>l, avrtest_<name>_d64):
