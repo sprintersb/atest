@@ -3,6 +3,19 @@
                           avrtest NEWS
                           ============
 
+* Support syscalls like                                    r339  2023-11-14
+
+      long double avrtest_sinl (long double);
+      long double avrtest_mull (long double, long double);
+
+  to help with IEEE double implementation.  For a
+  complete list of functions, see README sections
+  "IEEE single emulation" and "IEEE double emulation".
+  There are also versions for float like:
+
+      float avrtest_sinf (float);
+      float avrtest_mulf (float, float);
+
 * Use flash size from section .note.gnu.avr.deviceinfo     r338  2023-10-01
   provided by startup-code from AVR-LibC in crt<mcu>.o.
 

@@ -100,7 +100,7 @@ static const char GRAPH_USAGE[] =
   "              will be propagated to them.\n"
   "-graph-sub=CLIST   A comma separated list of functions to fully\n"
   "              expand, i.e. also assign costs to all reserved\n"
-  "              functios they are using.\n"
+  "              functions they are using.\n"
   "-graph-skip=CLIST  A comma separated list of functions to ignore.\n"
   "              Propagate their costs up to the next appropriate\n"
   "              function in the call tree.\n"

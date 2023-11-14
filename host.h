@@ -65,6 +65,8 @@ extern avr_float_t decode_avr_float (unsigned);
 extern avr_float_t decode_avr_double (uint64_t);
 extern void sys_ticks_cmd (int);
 extern void sys_log_dump (int);
+extern void sys_emul_double (uint8_t);
+extern void sys_emul_float (uint8_t);
 
 extern dword host_fileio (byte, dword);
 #endif // HOST_H

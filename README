@@ -423,7 +423,7 @@ etc.  Moreover, there are the following commands:
     LOG_LDOUBLE (X);    log long double X
     LOG_D64 (X);        log a 64-bit unsigned integer, the bit representation
                         of which is interpreted as a 64-bit IEEE floating point
-                        number (11-bit exponent, 52-bit mantissa)
+                        number (11-bit exponent, 52-bit encoded mantissa)
 
 All of these logging commands have variants that take a custom
 printf format string to print the supplied value:
@@ -764,7 +764,7 @@ the volatile accesses does not matter as it is ignored by PERF_START_CALL.
  Timing data and random values
 ==============================
 
-Following functions return a 32-bit value:
+Following functions return an unsigned 32-bit value:
 
     avrtest_cycles();       Program cycles of simulated instructions
     avrtest_insns();        Number of simulated instructions
@@ -782,6 +782,82 @@ program start:
     avrtest_reset_all();          Reset all of them
 
 The simulator does not account cycles to syscalls.
+
+
+======================
+ IEEE single emulation
+======================
+
+avrtest supports syscalls like
+
+    float avrtest_mulf (float, float);
+    float avrtest_sinf (float);
+
+in order to help with IEEE single implementation.
+
+Supported functions with one float argument are:
+    sin, asin, sinh, asinh, cos, acos, cosh, acosh, tan, atan, tanh, atanh,
+    exp, log, sqrt, cbrt, trunc, ceil, floor, round.
+
+Supported functions with two float arguments are:
+    mul, div, add, sub,
+    pow, atan2, hypot, fmin, fmax, fmod.
+
+Don't forget to append 'f' to the function name for the float versions.
+
+avrtest will terminate with an error if the host IEEE single cannot
+be used for emulation.
+
+Here is an example for the usage of avrtest_sinf:
+
+#include "avrtest.h"
+
+float compute_sinf (float x)
+{
+    float y = avrtest_sinf (x);
+    LOG_FMT_FLOAT ("sinf(%f) = ", x);
+    LOG_FMT_FLOAT ("%f\n", y);
+    return y;
+}
+
+
+======================
+ IEEE double emulation
+======================
+
+avrtest supports syscalls like
+
+    long double avrtest_mull (long double, long double);
+    long double avrtest_sinl (long double);
+
+in order to help with IEEE double implementation.  These functions are
+only available if long double is a 64-bit type.  There are syscalls like
+
+    uint64_t avrtest_mul_d64 (uint64_t, uint64_t);
+    uint64_t double avrtest_sin_d64 (uint64_t);
+
+with the same functionality, but they interpret uint64_t as IEEE double.
+The _d64 versions are available irrespective of the layout of long double.
+
+Supported functions are the same like for IEEE single but with 'l'
+instead of 'f' at the end of the syscall name.
+
+avrtest will terminate with an error if the host IEEE double cannot
+be used for emulation.  The functions are not available for Reduced Tiny.
+
+Here is an example for the usage of avrtest_sqrtl:
+
+#include "avrtest.h"
+
+long double compute_sqrtl (long double)
+{
+    long double y = avrtest_sqrtl (x);
+    // The host uses "double" for floating-point values, thus
+    // use "%f" (or similar) to print and NOT "%Lf".
+    LOG_FMT_LDOUBLE ("square-root(%f) = ", x);
+    LOG_FMT_LDOUBLE ("%f\n", y);
+    return y;
+}
 
 
 ===============================

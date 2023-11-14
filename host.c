@@ -471,6 +471,286 @@ sys_log_dump (int what)
 }
 
 
+#define ARRAY_SIZE(X) (sizeof(X) / sizeof(*X))
+
+
+// Emulating IEEE single functions.
+
+#if __SIZEOF_FLOAT__ != 4
+#define NO_FEMUL "host has no 32-bit IEEE single"
+#endif
+
+#if !defined NO_FEMUL && __FLT_MANT_DIG__ != 24
+#define NO_FEMUL "host IEEE single mantissa != 24 bits"
+#endif
+
+#if !defined NO_FEMUL && __FLT_MAX_EXP__ != 128
+#define NO_FEMUL "host IEEE single max exponent != 128"
+#endif
+
+#if !defined NO_FEMUL                                   \
+  && defined __FLOAT_WORD_ORDER__                       \
+  && defined __ORDER_LITTLE_ENDIAN__                    \
+  && __FLOAT_WORD_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#define NO_FEMUL "host IEEE single is not little endian"
+#endif
+
+#define PRIF "%e=%.6a"
+
+#if defined NO_FEMUL
+void sys_emul_float (uint8_t fid)
+{
+  log_add ("not supported: %s", NO_FEMUL);
+  leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
+}
+#else // float emulation is supported
+
+static float
+get_reg_float (int regno)
+{
+  float f;
+  memcpy (&f, cpu_address (regno, AR_REG), sizeof (float));
+  return f;
+}
+
+static void
+set_reg_float (int regno, float f)
+{
+  memcpy (cpu_address (regno, AR_REG), &f, sizeof (float));
+}
+
+typedef struct
+{
+  float (*fun) (float);
+  const char *name;
+} func1f_t;
+
+typedef struct
+{
+  float (*fun) (float, float);
+  const char *name;
+} func2f_t;
+
+
+#define _(X) [AVRTEST_##X] = { X ## f, #X },
+static const func1f_t func1f[] =
+  {
+    _(sin) _(asin) _(sinh) _(asinh)
+    _(cos) _(acos) _(cosh) _(acosh)
+    _(tan) _(atan) _(tanh) _(atanh)
+    _(exp) _(log)  _(sqrt) _(cbrt)
+    _(trunc) _(ceil) _(floor) _(round)
+  };
+#undef _
+
+#define _(X) [AVRTEST_##X - AVRTEST_EMUL_2args] = { X ## f, #X },
+static const func2f_t func2f[] =
+  {
+    _(pow)  _(atan2) _(hypot)
+    _(fmin) _(fmax)  _(fmod)
+  };
+#undef _
+
+static void
+emul_float2 (uint8_t fid)
+{
+  float x = get_reg_float (22);
+  float y = get_reg_float (18);
+  float z = 0;
+  const char *name = "???";
+
+  switch (fid)
+    {
+    case AVRTEST_mul: name = "mul"; z = x * y; break;
+    case AVRTEST_div: name = "div"; z = x / y; break;
+    case AVRTEST_add: name = "add"; z = x + y; break;
+    case AVRTEST_sub: name = "sub"; z = x - y; break;
+    default:
+      fid -= AVRTEST_EMUL_2args;
+      if (fid >= ARRAY_SIZE (func2f) || ! func2f[fid].fun)
+        leave (LEAVE_FATAL, "unexpected func2f %u", fid + AVRTEST_EMUL_2args);
+      z = func2f[fid].fun (x, y);
+      name = func2f[fid].name;
+      break;
+    }
+
+  log_add ("emulate %sf(" PRIF ", " PRIF ") = " PRIF "", name, x,x, y,y, z,z);
+
+  set_reg_float (22, z);
+}
+
+// Emulate IEEE single functions like avrtest_sinf and avrtest_mulf.
+void sys_emul_float (uint8_t fid)
+{
+  if (fid >= AVRTEST_EMUL_sentinel)
+    leave (LEAVE_USAGE, "unknown IEEE single emulate function %u\n", fid);
+
+  if (fid >= AVRTEST_EMUL_2args)
+    {
+      emul_float2 (fid);
+      return;
+    }
+
+  if (fid >= ARRAY_SIZE (func1f) || ! func1f[fid].fun)
+    leave (LEAVE_FATAL, "unexpected func1 %u", fid);
+
+  float x = get_reg_float (22);
+  float z = func1f[fid].fun (x);
+  log_add ("emulate %sf(" PRIF ") = " PRIF "", func1f[fid].name, x,x, z,z);
+
+  set_reg_float (22, z);
+}
+#endif // NO_FEMUL
+
+
+// Emulating IEEE double functions.
+
+#if __SIZEOF_DOUBLE__ == 8
+typedef double host_double_t;
+#   define HOST_DOUBLE
+#   define DOUBLE_MANT_DIG __DBL_MANT_DIG__
+#   define DOUBLE_MAX_EXP  __DBL_MAX_EXP__
+#   define PRID "%e=%.13a"
+#elif __SIZEOF_LONG_DOUBLE__ == 8
+typedef long double host_double_t;
+#   define HOST_LONG_DOUBLE
+#   define DOUBLE_MANT_DIG __LDBL_MANT_DIG__
+#   define DOUBLE_MAX_EXP  __LDBL_MAX_EXP__
+#   define PRID "%Le=%.13La"
+#else
+#define NO_DEMUL "host has no 64-bit IEEE double"
+#endif
+
+#if !defined NO_DEMUL && DOUBLE_MANT_DIG != 53
+#define NO_DEMUL "host IEEE double mantissa != 53 bits"
+#endif
+
+#if !defined NO_DEMUL && DOUBLE_MAX_EXP != 1024
+#define NO_DEMUL "host IEEE double max exponent != 1024"
+#endif
+
+#if !defined NO_DEMUL                                   \
+  && defined __FLOAT_WORD_ORDER__                       \
+  && defined __ORDER_LITTLE_ENDIAN__                    \
+  && __FLOAT_WORD_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#define NO_DEMUL "host IEEE double is not little endian"
+#endif
+
+
+#if defined NO_DEMUL
+void sys_emul_double (uint8_t fid)
+{
+  log_add ("not supported: %s", NO_DEMUL);
+  leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
+}
+#else // double emulation is supported
+
+static host_double_t
+get_reg_double (int regno)
+{
+  host_double_t d;
+  memcpy (&d, cpu_address (regno, AR_REG), sizeof (host_double_t));
+  return d;
+}
+
+static void
+set_reg_double (int regno, host_double_t d)
+{
+  memcpy (cpu_address (regno, AR_REG), &d, sizeof (host_double_t));
+}
+
+typedef struct
+{
+  host_double_t (*fun) (host_double_t);
+  const char *name;
+} func1l_t;
+
+typedef struct
+{
+  host_double_t (*fun) (host_double_t, host_double_t);
+  const char *name;
+} func2l_t;
+
+
+#if defined HOST_DOUBLE
+#define _(X) [AVRTEST_##X] = { X, #X },
+#elif defined HOST_LONG_DOUBLE
+#define _(X) [AVRTEST_##X] = { X ## l, #X },
+#endif
+static const func1l_t func1l[] =
+  {
+    _(sin) _(asin) _(sinh) _(asinh)
+    _(cos) _(acos) _(cosh) _(acosh)
+    _(tan) _(atan) _(tanh) _(atanh)
+    _(exp) _(log)  _(sqrt) _(cbrt)
+    _(trunc) _(ceil) _(floor) _(round)
+  };
+#undef _
+
+#if defined HOST_DOUBLE
+#define _(X) [AVRTEST_##X - AVRTEST_EMUL_2args] = { X, #X },
+#elif defined HOST_LONG_DOUBLE
+#define _(X) [AVRTEST_##X - AVRTEST_EMUL_2args] = { X ## l, #X },
+#endif
+static const func2l_t func2l[] =
+  {
+    _(pow)  _(atan2) _(hypot)
+    _(fmin) _(fmax)  _(fmod)
+  };
+#undef _
+
+static void
+emul_double2 (uint8_t fid)
+{
+  host_double_t x = get_reg_double (18);
+  host_double_t y = get_reg_double (10);
+  host_double_t z = 0;
+  const char *name = "???";
+
+  switch (fid)
+    {
+    case AVRTEST_mul: name = "mul"; z = x * y; break;
+    case AVRTEST_div: name = "div"; z = x / y; break;
+    case AVRTEST_add: name = "add"; z = x + y; break;
+    case AVRTEST_sub: name = "sub"; z = x - y; break;
+    default:
+      fid -= AVRTEST_EMUL_2args;
+      if (fid >= ARRAY_SIZE (func2l) || ! func2l[fid].fun)
+        leave (LEAVE_FATAL, "unexpected func2l %u", fid + AVRTEST_EMUL_2args);
+      z = func2l[fid].fun (x, y);
+      name = func2l[fid].name;
+      break;
+    }
+
+  log_add ("emulate %sl(" PRID ", " PRID ") = " PRID, name, x,x, y,y, z,z);
+
+  set_reg_double (18, z);
+}
+
+// Emulate IEEE double functions like avrtest_sin and avrtest_mul.
+void sys_emul_double (uint8_t fid)
+{
+  if (fid >= AVRTEST_EMUL_sentinel)
+    leave (LEAVE_USAGE, "unknown emulate function %u\n", fid);
+
+  if (fid >= AVRTEST_EMUL_2args)
+    {
+      emul_double2 (fid);
+      return;
+    }
+
+  if (fid >= ARRAY_SIZE (func1l) || ! func1l[fid].fun)
+    leave (LEAVE_FATAL, "unexpected func1l %u", fid);
+
+  host_double_t x = get_reg_double (18);
+  host_double_t z = func1l[fid].fun (x);
+  log_add ("emulate %sl(" PRID ") = " PRID, func1l[fid].name, x,x, z,z);
+
+  set_reg_double (18, z);
+}
+#endif // NO_DEMUL
+
+
 // Magic values from avr-libc::stdio.h
 
 #define AVRLIBC_SEEK_SET 0

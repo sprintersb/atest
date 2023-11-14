@@ -63,9 +63,24 @@ enum
     AVRTEST_fseek, AVRTEST_fflush
   };
 
+enum
+  {
+    AVRTEST_sin, AVRTEST_asin, AVRTEST_sinh, AVRTEST_asinh,
+    AVRTEST_cos, AVRTEST_acos, AVRTEST_cosh, AVRTEST_acosh,
+    AVRTEST_tan, AVRTEST_atan, AVRTEST_tanh, AVRTEST_atanh,
+    AVRTEST_sqrt, AVRTEST_cbrt, AVRTEST_exp, AVRTEST_log,
+    AVRTEST_trunc, AVRTEST_ceil, AVRTEST_floor, AVRTEST_round,
+    AVRTEST_EMUL_2args,
+    AVRTEST_pow = AVRTEST_EMUL_2args,
+    AVRTEST_atan2, AVRTEST_hypot,
+    AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
+    AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
+    AVRTEST_EMUL_sentinel
+  };
+
 #ifdef IN_AVRTEST
 
-/* This defines are for avrtest itself.  */
+/* These defines are for avrtest itself.  */
 
 /* bits 5..3 */
 #define PERF_CMD(n) (0xf & ((n) >> 4))
@@ -348,6 +363,33 @@ __extension__ enum
     return r##R0;                                           \
   }
 
+#define AVRTEST_DEF_SYSCALL2_1(S, N, T0, R0, T1, R1)        \
+  static AT_INLINE                                          \
+  T0 avrtest_syscall ## S (T0 _v0_, T1 _v1_)                \
+  {                                                         \
+    register T0 r##R0 __asm (#R0) = _v0_;                   \
+    register T1 r##R1 __asm (#R1) = _v1_;                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "+r" (r##R0)                      \
+                        : "n" (N), "n" (SYSCo_ ## N),       \
+                          "r" (r##R1));                     \
+    return r##R0;                                           \
+  }
+
+#define AVRTEST_DEF_SYSCALL3_1(S, N, T0, R0, T1, R1, T2, R2)\
+  static AT_INLINE                                          \
+  T0 avrtest_syscall ## S (T0 _v0_, T1 _v1_, T2 _v2_)       \
+  {                                                         \
+    register T0 r##R0 __asm (#R0) = _v0_;                   \
+    register T1 r##R1 __asm (#R1) = _v1_;                   \
+    register T2 r##R2 __asm (#R2) = _v2_;                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "+r" (r##R0)                      \
+                        : "n" (N), "n" (SYSCo_ ## N),       \
+                          "r" (r##R1), "r" (r##R2));        \
+    return r##R0;                                           \
+  }
+
 
 #define AVRTEST_DEF_SYSCALL2_R20(S, N, T2)                  \
   static AT_INLINE                                          \
@@ -433,11 +475,101 @@ AVRTEST_DEF_SYSCALL2 (_8_d64, 8,             double, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL2 (_8_l64, 8,        long double, 18, unsigned char, 26)
 #endif
 
+
+/* Emulating IEEE single functions */
+AVRTEST_DEF_SYSCALL2_1 (_22, 22, float, 22, unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_22_2, 22, float, 22, float, 18, unsigned char, 26)
+
+#define AVRTEST_DEFF(ID)                          \
+  static AT_INLINE float                          \
+  avrtest_##ID##f (float _x)                      \
+  {                                               \
+    return avrtest_syscall_22 (_x, AVRTEST_##ID); \
+  }
+AVRTEST_DEFF(sin) AVRTEST_DEFF(asin) AVRTEST_DEFF(sinh) AVRTEST_DEFF(asinh)
+AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
+AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
+AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
+#undef AVRTEST_DEFF
+
+#define AVRTEST_DEFF(ID)                                \
+  static AT_INLINE float                                \
+  avrtest_##ID##f (float _x, float _y)                  \
+  {                                                     \
+    return avrtest_syscall_22_2 (_x, _y, AVRTEST_##ID); \
+  }
+AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
+AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
+AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
+#undef AVRTEST_DEFF
+
+
+/* Emulating IEEE double functions */
+#ifndef __AVR_TINY__
+AVRTEST_DEF_SYSCALL2_1 (_23_u64, 23, unsigned long long, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_23_u64_2, 23, unsigned long long, 18,
+                        unsigned long long, 10, unsigned char, 26)
+
+#define AVRTEST_DEFF(ID)                                \
+  static AT_INLINE unsigned long long                   \
+  avrtest_##ID##_d64 (unsigned long long _x)            \
+  {                                                     \
+    return avrtest_syscall_23_u64 (_x, AVRTEST_##ID);   \
+  }
+AVRTEST_DEFF(sin) AVRTEST_DEFF(asin) AVRTEST_DEFF(sinh) AVRTEST_DEFF(asinh)
+AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
+AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
+AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
+#undef AVRTEST_DEFF
+
+#define AVRTEST_DEFF(ID)                                                \
+  static AT_INLINE unsigned long long                                   \
+  avrtest_##ID##_d64 (unsigned long long _x, unsigned long long _y)     \
+  {                                                                     \
+    return avrtest_syscall_23_u64_2 (_x, _y, AVRTEST_##ID);             \
+  }
+AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
+AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
+AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
+#undef AVRTEST_DEFF
+
+#if __SIZEOF_LONG_DOUBLE__ == 8
+AVRTEST_DEF_SYSCALL2_1 (_23, 23, long double, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_23_2, 23, long double, 18, long double, 10,
+                        unsigned char, 26)
+
+#define AVRTEST_DEFF(ID)                                \
+  static AT_INLINE long double                          \
+  avrtest_##ID##l (long double _x)                      \
+  {                                                     \
+    return avrtest_syscall_23 (_x, AVRTEST_##ID);       \
+  }
+AVRTEST_DEFF(sin) AVRTEST_DEFF(asin) AVRTEST_DEFF(sinh) AVRTEST_DEFF(asinh)
+AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
+AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
+AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
+#undef AVRTEST_DEFF
+
+#define AVRTEST_DEFF(ID)                                \
+  static AT_INLINE long double                          \
+  avrtest_##ID##l (long double _x, long double _y)      \
+  {                                                     \
+    return avrtest_syscall_23_2 (_x, _y, AVRTEST_##ID); \
+  }
+AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
+AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
+AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
+#undef AVRTEST_DEFF
+#endif /* long double = 8 */
+#endif /* !__AVR_TINY__ */
+
 #undef AVRTEST_DEF_SYSCALL0
 #undef AVRTEST_DEF_SYSCALL1
 #undef AVRTEST_DEF_SYSCALL2
 #undef AVRTEST_DEF_SYSCALL1_0
 #undef AVRTEST_DEF_SYSCALL1_1
+#undef AVRTEST_DEF_SYSCALL2_1
+#undef AVRTEST_DEF_SYSCALL3_1
 
 static AT_INLINE void
 avrtest_abort (void)

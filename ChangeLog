@@ -1,3 +1,20 @@
+2023-11-14  Georg-Johann Lay  <avr@gjlay.de>
+
+Support IEEE single and IEEE double emulation.
+
+	* avrtest.h (avrtest_<name>f, avrtest_<name>l, avrtest_<name>_d64):
+	New syscalls for <name> in:
+	sin, asin, sinh, asinh, cos, acos, cosh, acosh, tan, atan,
+	tanh, atanh, sqrt, cbrt, exp, log, trunc, ceil, floor, round,
+	pow, atan2, hypot, fmin, fmax, fmod, mul, div, add, sub.
+	* host.h (sys_emul_float, sys_emul_double): New protos.
+	* host.c (host_double_t): New typedef.
+	(sys_emul_float, sys_emul_double, emul_float2, emul_double2)
+	(get_reg_float, get_reg_double, set_reg_float, set_reg_double): New
+	functions.
+	* avrtest.c (func_SYSCALL) [sysno=23]: Call sys_emul_double.
+	[sysno=22]: Call sys_emul_float.
+
 2023-10-01  Georg-Johann Lay  <avr@gjlay.de>
 
 Use flash size from section .note.gnu.avr.deviceinfo.

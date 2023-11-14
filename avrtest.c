@@ -1834,6 +1834,8 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
        SYSCALL 26:     sys_fileio()
        SYSCALL 25:     avrtest_abort_2nd_hit (void)
        SYSCALL 24:     void avrtest_putchar_stderr (int)  /  fputc (*, stderr)
+       SYSCALL 23:     emulate IEEE double functions. Signature depends on R26.
+       SYSCALL 22:     emulate IEEE single functions. Signature depends on R26.
        SYSCALL 8:      sys_log_dump(): Log 64-bit values.
        SYSCALL 7:      sys_log_dump(): Log values.
        SYSCALL 4:      sys_ticks_cmd(): Cycles, insn. rand, prand.
@@ -1868,6 +1870,8 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 8: sys_log_dump (get_word_reg_raw (26)); break;  // Log 64-bit values
 
     // Supported by all avrtest flavours and implemented above.
+    case 22: sys_emul_float  (cpu_reg[26]); break; // in host.c
+    case 23: sys_emul_double (cpu_reg[26]); break; // in host.c
     case 24: sys_stderr();     break;
     case 25: sys_abort_2nd_hit(); break;
     case 26: sys_fileio();     break;
