@@ -431,13 +431,13 @@ printf format string to print the supplied value:
     LOG_FMT_XXX (F, X);    log X using format string F located in RAM
     LOG_PFMT_XXX (F, X);   log X using format string F located in Flash
 
-!!! Please use format strings with care!  You can easily crash avrtest_log
+!!! Please use format strings with care!  You can easily crash avrtest
 !!! and make it raise a Segmentation Fault or other undefined behaviour
 !!! by specifying a format string that does not match the value!
 !!! Notice that the %-formats below refer to the HOST machine, i.e. the
-!!! machine that executes avrtest_log!
+!!! machine that executes avrtest!
 
-avrtest_log uses "double" to represent floating point values and "unsigned int"
+avrtest uses "double" to represent floating point values and "unsigned int"
 for all other values up to 4 bytes.  The default format strings for the vanilla
 LOG_XXX are:
 
