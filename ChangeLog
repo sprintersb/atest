@@ -1,3 +1,11 @@
+2023-11-20  Georg-Johann Lay  <avr@gjlay.de>
+
+	Don't use __typeof__(x) when x might be an address.  Otherwise, it's
+	not possible to print the address of a static array.
+
+	* avrtest.h (LOG_DUMP_A_): New macro.
+	(LOG_FMT_ADDR, LOG_PFMT_ADDR): Use it instead of LOG_DUMP_F_.
+
 2023-11-14  Georg-Johann Lay  <avr@gjlay.de>
 
 	* load-flash.c (load_elf) [arch.flash_pm_offset]: Include 0x10000

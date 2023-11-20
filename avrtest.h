@@ -154,7 +154,7 @@ enum
 #define LOG_UNSET_FMT(F) avrtest_syscall_7 (LOG_UNSET_FMT_CMD)
 
 /* Logging with custom format string (from RAM) */
-#define LOG_FMT_ADDR(F,X)  LOG_DUMP_F_ (FMT, (F), (X), LOG_ADDR(_x))
+#define LOG_FMT_ADDR(F,X)  LOG_DUMP_A_ (FMT, (F), (X), LOG_ADDR(_x))
 #define LOG_FMT_PSTR(F,X)  LOG_DUMP_S_ (FMT, (F), (X), LOG_PSTR(_x))
 #define LOG_FMT_STR(F,X)   LOG_DUMP_S_ (FMT, (F), (X), LOG_STR(_x))
 #define LOG_FMT_FLOAT(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_FLOAT(_x))
@@ -181,7 +181,7 @@ enum
 #define LOG_FMT_D64(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_D64(_x))
 
 /* Logging with custom format string (from Flash) */
-#define LOG_PFMT_ADDR(F,X)  LOG_DUMP_F_ (PFMT, (F), (X), LOG_ADDR(_x))
+#define LOG_PFMT_ADDR(F,X)  LOG_DUMP_A_ (PFMT, (F), (X), LOG_ADDR(_x))
 #define LOG_PFMT_PSTR(F,X)  LOG_DUMP_S_ (PFMT, (F), (X), LOG_PSTR(_x))
 #define LOG_PFMT_STR(F,X)   LOG_DUMP_S_ (PFMT, (F), (X), LOG_STR(_x))
 #define LOG_PFMT_FLOAT(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_FLOAT(_x))
@@ -217,6 +217,13 @@ enum
 #define LOG_DUMP_S_(W, F, X, C)                             \
   do {                                                      \
       const char *_x = (X);                                 \
+      avrtest_syscall_7_a ((F), LOG_SET_## W ##_ONCE_CMD);  \
+      C;                                                    \
+    } while (0)
+
+#define LOG_DUMP_A_(W, F, X, C)                             \
+  do {                                                      \
+      const volatile void *_x = (X);                        \
       avrtest_syscall_7_a ((F), LOG_SET_## W ##_ONCE_CMD);  \
       C;                                                    \
     } while (0)
