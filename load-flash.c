@@ -524,6 +524,42 @@ check_arch (int elf_arch)
 }
 
 
+// Try to guess the MEMORY region name like "text".
+static const char*
+phdr_name (Elf32_Addr lma, Elf32_Addr vma, Elf32_Word flags)
+{
+  bool r  = (flags & PF_R) && ! (flags & PF_W) && ! (flags & PF_X);
+  bool rw = (flags & PF_R) && (flags & PF_W) && ! (flags & PF_X);
+  bool rx = (flags & PF_R) && ! (flags & PF_W) && (flags & PF_X);
+  return 0 ? ""
+    : lma < DATA_VADDR && vma < DATA_VADDR && rx ? "text"
+    : vma >= DATA_VADDR && vma <= DATA_VADDR_END && rw ? "data"
+    : vma >= EEPROM_VADDR && vma <= EEPROM_VADDR_END ? "eeprom"
+    : vma >= 0x820000 && vma <= 0x82ffff ? "fuse"
+    : vma >= 0x830000 && vma <= 0x83ffff ? "lock"
+    : vma >= 0x840000 && vma <= 0x84ffff ? "signature"
+    : vma >= 0x850000 && vma <= 0x85ffff ? "user_signatures"
+    : lma < DATA_VADDR && lma != vma && r ? "rodata"
+    : "(unknown)";
+}
+
+
+// Turn phdr flags into a quoted string.
+static const char*
+phdr_flags_str (Elf32_Word flags)
+{
+  static char str[10];
+  char *s = str;
+  *s++ = '"';
+  if (flags & PF_R) *s++ = 'r';
+  if (flags & PF_W) *s++ = 'w';
+  if (flags & PF_X) *s++ = 'x';
+  *s++ = '"';
+  *s++ = '\0';
+  return str;
+}
+
+
 static void
 load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
 {
@@ -590,17 +626,13 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
         continue;
 
       if (options.do_verbose)
-        printf (">>> Load PHDR 0x%06x -- 0x%06x (vaddr = 0x%06x) \"%s%s%s\"\n",
+        printf (">>> Load PHDR 0x%06x -- 0x%06x (vaddr = 0x%06x) %-5s %s\n",
                 (unsigned) addr, (unsigned) (addr + memsz - 1),
-                (unsigned) vaddr, flags & PF_R ? "r" : "",
-                flags & PF_W ? "w" : "", flags & PF_X ? "x" : "");
+                (unsigned) vaddr, phdr_flags_str (flags),
+                phdr_name (addr, vaddr, flags));
 
-      // Skip special sections like .fuse, .lock, .signature etc.
-      if (vaddr > EEPROM_VADDR_END)
-        continue;
-
-      if (addr + memsz > MAX_FLASH_SIZE
-          && vaddr <= DATA_VADDR_END)
+      if (addr < DATA_VADDR
+          && addr + memsz > MAX_FLASH_SIZE)
         leave (LEAVE_ELF,
                "program is too big to fit in flash");
       if (fseek (f, get_elf32_word (&phdr[i].p_offset), SEEK_SET) != 0)
@@ -609,7 +641,8 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
       program.n_bytes += filesz;
 
       // Read to eeprom
-      if (vaddr >= EEPROM_VADDR)
+      if (vaddr >= EEPROM_VADDR
+          && vaddr <= EEPROM_VADDR_END)
         {
           addr -= EEPROM_VADDR;
           if (addr + filesz > MAX_EEPROM_SIZE)
@@ -618,6 +651,10 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
             leave (LEAVE_ELF, "ELF file truncated");
           continue;
         }
+
+      // Skip anything that does not go into flash memory
+      if (addr >= DATA_VADDR)
+        continue;
 
       // Read to Flash
       if (fread (flash + addr, filesz, 1, f) != 1)
@@ -677,7 +714,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
           if ((unsigned) (addr + memsz - 1) > program.code_end)
             program.code_end = addr + memsz - 1;
         }
-    }
+    } // for PHDR
 
   load_sections (f, &ehdr, is_avrtest_log);
   check_arch (elf_arch);

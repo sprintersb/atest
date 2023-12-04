@@ -1,3 +1,11 @@
+2023-12-04  Georg-Johann Lay  <avr@gjlay.de>
+
+	* options.c (arch_desc) [avrxmega4]: Fix flash mask.
+	* load-flash.c (phdr_name, phdr_flags_str): New static functions.
+	(load_elf): Use them for better verbosity.
+	Load all program headers to flash memory that have a
+	load memory address below 0x800000 (data VMA).
+
 2023-11-20  Georg-Johann Lay  <avr@gjlay.de>
 
 	Don't use __typeof__(x) when x might be an address.  Otherwise, it's
