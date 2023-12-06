@@ -78,6 +78,12 @@ enum
     AVRTEST_EMUL_sentinel
   };
 
+enum
+  {
+      AVRTEST_MISC_flmap,
+      AVRTEST_MISC_sentinel
+  };
+
 #ifdef IN_AVRTEST
 
 /* These defines are for avrtest itself.  */
@@ -482,6 +488,12 @@ AVRTEST_DEF_SYSCALL2 (_8_d64, 8,             double, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL2 (_8_l64, 8,        long double, 18, unsigned char, 26)
 #endif
 
+/* Misc stuff all in 21 */
+AVRTEST_DEF_SYSCALL2 (_21a, 21, unsigned char, 26, unsigned char, 24)
+static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
+{
+    avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
+}
 
 /* Emulating IEEE single functions */
 AVRTEST_DEF_SYSCALL2_1 (_22, 22, float, 22, unsigned char, 26)

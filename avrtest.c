@@ -1782,6 +1782,33 @@ static void sys_abort (void)
   leave (LEAVE_ABORTED, "abort function called");
 }
 
+static void sys_misc (uint8_t what)
+{
+  log_append ("misc %u", what);
+  switch (what)
+    {
+    case AVRTEST_MISC_flmap:
+      // Devices like AVR128* and AVR64* see a 32k portion of their flash
+      // memory in the RAM address space.  Which 32k segment is visible can
+      // be chosen by NVMCTRL_CRTLB.FLMAP.  The target code passes down FLAMP.
+      // FIXME: The appropriate way to do this would be to return to magic
+      // port addresses, but limited FLMAP support should be fine for now.
+      {
+        byte flmap = cpu_reg[24] & 3;
+        unsigned rodata_vma = 0x8000;
+        unsigned rodata_len = 32 * 1024;
+        unsigned rodata_lma = (32 * 1024 * flmap) & arch.flash_addr_mask;
+        if (options.do_verbose)
+          printf (">>> %0*x: copy Flash[0x%x--0x%x] to RAM:0x%x\n",
+                  arch.flash_addr_mask > 0xffff ? 6 : 4, 2 * cpu_PC,
+                  rodata_lma, rodata_lma + rodata_len - 1, rodata_vma);
+        memcpy (cpu_data + rodata_vma, cpu_flash + rodata_lma, rodata_len);
+        break;
+      }
+    default:
+      leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);
+    }
+}
 
 static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
 {
@@ -1836,6 +1863,7 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
        SYSCALL 24:     void avrtest_putchar_stderr (int)  /  fputc (*, stderr)
        SYSCALL 23:     emulate IEEE double functions. Signature depends on R26.
        SYSCALL 22:     emulate IEEE single functions. Signature depends on R26.
+       SYSCALL 21:     Misc tasks collected in one syscall.
        SYSCALL 8:      sys_log_dump(): Log 64-bit values.
        SYSCALL 7:      sys_log_dump(): Log values.
        SYSCALL 4:      sys_ticks_cmd(): Cycles, insn. rand, prand.
@@ -1869,12 +1897,15 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 7: sys_log_dump (get_word_reg_raw (24)); break;  // Log values
     case 8: sys_log_dump (get_word_reg_raw (26)); break;  // Log 64-bit values
 
-    // Supported by all avrtest flavours and implemented above.
-    case 22: sys_emul_float  (cpu_reg[26]); break; // in host.c
-    case 23: sys_emul_double (cpu_reg[26]); break; // in host.c
+    // Supported by all avrtest flavours and implemented...
+    // ...in host.c
+    case 22: sys_emul_float  (cpu_reg[26]); break;
+    case 23: sys_emul_double (cpu_reg[26]); break;
+    case 26: sys_fileio();     break;
+    // ...above.
+    case 21: sys_misc (cpu_reg[26]);        break;
     case 24: sys_stderr();     break;
     case 25: sys_abort_2nd_hit(); break;
-    case 26: sys_fileio();     break;
     case 27: sys_argc_argv();  break;
     case 28: sys_stdin();      break;
     case 29: sys_stdout();     break;

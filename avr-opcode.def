@@ -80,6 +80,7 @@ AVR_OPCODE (UNDEF, 0, 0, "")
    SYSCALL 24       write char to PC's stderr
    SYSCALL 23       emulate IEEE double operations
    SYSCALL 22       emulate IEEE single operations
+   SYSCALL 21       misc stuff
    SYSCALL 8        dumping 64-bit values to PC's stdout
    SYSCALL 7        dumping values to PC's stdout
    SYSCALL 4        get / reset cycle count, instruction count, (pseudo) rand

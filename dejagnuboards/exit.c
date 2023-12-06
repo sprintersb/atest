@@ -32,6 +32,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef __AVR_XMEGA__
+#include <avr/io.h>
+#endif
+
 #include "avrtest.h"
 
 /* .weak in avr-libc/crt1/gcrt1.S */
@@ -78,6 +82,31 @@ avrtest_init_stream (void)
   stderr = &avrtest_stderr;
 }
 
+#if defined NVMCTRL_CTRLB && defined NVMCTRL_FLMAP_gm && defined NVMCTRL_FLMAP_gp
+/* Devices like AVR128* and AVR64* see a 32 KiB portion of their flash
+   memory in the RAM address space.  Which 32 KiB segment is visible can
+   be chosen by NVMCTRL_CRTLB.FLMAP.  */
+#define HAVE_FLMAP
+#endif
+
+
+#ifdef HAVE_FLMAP
+static void __attribute__ ((naked, section(".init0"), used))
+avrtest_init_flmap (void)
+{
+  /* Reset value of FLMAP is all bits set to 1. */
+  NVMCTRL_CTRLB = NVMCTRL_FLMAP_gm;
+}
+
+static void __attribute__ ((naked, section(".init4"), used))
+avrtest_init_rodata (void)
+{
+  /* Copy 32 KiB block as of FLMAP from flash (LMA) to rodata (VMA).  */
+  uint8_t flmap = NVMCTRL_CTRLB & NVMCTRL_FLMAP_gm;
+  avrtest_misc_flmap (flmap >> NVMCTRL_FLMAP_gp);
+}
+#endif /* have FLMAP */
+
 
 static void __attribute__ ((naked, section(".init8"), used))
 avrtest_init_argc_argv (void)
@@ -93,9 +122,9 @@ avrtest_init_argc_argv (void)
       void *pargs = __heap_start;
   */
 
-#ifdef __AVR_TINY__
+#if defined __AVR_TINY__ || defined HAVE_FLMAP
   /* Use an address that won't appear as if flash was mirror'ed into
-     the RAM space, i.e. pargs & 0x4000 = 0.  */
+     the RAM space.  */
   void *pargs = (void*) 0x3000;
 #elif __AVR_ARCH__ == 103
   /* avrxmega3 see flash starting at 0x8000 or 0x4000, hence

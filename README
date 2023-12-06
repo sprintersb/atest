@@ -459,6 +459,25 @@ the default format strings are:
     " 0x%016llx "         for the "X" variant
 
 
+=================
+ Support of FLMAP
+=================
+
+Devices from the AVR64* and AVR128* families see a 32 KiB segment of their
+program memory in the RAM address space.  Which segment is visible and
+accessible is determined by bit field NVMCTRL_CTRLB.FLMAP.
+avrtest copies the segment as specified by FLMAP from program memory into
+the RAM address space in .init4 by means of code from exit-avr*.o.
+
+This means setting of NVMCTRL_CTRLB.FLMAP has only an effect when it happens
+prior to that in .init1 ... init3.
+
+If you really want to test an application that switches FLMAP back and forth,
+you have to trigger a re-write of the 32 KiB segment by means of a call to
+   avrtest_misc_flmap (uint8_t flmap);
+each time, where flmap ranges from 0 to 3.
+
+
 ===================================================
  File I/O with the file system of the host computer
 ===================================================

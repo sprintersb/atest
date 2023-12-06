@@ -1,3 +1,17 @@
+2023-12-06  Georg-Johann Lay  <avr@gjlay.de>
+
+	Add limited support for NVMCTRL_CTRLB.FLMAP Devices from
+	the AVR64* and AVR128* families see a 32 KiB block of their
+	program memeory in the RAM address space.  avrtest_init_rodata()
+	is called from exit.c and copies that block from flash to RAM.
+
+	* avrtest.h (avrtest_misc_flmap): New syscall.
+	* avrtest.c (sys_misc): New static function.
+	(func_SYSCALL) [sysno=21]: Call sys_misc.
+	* dejagnuboards/exit.c (avr/io.h) [XMEGA]: Include it.
+	(avrtest_init_flmap): New static function in section .init0.
+	(avrtest_init_rodata): New static function in section .init4.
+
 2023-12-04  Georg-Johann Lay  <avr@gjlay.de>
 
 	* options.c (arch_desc) [avrxmega4]: Fix flash mask.
