@@ -314,7 +314,7 @@ log_add_instr (const decoded_t *d)
     }
 
   char mnemo_[16];
-  const char *fmt, *mnemo = opcodes[alog.id].mnemonic;
+  const char *mnemo = opcodes[alog.id].mnemonic;
 
   // SYSCALL 0..3, 5, 10..11 might turn on logging:
   // always log them to alog.data[].
@@ -322,20 +322,20 @@ log_add_instr (const decoded_t *d)
   unsigned sysmask = 0xf | (1 << 5) | (1 << 10) | (1 << 11);
   bool maybe_used = (alog.maybe_log
                      || (alog.id == ID_SYSCALL && (sysmask & (1u << d->op1))));
+  int pc_strlen = arch.flash_addr_mask > 0xffff ? 6 : 4;
 
   if ((log_unused = !maybe_used || !need.logging))
     return;
 
   if (alog.id == ID_UNDEF)
     {
-      log_append (arch.pc_3bytes ? "%06x: " : "%04x: ", cpu_PC * 2);
+      log_append ("%0*x: ", pc_strlen, cpu_PC * 2);
       return;
     }
 
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (d, mnemo_ + strlen (mnemo));
-  fmt = arch.pc_3bytes ? "%06x: %-7s " : "%04x: %-7s ";
-  log_append (fmt, cpu_PC * 2, mnemo_);
+  log_append ("%0*x: %-7s ", pc_strlen, cpu_PC * 2, mnemo_);
 }
 
 
