@@ -1785,6 +1785,10 @@ static void sys_abort (void)
 static void sys_misc (uint8_t what)
 {
   log_append ("misc %u", what);
+
+  unsigned pc = 2 * cpu_PC - 4;
+  unsigned pc_len = arch.flash_addr_mask > 0xffff ? 6 : 4;
+
   switch (what)
     {
     case AVRTEST_MISC_flmap:
@@ -1799,8 +1803,7 @@ static void sys_misc (uint8_t what)
         unsigned rodata_len = 32 * 1024;
         unsigned rodata_lma = (32 * 1024 * flmap) & arch.flash_addr_mask;
         if (options.do_verbose)
-          printf (">>> %0*x: copy Flash[0x%x--0x%x] to RAM:0x%x\n",
-                  arch.flash_addr_mask > 0xffff ? 6 : 4, 2 * cpu_PC,
+          printf (">>> %0*x: copy Flash[0x%x--0x%x] to RAM:0x%x\n", pc_len, pc,
                   rodata_lma, rodata_lma + rodata_len - 1, rodata_vma);
         memcpy (cpu_data + rodata_vma, cpu_flash + rodata_lma, rodata_len);
         break;
