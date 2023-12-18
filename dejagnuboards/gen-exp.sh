@@ -4,7 +4,29 @@ print_exp()
 {
     mmcu="$1"
     avrtest_mmcu="$2"
-    extra_ldflags="$3"
+    extra_ldflags="$6"
+
+    ramVMA=0x800000
+    ramSTART=$(printf "0x%x" $(($4 + ${ramVMA})))
+    ramEND=$(printf "0x%x" $(($5 + ${ramVMA})))
+    ramLEN=$(printf "0x%x" $((1 + $5 - $4)))
+    if test "$3" = "SPlow"; then
+	# Stack is located below static storage.
+	stack=$(printf "0x%x" $((${ramSTART} - 1 - ${ramVMA})))
+    elif test "$3" = "SPhigh"; then
+	# Stack is located at end of static storage.
+	stack=$(printf "0x%x" $((${ramEND} - ${ramVMA})))
+    else
+	echo "error: unknown stack position"
+	exit 1
+    fi
+
+    ramstart="-Tdata=${ramSTART} -Wl,--defsym,__DATA_REGION_ORIGIN__=${ramSTART}"
+    ramlen="-Wl,--defsym,__DATA_REGION_LENGTH__=${ramLEN}"
+    stack="-Wl,--defsym,__stack=${stack}"
+    heap="-Wl,--defsym,__heap_end=${ramEND}"
+    ld_ram="${ramstart} ${ramlen} ${stack} ${heap}"
+
 cat > $1-sim.exp <<EOF
 # Directory where to find the avrtest executable and the exit-*.o modules.
 # "avrtest_dir" can be specified in .dejagnurc or be overriden below.
@@ -45,17 +67,18 @@ set avrtest_mmcu "${avrtest_mmcu}"
 # that are FAILing due to small memory.  The simulator has plenty
 # of memory, and there is no need to stick to AVR harware limitations.
 
-set extra_ldflags "${extra_ldflags}"
+set extra_ldflags "${extra_ldflags} ${ld_ram}"
 
 load_generic_config "avrtest"
 EOF
 }
 
-print_exp "atmega128"  "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
-print_exp "atmega103"  "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
-print_exp "atmega64"   "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
-print_exp "atmega8"    "avr51" "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
-print_exp "atmega2560" "avr6"  "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff,--defsym=__stack=0x1fff"
-print_exp "atxmega128a3" "avrxmega6" "-Wl,--defsym=__heap_end=0x80ffff,--defsym=__stack=0x1fff"
-print_exp "attiny40" "avrtiny" "-Wl,--defsym=__heap_end=0x801fff -Wl,--defsym=__DATA_REGION_LENGTH__=8K -Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x "
-print_exp "attiny3216" "avrxmega3" "-Tdata=0x802000 -Wl,--defsym=__stack=0x1fff,--defsym=__heap_end=0x807fff"
+print_exp "atmega128"  "avr51" SPlow 0x2000 0xffff ""
+print_exp "atmega103"  "avr51" SPlow 0x2000 0xffff ""
+print_exp "atmega64"   "avr51" SPlow 0x2000 0xffff ""
+print_exp "atmega8"    "avr51" SPlow 0x2000 0xffff ""
+print_exp "atmega2560" "avr6"  SPlow 0x2000 0xffff ""
+print_exp "atxmega128a3" "avrxmega6" SPlow 0x2000 0xffff ""
+print_exp "attiny40" "avrtiny" SPhigh 0x40 0x3fff "-Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x"
+print_exp "attiny3216" "avrxmega3" SPlow 0x2000 0x7fff ""
+print_exp "avr128da32" "avrxmega4" SPlow 0x2000 0x7fff ""

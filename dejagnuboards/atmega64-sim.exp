@@ -37,6 +37,6 @@ set avrtest_mmcu "avr51"
 # that are FAILing due to small memory.  The simulator has plenty
 # of memory, and there is no need to stick to AVR harware limitations.
 
-set extra_ldflags "-Wl,-Tbss=0x802000,--defsym=__heap_end=0x80ffff"
+set extra_ldflags " -Tdata=0x802000 -Wl,--defsym,__DATA_REGION_ORIGIN__=0x802000 -Wl,--defsym,__DATA_REGION_LENGTH__=0xe000 -Wl,--defsym,__stack=0x1fff -Wl,--defsym,__heap_end=0x80ffff"
 
 load_generic_config "avrtest"

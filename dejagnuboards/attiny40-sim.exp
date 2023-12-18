@@ -37,6 +37,6 @@ set avrtest_mmcu "avrtiny"
 # that are FAILing due to small memory.  The simulator has plenty
 # of memory, and there is no need to stick to AVR harware limitations.
 
-set extra_ldflags "-Wl,--defsym=__heap_end=0x801fff -Wl,--defsym=__DATA_REGION_LENGTH__=8K -Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x "
+set extra_ldflags "-Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x -Tdata=0x800040 -Wl,--defsym,__DATA_REGION_ORIGIN__=0x800040 -Wl,--defsym,__DATA_REGION_LENGTH__=0x3fc0 -Wl,--defsym,__stack=0x3fff -Wl,--defsym,__heap_end=0x803fff"
 
 load_generic_config "avrtest"

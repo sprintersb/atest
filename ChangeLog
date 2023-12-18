@@ -1,3 +1,14 @@
+2023-12-18  Georg-Johann Lay  <avr@gjlay.de>
+
+	Generate the <mcu>-sim.exp board descriptions so that RAM layout
+	is described thoroughly.
+
+	* dejagnuboards/gen-exp.sh: Generate board descriptions that define
+	Tdata and symbols: __DATA_REGION_ORIGIN__, __DATA_REGION_LENGTH__,
+	__stack, __heap_end.
+	* dejagnuboards/<mcu>-sim.exp: Regenerate.
+	* dejagnuboards/avr128da32-sim.exp: New file.
+
 2023-12-06  Georg-Johann Lay  <avr@gjlay.de>
 
 	Add limited support for NVMCTRL_CTRLB.FLMAP Devices from
