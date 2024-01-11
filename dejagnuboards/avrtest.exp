@@ -29,9 +29,14 @@ proc sim_load {dest prog args} {
 
 #warning "${avrtest_exe} -mmcu=${avrtest_mmcu} -no-stdin -m 200000000 $prog"
 
-    #  Disabling stdin will prevent some malfunction programs from
-    #  "hanging" because user does not type something.
-    set result [exec ${avrtest_exe} -mmcu=${avrtest_mmcu} -no-stdin \
+    # -no-stdin: Disabling stdin will prevent some malfunctioning programs
+    #     from "hanging" because the user does not type something.
+    # -no-stderr: Tests like gcc.dg/pr44606.c write to stderr which hickups
+    #     DejaGNU, and it's not clear from the documentation how to handle it.
+    #     For now, just ignore writes to stderr.  Alternative is to
+    #     [exec avrtest ... 2>@1] but then all stderr babbling would end up
+    #     in `result`.
+    set result [exec ${avrtest_exe} -mmcu=${avrtest_mmcu} -no-stdin -no-stderr \
 		    -m 200000000 $prog]
 #warning ${result}
 

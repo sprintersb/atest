@@ -1,3 +1,10 @@
+2024-01-09  Georg-Johann Lay  <avr@gjlay.de>
+
+	Ditch output to stderr from tested programs.
+
+	* dejagnuboards/avrtest.exp (sim_load): Add -no-stderr to avrtest
+	options.
+
 2023-12-18  Georg-Johann Lay  <avr@gjlay.de>
 
 	Generate the <mcu>-sim.exp board descriptions so that RAM layout
