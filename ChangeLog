@@ -1,3 +1,8 @@
+2024-01-15  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/avrtest.exp (avrlibc_include_dir): Use -isystem to
+	add include path, not -I.
+
 2024-01-09  Georg-Johann Lay  <avr@gjlay.de>
 
 	Ditch output to stderr from tested programs.

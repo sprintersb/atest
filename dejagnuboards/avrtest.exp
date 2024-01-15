@@ -81,7 +81,7 @@ if { ![info exists extra_cflags] } {
 }
 
 if { [info exists avrlibc_include_dir] } {
-    set extra_cflags "${extra_cflags} -I${avrlibc_include_dir}"
+    set extra_cflags "${extra_cflags} -isystem ${avrlibc_include_dir}"
 }
 
 # Some of the IEEE test in the gcc testsuite evaluate the define symbol
