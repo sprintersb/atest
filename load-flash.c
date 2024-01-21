@@ -602,6 +602,24 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
         }
     }
 
+  load_sections (f, &ehdr, is_avrtest_log);
+
+  // Some devices deviate from the 0x8000 default for flash_pm_offset, all
+  // in avrxmega3.
+  if (elf_arch == 103
+      && have_deviceinfo
+      && ! options.do_flash_pm_offset)
+    {
+      const char *devs[] =
+        {
+          "atmega808", "atmega809", "atmega1608", "atmega1609", "atmega3208",
+          "atmega3209", "atmega4808", "atmega4809", NULL
+        };
+      for (const char **dev = devs; *dev; ++dev)
+        if (str_eq (*dev, avr_devicename))
+          arch.flash_pm_offset = 0x4000;
+    }
+
   int nbr_phdr = get_elf32_half (&ehdr.e_phnum);
   if ((unsigned) nbr_phdr > sizeof (phdr) / sizeof (*phdr))
     leave (LEAVE_ELF, "ELF file contains too many PHDR");
@@ -668,7 +686,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
               && (addr + memsz + arch.flash_pm_offset <= 0x10000
                   || !is_data_for_sram_init))
             {
-              printf (">>> CopyFlash 0x%06x -- 0x%06x to RAM 0x%06x -- 0x%06x"
+              printf (">>> CopyFlash 0x%06x -- 0x%06x to RAM 0x%04x -- 0x%04x"
                       "\n", (unsigned) addr, (unsigned) (addr + memsz - 1),
                       (unsigned) (addr + arch.flash_pm_offset),
                       (unsigned) (addr + arch.flash_pm_offset + memsz - 1));
@@ -716,7 +734,6 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
         }
     } // for PHDR
 
-  load_sections (f, &ehdr, is_avrtest_log);
   check_arch (elf_arch);
 }
 

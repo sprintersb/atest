@@ -1,3 +1,12 @@
+2024-01-21  Georg-Johann Lay  <avr@gjlay.de>
+
+	Make code for 0-series ATmega from avrxmega3 work without -pm 0x4000.
+
+	* load-flash.c (load_elf) <load_sections()>: Move call up and prior to
+	the load of the program headers.
+	<arch.flash_pm_offset>: Set to 0x4000 when ATmega808/9, ATmega1608/9,
+	ATmega3208/9 or ATmega4808/9 is found in deviceinfo.
+
 2024-01-15  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/avrtest.exp (avrlibc_include_dir): Use -isystem to
