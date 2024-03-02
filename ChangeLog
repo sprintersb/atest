@@ -1,3 +1,10 @@
+2024-03-02  Georg-Johann Lay  <avr@gjlay.de>
+
+	* dejagnuboards/gen-exp.sh: Generate code with avrtest_opts.
+	* dejagnuboards/avrtest.exp (sim_load): Use avrtest_opts
+	in avrtest command options.
+	* dejagnuboards/*-sim.exp: Rebuild.
+
 2024-01-21  Georg-Johann Lay  <avr@gjlay.de>
 
 	Make code for 0-series ATmega from avrxmega3 work without -pm 0x4000.

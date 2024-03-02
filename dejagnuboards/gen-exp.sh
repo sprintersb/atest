@@ -4,6 +4,7 @@ print_exp()
 {
     mmcu="$1"
     avrtest_mmcu="$2"
+    avrtest_opts="$7"
     extra_ldflags="$6"
 
     ramVMA=0x800000
@@ -47,6 +48,10 @@ set mmcu "${mmcu}"
 
 set avrtest_mmcu "${avrtest_mmcu}"
 
+# Extra options to pass to avrtest.
+
+set avrtest_opts "${avrtest_opts}"
+
 # "avrlibc_include_dir" will be used as search path for include
 # files from AVR-LibC where stdio.h etc. is located.  You can set
 # it in .dejagnurc or override it below.  It needs not to be in the
@@ -73,12 +78,21 @@ load_generic_config "avrtest"
 EOF
 }
 
-print_exp "atmega128"  "avr51" SPlow 0x2000 0xffff ""
-print_exp "atmega103"  "avr51" SPlow 0x2000 0xffff ""
-print_exp "atmega64"   "avr51" SPlow 0x2000 0xffff ""
-print_exp "atmega8"    "avr51" SPlow 0x2000 0xffff ""
-print_exp "atmega2560" "avr6"  SPlow 0x2000 0xffff ""
-print_exp "atxmega128a3" "avrxmega6" SPlow 0x2000 0xffff ""
-print_exp "attiny40" "avrtiny" SPhigh 0x40 0x3fff "-Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x"
-print_exp "attiny3216" "avrxmega3" SPlow 0x2000 0x7fff ""
-print_exp "avr128da32" "avrxmega4" SPlow 0x2000 0x7fff ""
+# $1: -mmcu=$1 for avr-gcc
+# $2: -mmcu=$2 for avrtest
+# $3: SPlow: Stack is located below static storage $4.
+#     SPhigh: Stack is located at the end of SRAM at $5 - 1.
+# $4: Start of static storage
+# $5: End of static storage.
+# $6: Extra linker flags.
+# $7: Extra avrtest flags.
+
+print_exp "atmega128"  "avr51" SPlow 0x2000 0xffff "" ""
+print_exp "atmega103"  "avr51" SPlow 0x2000 0xffff "" ""
+print_exp "atmega64"   "avr51" SPlow 0x2000 0xffff "" ""
+print_exp "atmega8"    "avr51" SPlow 0x2000 0xffff "" ""
+print_exp "atmega2560" "avr6"  SPlow 0x2000 0xffff "" ""
+print_exp "atxmega128a3" "avrxmega6" SPlow 0x1000 0xffff "" ""
+print_exp "attiny40" "avrtiny" SPhigh 0x40 0x3fff "-Wl,--defsym=__TEXT_REGION_LENGTH__=8K -Tavrtiny-rodata.x -Wl,--pmem-wrap-around=8k" "-s 8k"
+print_exp "attiny3216" "avrxmega3" SPlow 0x1000 0x7fff "" ""
+print_exp "avr128da32" "avrxmega4" SPlow 0x1000 0x7fff "" ""

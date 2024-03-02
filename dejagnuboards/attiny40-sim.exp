@@ -17,6 +17,10 @@ set mmcu "attiny40"
 
 set avrtest_mmcu "avrtiny"
 
+# Extra options to pass to avrtest.
+
+set avrtest_opts "-s 8k"
+
 # "avrlibc_include_dir" will be used as search path for include
 # files from AVR-LibC where stdio.h etc. is located.  You can set
 # it in .dejagnurc or override it below.  It needs not to be in the
@@ -37,6 +41,6 @@ set avrtest_mmcu "avrtiny"
 # that are FAILing due to small memory.  The simulator has plenty
 # of memory, and there is no need to stick to AVR harware limitations.
 
-set extra_ldflags "-Wl,--defsym=__TEXT_REGION_LENGTH__=16K -Tavrtiny-rodata.x -Tdata=0x800040 -Wl,--defsym,__DATA_REGION_ORIGIN__=0x800040 -Wl,--defsym,__DATA_REGION_LENGTH__=0x3fc0 -Wl,--defsym,__stack=0x3fff -Wl,--defsym,__heap_end=0x803fff"
+set extra_ldflags "-Wl,--defsym=__TEXT_REGION_LENGTH__=8K -Tavrtiny-rodata.x -Wl,--pmem-wrap-around=8k -Tdata=0x800040 -Wl,--defsym,__DATA_REGION_ORIGIN__=0x800040 -Wl,--defsym,__DATA_REGION_LENGTH__=0x3fc0 -Wl,--defsym,__stack=0x3fff -Wl,--defsym,__heap_end=0x803fff"
 
 load_generic_config "avrtest"

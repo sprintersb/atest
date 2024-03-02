@@ -17,6 +17,10 @@ set mmcu "atmega64"
 
 set avrtest_mmcu "avr51"
 
+# Extra options to pass to avrtest.
+
+set avrtest_opts ""
+
 # "avrlibc_include_dir" will be used as search path for include
 # files from AVR-LibC where stdio.h etc. is located.  You can set
 # it in .dejagnurc or override it below.  It needs not to be in the
