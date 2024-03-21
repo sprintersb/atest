@@ -132,7 +132,7 @@ static const arch_t arch_desc[] =
     { "avrxmega2", false, false, true,  false, false, 0x00ffff, 0 },
     { "avrxmega3", false, false, true,  false, false, 0x00ffff, 0x8000 },
     { "avrxmega4", false, false, true,  false, false, 0x01ffff, 0 },
-    { "avrxmega5", false, false, true,  false, false, 0x01ffff, 0 },
+    { "avrxmega5", false, false, true,  true,  false, 0x01ffff, 0 },
     { "avrxmega7", true,  true,  true,  true,  false, 0x03ffff, 0 },
     { NULL,        false, false, false, false, false, 0, 0}
   };
