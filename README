@@ -292,14 +292,15 @@ simulated.
  -m MAXCOUNT : Maximum Instruction Count to simulate
 ====================================================
 
-Per default, there is no limitation of the number of simulated
-instructions.  This is a problem with malfunctioning programs.
-When such cases may occur, the maximal number of instructions
-that will be simulated can be set with -m MAXCOUNT.  Supported
-suffixes are k for 1000 and M for a million, for example -m 1M
-will simulate no more than 1000000 instructions and terminate
-with a TIMEOUT exit status when the program requires more
-instructions.  -m 0 means no limitation (default).
+Per default, there is no limitation of the number of simulated instructions.
+This is a problem with malfunctioning programs.  When such cases may occur,
+the maximal number of instructions that will be simulated can be set
+with -m MAXCOUNT.
+
+Supported suffixes are k for 1000 and M for a million, for example -m 1M
+and -m 1e6 will simulate no more than 1000000 instructions and terminate
+with a TIMEOUT exit status when the program requires more instructions.
+-m 0 means no limitation (default).
 
 
 =============================================

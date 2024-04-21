@@ -227,16 +227,75 @@ get_valid_number (const char *str, const char *opt)
   return (uint64_t) val;
 }
 
-// Like the function above, but supports suffixes like k and M.
+// Like the function above, but expects floating-point number.
 static uint64_t
-get_valid_numberKM (const char *str, const char *opt)
+get_valid_numberE (const char *str, const char *opt)
+{
+  char *end, *pos_e = strchr (str, 'e');
+
+  if (! pos_e)
+    pos_e = strchr (str, 'E');
+  if (! pos_e
+      || pos_e[1] == '\0')
+    {
+    bad:
+      usage ("invalid number '%s' in option '%s'", str, opt);
+    }
+
+  long long expo = strtoll (1 + pos_e, &end, 10);
+  if (*end || expo < 0)
+    goto bad;
+
+  unsigned long long mant = 0;
+  const char *pos_dot = NULL;
+  bool non0 = false;
+
+  // Evaluate mantissa by hand.
+  for (const char *c = str; c != pos_e; ++c)
+    {
+      if (*c >= '0' && *c <= '9')
+        {
+          mant = 10 * mant + (*c - '0');
+          if (*c != '0')
+            non0 = true;
+        }
+      else if (*c == '.')
+        pos_dot = c;
+      else
+        goto bad;
+    }
+
+  // Adjust expo for position of . in mantissa.
+  if (pos_dot)
+    expo -= pos_e - pos_dot - 1;
+
+  // Adjust mantissa according to expo.
+  if (expo < 0)
+    for (; expo < 0; ++expo)
+      mant /= 10;
+  else
+    for (; expo > 0; --expo)
+      mant *= 10;
+
+  return mant < 1 ? non0 : mant;
+}
+
+// Like get_valid_number, but supports suffixes like k and M and
+// floating-point numbers.
+static uint64_t
+get_valid_numberKME (const char *str, const char *opt)
 {
   uint32_t mul = 1;
   char *end, *pos_end = NULL;
   char *pos_k = strchr (str, 'k');
   char *pos_M = strchr (str, 'M');
 
-  if (pos_k)
+  if (strchr (str, 'e')
+      || strchr (str, 'E'))
+    {
+      return get_valid_numberE (str, opt);
+    }
+  else if (pos_k)
     {
       if (pos_k[1] != '\0')
         usage ("invalid number '%s'", str);
@@ -407,7 +466,7 @@ parse_args (int argc, char *argv[])
           if (++i >= argc)
             usage ("missing MAXCOUNT after '%s'", argv[i-1]);
           if (on)
-            program.max_insns = get_valid_numberKM (argv[i], "-m MAXCOUNT");
+            program.max_insns = get_valid_numberKME (argv[i], "-m MAXCOUNT");
           break; // -m
 
         case OPT_size:
