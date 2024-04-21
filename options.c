@@ -47,7 +47,8 @@ static const char USAGE[] =
   "                the entry point from the ELF program and 0 for non-ELF.\n"
   "  -pm OFFSET    Set OFFSET where the program memory is seen in the\n"
   "                LD's instruction address space (avrxmega3 only).\n"
-  "  -m MAXCOUNT   Execute at most MAXCOUNT instructions.\n"
+  "  -m MAXCOUNT   Execute at most MAXCOUNT instructions. Supported suffixes\n"
+  "                are k for 1000 and M for a million.\n"
   "  -s SIZE       The size of the simulated flash.  For a program built\n"
   "                for ATmega8, SIZE would be 8K or 8192 or 0x2000.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
@@ -226,6 +227,38 @@ get_valid_number (const char *str, const char *opt)
   return (uint64_t) val;
 }
 
+// Like the function above, but supports suffixes like k and M.
+static uint64_t
+get_valid_numberKM (const char *str, const char *opt)
+{
+  uint32_t mul = 1;
+  char *end, *pos_end = NULL;
+  char *pos_k = strchr (str, 'k');
+  char *pos_M = strchr (str, 'M');
+
+  if (pos_k)
+    {
+      if (pos_k[1] != '\0')
+        usage ("invalid number '%s'", str);
+      mul = 1000;
+      pos_end = pos_k;
+    }
+  else if (pos_M)
+    {
+      if (pos_M[1] != '\0')
+        usage ("invalid number '%s'", str);
+      mul = 1000000;
+      pos_end = pos_M;
+    }
+  
+  unsigned long long val = strtoull (str, &end, 0);
+  if ((pos_end && end != pos_end)
+      || (!pos_end && *end))
+    usage ("invalid number '%s' in option '%s'", str, opt);
+
+  return mul * (uint64_t) val;
+}
+
 static unsigned
 get_valid_kilo (const char *str, const char *opt)
 {
@@ -374,7 +407,7 @@ parse_args (int argc, char *argv[])
           if (++i >= argc)
             usage ("missing MAXCOUNT after '%s'", argv[i-1]);
           if (on)
-            program.max_insns = get_valid_number (argv[i], "-m MAXCOUNT");
+            program.max_insns = get_valid_numberKM (argv[i], "-m MAXCOUNT");
           break; // -m
 
         case OPT_size:

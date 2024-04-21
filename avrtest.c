@@ -1968,9 +1968,9 @@ execute (void)
     {
       do_step();
 
-      program.n_insns++;
       if (max_insns && program.n_insns >= max_insns)
         leave (LEAVE_TIMEOUT, "instruction count limit reached");
+      program.n_insns++;
     }
 }
 
