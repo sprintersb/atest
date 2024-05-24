@@ -45,7 +45,7 @@ all-avr	: exit fileio
 all-build : flag-tables
 
 EXIT_MCUS = atmega8 atmega168 atmega128 atmega103 atmega2560 \
-	    atxmega128a3 atxmega128a1 attiny40 attiny3216
+	    atxmega128a3 atxmega128a1 attiny40 at90s8515 attiny3216
 
 EXIT_O = $(patsubst %,exit-%.o, $(EXIT_MCUS))
 
