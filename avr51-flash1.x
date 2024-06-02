@@ -164,7 +164,9 @@ SECTIONS
     *(.fini0)  /* Infinite loop after program termination.  */
     KEEP (*(.fini0))
      _etext = . ;
-    
+
+    *(.progmemx.*)
+
     . = 0x10000; 
     *(.progmem1.*)
   }  > text

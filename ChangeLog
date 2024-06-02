@@ -1,3 +1,7 @@
+2024-06-02  Georg-Johann Lay  <avr@gjlay.de>
+
+	* avr51-flash1.x (.text): Add *(.progmemx.*)
+
 2024-03-02  Georg-Johann Lay  <avr@gjlay.de>
 
 	* dejagnuboards/gen-exp.sh: Generate code with avrtest_opts.
