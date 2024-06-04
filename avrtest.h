@@ -509,6 +509,7 @@ AVRTEST_DEFF(sin) AVRTEST_DEFF(asin) AVRTEST_DEFF(sinh) AVRTEST_DEFF(asinh)
 AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
+AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -539,6 +540,7 @@ AVRTEST_DEFF(sin) AVRTEST_DEFF(asin) AVRTEST_DEFF(sinh) AVRTEST_DEFF(asinh)
 AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
+AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                                \
@@ -567,6 +569,7 @@ AVRTEST_DEFF(sin) AVRTEST_DEFF(asin) AVRTEST_DEFF(sinh) AVRTEST_DEFF(asinh)
 AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
+AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -579,6 +582,38 @@ AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 #undef AVRTEST_DEFF
+#else /* long double = 4 */
+#define avrtest_sinl   avrtest_sinf
+#define avrtest_asinl  avrtest_asinf
+#define avrtest_sinhl  avrtest_sinhf
+#define avrtest_asinhl avrtest_asinhf
+#define avrtest_cosl   avrtest_cosf
+#define avrtest_acosl  avrtest_acosf
+#define avrtest_coshl  avrtest_coshf
+#define avrtest_acoshl avrtest_acoshf
+#define avrtest_tanl   avrtest_tanf
+#define avrtest_atanl  avrtest_atanf
+#define avrtest_tanhl  avrtest_tanhf
+#define avrtest_atanhl avrtest_atanhf
+#define avrtest_expl   avrtest_expf
+#define avrtest_logl   avrtest_logf
+#define avrtest_sqrtl  avrtest_sqrtf
+#define avrtest_cbrtl  avrtest_cbrtf
+#define avrtest_truncl avrtest_truncf
+#define avrtest_ceill  avrtest_ceilf
+#define avrtest_floorl avrtest_floorf
+#define avrtest_roundl avrtest_roundf
+
+#define avrtest_powl   avrtest_powf
+#define avrtest_atan2l avrtest_atan2f
+#define avrtest_hypotl avrtest_hypotf
+#define avrtest_fminl  avrtest_fminf
+#define avrtest_fmaxl  avrtest_fmaxf
+#define avrtest_fmodl  avrtest_fmodf
+#define avrtest_mull   avrtest_mulf
+#define avrtest_divl   avrtest_divf
+#define avrtest_addl   avrtest_addf
+#define avrtest_subl   avrtest_subf
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 
