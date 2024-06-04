@@ -540,6 +540,7 @@ static const func1f_t func1f[] =
     _(tan) _(atan) _(tanh) _(atanh)
     _(exp) _(log)  _(sqrt) _(cbrt)
     _(trunc) _(ceil) _(floor) _(round)
+    _(log2) _(fabs)
   };
 #undef _
 
@@ -684,6 +685,7 @@ static const func1l_t func1l[] =
     _(tan) _(atan) _(tanh) _(atanh)
     _(exp) _(log)  _(sqrt) _(cbrt)
     _(trunc) _(ceil) _(floor) _(round)
+    _(log2) _(fabs)
   };
 #undef _
 

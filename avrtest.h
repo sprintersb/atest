@@ -70,6 +70,7 @@ enum
     AVRTEST_tan, AVRTEST_atan, AVRTEST_tanh, AVRTEST_atanh,
     AVRTEST_sqrt, AVRTEST_cbrt, AVRTEST_exp, AVRTEST_log,
     AVRTEST_trunc, AVRTEST_ceil, AVRTEST_floor, AVRTEST_round,
+    AVRTEST_log2, AVRTEST_fabs,
     AVRTEST_EMUL_2args,
     AVRTEST_pow = AVRTEST_EMUL_2args,
     AVRTEST_atan2, AVRTEST_hypot,
@@ -510,6 +511,7 @@ AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
 AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
+AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -541,6 +543,7 @@ AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
 AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
+AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                                \
@@ -570,6 +573,7 @@ AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
 AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
+AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -603,6 +607,8 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 #define avrtest_ceill  avrtest_ceilf
 #define avrtest_floorl avrtest_floorf
 #define avrtest_roundl avrtest_roundf
+#define avrtest_log2l  avrtest_log2f
+#define avrtest_fabsl  avrtest_fabsf
 
 #define avrtest_powl   avrtest_powf
 #define avrtest_atan2l avrtest_atan2f
