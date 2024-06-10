@@ -62,6 +62,7 @@ layout[LOG_X_sentinel] =
 
     [LOG_FLOAT_CMD] = { 4, " %.6f ", false, false },
     [LOG_D64_CMD]   = { 8, " %.6f ", false, false },
+    [LOG_F7T_CMD]   = { 2, " %s ",   false, false },
 
     [LOG_U8_CMD]  = { 1, " %u ", false, false },
     [LOG_U16_CMD] = { 2, " %u ", false, false },
@@ -90,6 +91,10 @@ layout[LOG_X_sentinel] =
     [LOG_TAG_FMT_CMD]       = { 2, NULL, false, false },
     [LOG_TAG_PFMT_CMD]      = { 2, NULL, false, true  },
   };
+
+static const layout_t lay_1 = { 1, NULL, false, false }; // 1 byte  in RAM.
+static const layout_t lay_2 = { 2, NULL, false, false }; // 2 bytes in RAM.
+static const layout_t lay_4 = { 4, NULL, false, false }; // 4 bytes in RAM.
 
 /* Copy a string from AVR target to the host, but not more than
    LEN_MAX characters.  */
@@ -309,6 +314,13 @@ get_mem_value (unsigned addr, const layout_t *lay)
 }
 
 
+static uint8_t
+get_mem_byte (unsigned addr)
+{
+  return get_mem_value (addr, & lay_1);
+}
+
+
 typedef struct
 {
   // Offset set by RESET.
@@ -465,6 +477,54 @@ sys_log_dump (int what)
         log_add ("log double");
         avr_float_t af = decode_avr_double (get_r18_value (lay));
         printf (fmt, af.x);
+      }
+      break;
+
+    case LOG_F7T_CMD:
+      {
+        log_add ("log f7_t");
+
+        char txt[200];
+        const int n_mant = 7;
+        const unsigned addr = val;
+        const uint8_t flags = get_mem_byte (addr);
+        const uint8_t m_sign  = 1 << 0;
+        const uint8_t m_zero  = 1 << 1;
+        const uint8_t m_nan   = 1 << 2;
+        const uint8_t m_plusx = 1 << 3;
+        const uint8_t m_inf   = 1 << 7;
+        const uint8_t m_all = m_sign | m_inf | m_nan | m_zero | m_plusx;
+
+        sprintf (txt, "{ flags = ");
+        sprintf (txt, flags <= 1 ? "%s%d [%s" : "%s0x%02x [%s", txt, flags,
+                 flags & m_sign ? "-" : "+");
+        if (flags & m_inf)   sprintf (txt, "%s,Inf", txt);
+        if (flags & m_nan)   sprintf (txt, "%s,NaN", txt);
+        if (flags & m_zero)  sprintf (txt, "%s,Zero", txt);
+        if (flags & m_plusx) sprintf (txt, "%s,PlusX", txt);
+        if (flags & ~m_all)  sprintf (txt, "%s,???", txt);
+
+        uint64_t mant = 0;
+        sprintf (txt, "%s], mant = { 0x", txt);
+        for (int i = n_mant - 1; i >= 0; --i)
+          {
+            uint8_t b = get_mem_byte (addr + 1 + i);
+            sprintf (txt, "%s%02x ", txt, b);
+            mant = (mant << 8) | b;
+          }
+        // mant_bits = 56 = 1 + IEEE_mant_bits + 3
+        const uint8_t msb = mant >> (8 * n_mant - 1);
+        // Make mant such that is has 13 + 1 nibbles at the low end.
+        mant <<= 1;
+        const uint8_t lsn = mant & 0xf;
+        // Make mant such that is has 13 nibbles at the low end.
+        mant >>= 4;
+        // mant = 0x1.[IEEE_mant_bits] | 3 extra f7 bits
+        mant &= (UINT64_C(1) << 52) - 1;
+        sprintf (txt, "%s} = 0x%u.%013" PRIx64 "|%u, expo = %d }", txt,
+                 msb, mant, lsn,
+                 get_mem_value (addr + 1 + n_mant, & layout[LOG_S16_CMD]));
+        printf (fmt, txt);
       }
       break;
     }
@@ -848,11 +908,6 @@ find_file (int handle)
 
   leave (LEAVE_HOSTIO, "ran out of %d file handles", n_files - N_STD_FILES);
 }
-
-
-static const layout_t lay_1 = { 1, NULL, false, false }; // 1 byte  in RAM.
-static const layout_t lay_2 = { 2, NULL, false, false }; // 2 bytes in RAM.
-static const layout_t lay_4 = { 4, NULL, false, false }; // 4 bytes in RAM.
 
 
 // FILE* fopen (const char *s_path, const char *s_mode)

@@ -14,7 +14,7 @@ enum
     LOG_U8_CMD, LOG_U16_CMD, LOG_U24_CMD, LOG_U32_CMD, LOG_U64_CMD,
     LOG_S8_CMD, LOG_S16_CMD, LOG_S24_CMD, LOG_S32_CMD, LOG_S64_CMD,
     LOG_X8_CMD, LOG_X16_CMD, LOG_X24_CMD, LOG_X32_CMD, LOG_X64_CMD,
-    LOG_FLOAT_CMD, LOG_D64_CMD,
+    LOG_FLOAT_CMD, LOG_D64_CMD, LOG_F7T_CMD,
 
     LOG_TAG_FMT_CMD, LOG_TAG_PFMT_CMD,
 
@@ -118,6 +118,7 @@ enum
 #define LOG_PSTR(X)  avrtest_syscall_7_a ((X), LOG_PSTR_CMD)
 #define LOG_STR(X)   avrtest_syscall_7_a ((X), LOG_STR_CMD)
 #define LOG_FLOAT(X) avrtest_syscall_7_f ((X), LOG_FLOAT_CMD)
+#define LOG_F7T(X)   avrtest_syscall_7_a ((X), LOG_F7T_CMD)
 #if __SIZEOF_DOUBLE__ == __SIZEOF_FLOAT__
 #   define LOG_DOUBLE(X) LOG_FLOAT(X)
 #else
@@ -167,6 +168,7 @@ enum
 #define LOG_FMT_FLOAT(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_FLOAT(_x))
 #define LOG_FMT_DOUBLE(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_DOUBLE(_x))
 #define LOG_FMT_LDOUBLE(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_LDOUBLE(_x))
+#define LOG_FMT_F7T(F,X)   LOG_DUMP_A_ (FMT, (F), (X), LOG_F7T(_x))
 
 #define LOG_FMT_U8(F,X)  LOG_DUMP_F_ (FMT, (F), (X), LOG_U8(_x))
 #define LOG_FMT_U16(F,X) LOG_DUMP_F_ (FMT, (F), (X), LOG_U16(_x))
@@ -194,6 +196,7 @@ enum
 #define LOG_PFMT_FLOAT(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_FLOAT(_x))
 #define LOG_PFMT_DOUBLE(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_DOUBLE(_x))
 #define LOG_PFMT_LDOUBLE(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_LDOUBLE(_x))
+#define LOG_PFMT_F7T(F,X)   LOG_DUMP_A_ (PFMT, (F), (X), LOG_F7T(_x))
 
 #define LOG_PFMT_U8(F,X)  LOG_DUMP_F_ (PFMT, (F), (X), LOG_U8(_x))
 #define LOG_PFMT_U16(F,X) LOG_DUMP_F_ (PFMT, (F), (X), LOG_U16(_x))

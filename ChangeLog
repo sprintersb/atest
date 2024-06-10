@@ -1,3 +1,14 @@
+2024-06-10  Georg-Johann Lay  <avr@gjlay.de>
+
+	Support syscalls LOG_FMT_F7T etc. to log libgcc's
+	internal IEEE double representation.
+
+	* avrtest.h (LOG_F7T_CMD): New enum.
+	(LOG_F7T, LOG_FMT_F7T, LOG_PFMT_F7T): New macros.
+	* host.c (get_mem_byte): New function.
+	(layout[LOG_F7T_CMD]): New entry.
+	(sys_log_dump) [what = LOG_F7T_CMD]: Print neat f7_t.
+
 2024-06-02  Georg-Johann Lay  <avr@gjlay.de>
 
 	* avr51-flash1.x (.text): Add *(.progmemx.*)
