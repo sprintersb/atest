@@ -487,6 +487,21 @@ AVRTEST_DEF_SYSCALL2 (_7_s24, 7,  __INT32_TYPE__, 20, unsigned char, 24)
 #if __SIZEOF_LONG_LONG__ == 8
 AVRTEST_DEF_SYSCALL2 (_8_u64, 8, __UINT64_TYPE__, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL2 (_8_s64, 8,  __INT64_TYPE__, 18, unsigned char, 26)
+#else
+#define avrtest_syscall_8_u64(a, b)                                     \
+    do { (void) (a); (void) (b);                                        \
+        __attribute__((__error__("-mint8: avrtest uint64_t syscall not" \
+                                 " available without 64-bit integers")))\
+        extern void avrtest_error (void);                               \
+        avrtest_error();                                                \
+    } while(0)
+#define avrtest_syscall_8_s64(a, b)                                     \
+    do { (void) (a); (void) (b);                                        \
+        __attribute__((__error__("-mint8: avrtest int64_t syscall not"  \
+                                 " available without 64-bit integers")))\
+        extern void avrtest_error (void);                               \
+        avrtest_error();                                                \
+    } while(0)
 #endif /* Have uint64_t */
 #if __SIZEOF_DOUBLE__ == 8
 AVRTEST_DEF_SYSCALL2 (_8_d64, 8,          double, 18, unsigned char, 26)
