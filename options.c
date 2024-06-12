@@ -33,9 +33,9 @@
 //     parse command line arguments
 
 static const char USAGE[] =
-  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s size]\n"
+  "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]\n"
   "                 [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]\n"
-  "                 [-q] [-flush] [-runtime]\n"
+  "                 [-q] [-flush] [-runtime] [-v]\n"
   "                 [-graph[=FILE]] [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
@@ -53,6 +53,7 @@ static const char USAGE[] =
   "                for ATmega8, SIZE would be 8K or 8192 or 0x2000.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
   "                requested.  Pass exit status from the program.\n"
+  "  -v            Verbose mode.  Print the loaded ELF program headers."
   "  -runtime      Print avrtest execution time.\n"
   "  -no-log       Disable logging in avrtest_log.  Useful when capturing\n"
   "                performance data.  Logging can still be controlled by\n"

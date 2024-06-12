@@ -16,6 +16,7 @@ and easy-to-use simulator to run the
 * [Introduction](#introduction)
 * [Special Features](#special-features)
 * [Running the avr-gcc Testsuite](#running-the-avr-gcc-testsuite-using-the-avrtest-simulator)
+* [Building the exit.o Modules](#building-the-exito-modules)
 * [Speed of Simulation](#speed-of-simulation)
 
 ### Selected Options
@@ -168,8 +169,8 @@ total cycles: 27
 total instr.: 18
 ```
 
-There are more functions available for program &harr; simulator interaction,
-see the respective sections below.
+There are more functions available for program &harr; simulator
+interaction, see the respective sections below.
 
 
 Running the avr-gcc Testsuite using the avrtest Simulator
@@ -178,11 +179,11 @@ Running the avr-gcc Testsuite using the avrtest Simulator
 http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
 * Get avr-gcc, Binutils and AVR-LibC built from sources and working.
-For build instructions, see for example the
-[AVR-LibC documentation](https://avrdudes.github.io/avr-libc/avr-libc-user-manual-2.2.0/install_tools.html).
+  For build instructions, see for example the
+  [AVR-LibC documentation](https://avrdudes.github.io/avr-libc/avr-libc-user-manual-2.2.0/install_tools.html).
 
 * Install [DejaGNU](https://www.gnu.org/software/dejagnu/),
-[expect](https://core.tcl-lang.org/expect/index) and TCL
+  [expect](https://core.tcl-lang.org/expect/index) and TCL
 
 * Unpack the avrtest sources top `/someplace`.
   You find a link to the package at
@@ -196,16 +197,6 @@ For build instructions, see for example the
 
   inside `/someplace/avrtest` which will build executables from the avrtest
   C-sources and AVR object files `exit-*.o` from `dejagnuboards/exit.c`.
-
-* To build `exit*.o` modules, avr-gcc will be used.  If you want a different
-  avr-gcc not found in PATH, use:
-
-      make clean-exit all-avr CC_FOR_AVR=/some-compiler-path/avr-gcc
-
-  When you need an exit module for a device not already present in the
-  Makefile like ATmega16, you can just run
-
-      make exit-atmega16.o
 
 * Adjust your `$HOME/.dejagnurc` file (or create one if it not already
   exists) as indicated in `/someplace/avrtest/.dejagnurc`.
@@ -246,8 +237,26 @@ For build instructions, see for example the
 Voilà!
 
 
+Building the `exit.o` Modules
+=============================
+
+The `exit-*.o` Modules are build during `make` using avr-gcc.
+When you want to use a different avr-gcc not found in PATH, use:
+
+    make clean-exit all-avr CC_FOR_AVR=/some-compiler-path/avr-gcc
+
+When you need an exit module for a device not already present in the
+Makefile like ATmega16, you can just run
+
+    make exit-atmega16.o
+
+Notice that an exit module is not structly required in a program that's
+simulated with avrtest.  But it defines streams like stdout so that
+functions like `printf` behave like in a hosted environment.
+
+
 `-h`: Getting Help
-==========================================
+==================
 
 Running
 
@@ -256,12 +265,12 @@ Running
 will print a help screen with available options:
 
 ```
-usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s size]
-               [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]
-               [-q] [-flush] [-runtime]
-               [-graph[=FILE]] [-sbox=FOLDER]
-               program [-args [...]]
-       avrtest --help
+  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]
+                 [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]
+                 [-q] [-flush] [-runtime] [-v]
+                 [-graph[=FILE]] [-sbox=FOLDER]
+                 program [-args [...]]
+         avrtest --help
 Options:
   -h            Show this help and exit.
   -args ...     Pass all following parameters as argc and argv to main.
@@ -276,6 +285,7 @@ Options:
                 for ATmega8, SIZE would be 8K or 8192 or 0x2000.
   -q            Quiet operation.  Only print messages explicitly
                 requested.  Pass exit status from the program.
+  -v            Verbose mode.  Print the loaded ELF program headers.
   -runtime      Print avrtest execution time.
   -no-log       Disable logging in avrtest_log.  Useful when capturing
                 performance data.  Logging can still be controlled by
@@ -446,7 +456,6 @@ and to a non-NULL pointer when executed by avrtest_log.
 starting at a RAM address hard-coded in `exit.c::avrtest_init_argc_argv()`.
 If you prefer a different location then adjust `exit.c` according to your
 needs, following the source comments.
-
 
 `-no-args`
 ----------
@@ -697,8 +706,8 @@ following rules have to be obeyed when using file I/O via `fileio.c`:
   http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
 
 * When using avrtest to run the GCC test suite for AVR, the host interactions
-that `exit-*.o` supplies via stdout and stderr should be sufficient.
-The complexity of fileio is not needed for the GCC test suite.
+  that `exit-*.o` supplies via stdout and stderr should be sufficient.
+  The complexity of fileio is not needed for the GCC test suite.
 
 
 File I/O:  Special Streams for the Host's stdin, stdout, stderr
@@ -1025,9 +1034,12 @@ Example:
 And then call this function from assembler or from C code after
 declaring it with `extern void func (void);`.
 
+
 Compiler Support
-===============================
+================
 
 * avr-gcc can be used with `avrtest.h`.
 
-* To date (2024), clang has bugs so that programs that include `avrtest.h` cannot be compiled and terminate with an error message (or internal error) for the used inline assembly.
+* To date (2024), clang has bugs so that programs that include `avrtest.h`
+  cannot be compiled and terminate with an error message (or internal error)
+  for the used inline assembly.

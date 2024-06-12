@@ -9,6 +9,11 @@ microcontrollers distributed under the GNU General Public License.
 The main intention of avrtest is to supply a fast, easy-to-use simulator
 to run the GCC testsuite for avr-gcc or parts of the AVR-LibC testsuite.
 
+
+============
+Introduction
+============
+
 avrtest is an instruction set simulator for AVR core families
     avr51: ATmega128*, AT90usb128*, ATtiny2313, ... with a 2-byte PC.
     avr6:  ATmega256* with a 3-byte PC.
@@ -45,7 +50,7 @@ I/O ports, interrupts, etc.
 
 
 ================
-Special features
+Special Features
 ================
 
 The simulated program can communicate with the simulator: It can write to
@@ -131,17 +136,20 @@ total cycles: 27
 total instr.: 18
 
 
-There are more functions available for program <-> simulator interaction,
-see the respective sections below.
+There are more functions available for program <-> simulator
+interaction, see the respective sections below.
 
 
-=================================================
-Running avr-gcc testsuite using avrtest simulator
-=================================================
+=========================================================
+Running the avr-gcc Testsuite using the avrtest Simulator
+=========================================================
 
 http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
 * Get avr-gcc, Binutils and AVR-LibC built from sources and working.
+  For build instructions, see for example the
+  AVR-LibC documentation at
+  https://avrdudes.github.io/avr-libc/avr-libc-user-manual-2.2.0/install_tools.html
 
 * Install DejaGNU, expect and TCL
 
@@ -157,11 +165,6 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
   inside /someplace/avrtest which will build executables from the avrtest
   C-sources and AVR object files exit-*.o from dejagnuboards/exit.c.
-
-* To build exit*.o modules, avr-gcc will be used.  If you want a different
-  avr-gcc not found in PATH, use:
-
-    make clean-exit all CC_FOR_AVR=/some-compiler-path/avr-gcc
 
 * Adjust your $HOME/.dejagnurc file (or create one if it not already
   exists) as indicated in /someplace/avrtest/.dejagnurc.
@@ -183,26 +186,96 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 * *-sim.exp just sets some custom variables and then loads
   avrtest.exp from the same directory to run avrtest.
 
-* Run the tests from gcc subdirectory of your avr-gcc build directory like:
+* Run the tests from the ./gcc subdirectory of your avr-gcc build directory
+  like:
 
-    make -k check-gcc RUNTESTFLAGS="--target_board=atmega128-sim"
+      make -k check-gcc RUNTESTFLAGS="--target_board=atmega128-sim"
 
 * Look in the ./gcc/testsuite subdirectory of avr-gcc build directory for
-  logged results or add the -all switch to see it working 1 test at a time.
+  logged results gcc.sum, gcc.log, or add the -all switch to see it
+  working one test at a time:
 
-    make -k check RUNTESTFLAGS="--target_board=atmega128-sim -all"
+      make -k check RUNTESTFLAGS="--target_board=atmega128-sim -all"
 
 * You can run parts of the testsuite like this:
 
-    make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr.exp"
-    make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr-torture.exp=pr418854.c"
+      make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr.exp"
+      make -k check RUNTESTFLAGS="--target_board=atmega128-sim avr-torture.exp=pr41885*.c"
 
 Voila!
 
 
-==========================================
- -s SIZE : Specifying simulated flash size
-==========================================
+===========================
+Building the exit.o Modules
+===========================
+
+The exit-*.o Modules are build during make using avr-gcc.
+When you want to use a different avr-gcc not found in PATH, use:
+
+    make clean-exit all-avr CC_FOR_AVR=/some-compiler-path/avr-gcc
+
+When you need an exit module for a device not already present in the
+Makefile like ATmega16, you can just run
+
+    make exit-atmega16.o
+
+Notice that an exit module is not structly required in a program that's
+simulated with avrtest.  But it defines streams like stdout so that
+functions like printf behave like in a hosted environment.
+
+
+================
+-h: Getting Help
+================
+
+Running
+
+    avrtest -h
+
+will print a help screen with available options:
+
+  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]
+                 [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]
+                 [-q] [-flush] [-runtime] [-v]
+                 [-graph[=FILE]] [-sbox=FOLDER]
+                 program [-args [...]]
+         avrtest --help
+Options:
+  -h            Show this help and exit.
+  -args ...     Pass all following parameters as argc and argv to main.
+  -d            Initialize SRAM from .data (for ELF program)
+  -e ENTRY      Byte address of program entry.  Default for ENTRY is
+                the entry point from the ELF program and 0 for non-ELF.
+  -pm OFFSET    Set OFFSET where the program memory is seen in the
+                LD's instruction address space (avrxmega3 only).
+  -m MAXCOUNT   Execute at most MAXCOUNT instructions. Supported suffixes
+                are k for 1000 and M for a million.
+  -s SIZE       The size of the simulated flash.  For a program built
+                for ATmega8, SIZE would be 8K or 8192 or 0x2000.
+  -q            Quiet operation.  Only print messages explicitly
+                requested.  Pass exit status from the program.
+  -v            Verbose mode.  Print the loaded ELF program headers.
+  -runtime      Print avrtest execution time.
+  -no-log       Disable logging in avrtest_log.  Useful when capturing
+                performance data.  Logging can still be controlled by
+                the running program, cf. README.
+  -no-stdin     Disable avrtest_getchar (syscall 28) from avrtest.h.
+  -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.
+  -no-stderr    Disable avrtest_putchar_stderr (syscall 24).
+  -flush        Flush the host's stdout resp. stderr stream after each
+                (direct or indirect) call of avrtest_putchar (syscall 29)
+                resp. avrtest_putchar_stderr (syscall 24).
+  -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the
+                target program can access via file I/O (syscall 26).
+  -graph[=FILE] Write a .dot FILE representing the dynamic call graph.
+                For the dot tool see  http://graphviz.org
+  -graph-help   Show more options to control graph generation and exit.
+  -mmcu=ARCH    Select instruction set for ARCH
+
+
+=========================================
+-s SIZE : Specifying simulated Flash Size
+=========================================
 
 The simulator must know the flash size of the simulated controller
 so it can correctly simulare instructions like RJMP.  For example,
@@ -214,7 +287,7 @@ avrtest will read the flash size from a special note section named
 .note.gnu.avr.deviceinfo contained in that startup-code.  avrtest will
 print its contents with -v.
 
-In the following situations, -s SIZE can be used to specify flash size:
+In the following situations, -s SIZE can be used to specify the flash size:
 
 * The program does not use startup-code from AVR-LibC.  In that case,
   you can specify, say  -s 8192  or  -s 0x2000  or  -s 8k  for ATmega8.
@@ -226,9 +299,9 @@ In the following situations, -s SIZE can be used to specify flash size:
   use a core-specific default value.
 
 
-=============================================
- -q : Quiet operation
-=============================================
+====================
+-q : Quiet Operation
+====================
 
 With -q turned on, avrtest will print no messages except the ones
 explicitly requested by:
@@ -289,9 +362,9 @@ The timing will also depend slighly on which instructions are being
 simulated.
 
 
-====================================================
- -m MAXCOUNT : Maximum Instruction Count to simulate
-====================================================
+===================================================
+-m MAXCOUNT : Maximum Instruction Count to simulate
+===================================================
 
 Per default, there is no limitation of the number of simulated instructions.
 This is a problem with malfunctioning programs.  When such cases may occur,
@@ -304,9 +377,9 @@ with a TIMEOUT exit status when the program requires more instructions.
 -m 0 means no limitation (default).
 
 
-=============================================
- -args ... : passing arguments to the program
-=============================================
+============================================
+-args ... : Passing Arguments to the Program
+============================================
 
 All arguments after -args will be passed to the target program as if the
 program was running from the command line.  This is accomplished by startup
@@ -359,18 +432,17 @@ starting at a RAM address hard-coded in exit.c::avrtest_init_argc_argv().
 If you prefer a different location then adjust exit.c according to your
 needs, following the source comments.
 
-
-============================
- -no-args
-============================
+--------
+-no-args
+--------
 
 will act as if no -args switch was supplied:  It skips all arguments
 thereafter and sets argc = 0, argv = NULL and env as described above.
 
 
-============================
- -no-log and logging control
-============================
+===========================
+-no-log and Logging Control
+===========================
 
 * This feature is only supported by the avrtest_log family.
 
@@ -412,9 +484,10 @@ as macros that can be used from assembly code.  They have no effect
 on the internal state of the program (except for the program counter:
 the respective syscalls consume 4 bytes of code).
 
-====================================
- Logging values to the host computer
-====================================
+
+===================================
+Logging Values to the Host Computer
+===================================
 
 In order to get values out of the running program, the following
 low-overhead, low-intrusive commands might be useful:
@@ -437,9 +510,10 @@ etc.  Moreover, there are the following commands:
     LOG_FLOAT (X);      log float X
     LOG_DOUBLE (X);     log double X
     LOG_LDOUBLE (X);    log long double X
-    LOG_D64 (X);        log a 64-bit unsigned integer, the bit representation
-                        of which is interpreted as a 64-bit IEEE floating point
-                        number (11-bit exponent, 52-bit encoded mantissa)
+    LOG_D64 (X);        log an uint64_t, the bit representation of which
+                        is interpreted as an IEEE double number
+                        (11-bit exponent, 52-bit encoded mantissa)
+    LOG_F7T (X);        log LibF7's f7_t*
 
 All of these logging commands have variants that take a custom
 printf format string to print the supplied value:
@@ -466,6 +540,7 @@ LOG_XXX are:
     " 0x%04x "          for addresses
     " %.6f "            for float, double, long double and 64-bit unsigned
                         interpreted as a 64-bit IEEE floating point number
+    "%s"                for f7_t*
 
 For 8-byte values, the internal representation is "unsigned long long", and
 the default format strings are:
@@ -475,9 +550,9 @@ the default format strings are:
     " 0x%016llx "         for the "X" variant
 
 
-=================
- Support of FLMAP
-=================
+================
+Support of FLMAP
+================
 
 Devices from the AVR64* and AVR128* families see a 32 KiB segment of their
 program memory in the RAM address space.  Which segment is visible and
@@ -494,9 +569,9 @@ you have to trigger a re-write of the 32 KiB segment by means of a call to
 each time, where flmap ranges from 0 to 3.
 
 
-===================================================
- File I/O with the file system of the host computer
-===================================================
+==================================================
+File I/O with the File System of the Host Computer
+==================================================
 
 avrtest supports basic file I/O capabilities that enable the target program
 to communicate with the host's file system.  In order to enable this, option
@@ -540,9 +615,9 @@ the other bytes of the return value are unused.  HANDLE would be used in
 subsequent calls like AVRTEST_fclose, that passes the file handle in the
 low-byte of ARGS.
 
--------------------------------------
- File I/O:  Using the fileio.c module
--------------------------------------
+------------------------------------
+File I/O:  Using the fileio.c Module
+------------------------------------
 
 For convenience, avrtest comes with a target module that supplies wrappers
 for the available file I/O functions.  The interface of these functions is
@@ -590,7 +665,7 @@ These functions with their obvious semantics are:
     size_t host_fread (void*, size_t, size_t, fileio_handle_t);
 
 -------------------------------------------------
- File I/O:  Caveats, restrictions and limitations
+File I/O:  Caveats, Restrictions and Limitations
 -------------------------------------------------
 
 Due to peculiarities of AVR-LibC's stdio.h implementation, the
@@ -598,22 +673,22 @@ following rules have to be obeyed when using file I/O via fileio.c:
 
 * The linker must be called with -wrap for the following symbols:
 
-    feof, fwrite, fread, fclose, cleaerr
+      feof, fwrite, fread, fclose, cleaerr
 
   i.e. avr-gcc has to be called with
 
-    avr-gcc ... -Wl,-wrap,feof -Wl,-wrap,fwrite -Wl,-wrap,fread ...
+      avr-gcc ... -Wl,-wrap,feof -Wl,-wrap,fwrite -Wl,-wrap,fread ...
 
-when linking.  For the documentation of -wrap, see
-http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
+  when linking.  For the documentation of -wrap, see
+  http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
 
 * When using avrtest to run the GCC test suite for AVR, the host interactions
-that exit-*.o supplies via stdout and stderr should be sufficient.
-The complexity of fileio is not needed for the GCC test suite.
+  that exit-*.o supplies via stdout and stderr should be sufficient.
+  The complexity of fileio is not needed for the GCC test suite.
 
-----------------------------------------------------------------
- File I/O:  Special streams for the host's stdin, stdout, stderr
-----------------------------------------------------------------
+---------------------------------------------------------------
+File I/O:  Special Streams for the Host's stdin, stdout, stderr
+---------------------------------------------------------------
 
 The fileio module provides
 
@@ -629,9 +704,9 @@ The respective handles to use with functions like host_fflush() are:
     HANDLE_stderr
 
 
-========================
- Performance measurement
-========================
+=======================
+Performance Measurement
+=======================
 
 * This feature is only supported by avrtest_log and avrtest-xmega_log.
 
@@ -795,9 +870,9 @@ with __attribute__((noinline,noclone)).  The additional overhead caused by
 the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
-==============================
- Timing data and random values
-==============================
+=============================
+Timing Data and Random Values
+=============================
 
 Following functions return an unsigned 32-bit value:
 
@@ -819,9 +894,9 @@ program start:
 The simulator does not account cycles to syscalls.
 
 
-======================
- IEEE single emulation
-======================
+=====================
+IEEE single Emulation
+=====================
 
 avrtest supports syscalls like
 
@@ -856,9 +931,9 @@ float compute_sinf (float x)
 }
 
 
-======================
- IEEE double emulation
-======================
+=====================
+IEEE double Emulation
+=====================
 
 avrtest supports syscalls like
 
@@ -877,7 +952,7 @@ The _d64 versions are available irrespective of the layout of long double.
 Supported functions are the same like for IEEE single but with 'l'
 instead of 'f' at the end of the syscall name.
 
-avrtest will terminate with an error if the host IEEE double cannot
+avrtest will terminate with an error when the host IEEE double cannot
 be used for emulation.  The functions are not available for Reduced Tiny.
 
 Here is an example for the usage of avrtest_sqrtl:
@@ -895,9 +970,9 @@ long double compute_sqrtl (long double)
 }
 
 
-===============================
- Assembler support in avrtest.h
-===============================
+==============================
+Assembler Support in avrtest.h
+==============================
 
 avrtest.h adds assembler support for a few avrtest features:
 
@@ -933,3 +1008,14 @@ Example:
 
 And then call this function from assembler or from C code after
 declaring it with "extern void func (void);".
+
+
+================
+Compiler Support
+================
+
+* avr-gcc can be used with avrtest.h.
+
+* To date (2024), clang has bugs so that programs that include avrtest.h
+  cannot be compiled and terminate with an error message (or internal error)
+  for the used inline assembly.
