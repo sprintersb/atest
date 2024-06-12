@@ -1019,3 +1019,13 @@ Compiler Support
 * To date (2024), clang has bugs so that programs that include avrtest.h
   cannot be compiled and terminate with an error message (or internal error)
   for the used inline assembly.
+
+* avrtest.h supports `avr-gcc -mint8` with an 8-bit int type.
+  Notice that  -mint8  is not a multilib option and therefore functions
+  from libgcc and AVR-LibC will not work when they take an int, long
+  or long long parameter.  In particular, [__builtin_]exit() will
+  take an 8-bit value, and avrtest will likely get a trashed 16-bit return
+  value.  The same applies to returning from main.  What works though
+  is to use avrtest_exit() to terminate the program.
+  Also notice that with  -mint8  no 64-bit integer types like long long
+  or uint64_t are available.

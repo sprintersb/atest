@@ -306,9 +306,10 @@ enum
 
 #define AT_INLINE __inline__ __attribute__((__always_inline__))
 
-#define CPSE_rr_(r)                         \
-  (((0UL + AVRTEST_INVALID_OPCODE) << 16)   \
-   | 0x1000 | (r << 4) | (r & 0xf) | ((r & 0x10) << 5))
+#define CPSE_rr_(r)                                      \
+  (((__UINT32_TYPE__) AVRTEST_INVALID_OPCODE << 16)      \
+   | 0x1000 | ((__UINT32_TYPE__) r << 4) | (r & 0xf)     \
+   | (((__UINT32_TYPE__) r & 0x10) << 5))
 
 __extension__ enum
 {
@@ -424,14 +425,14 @@ __extension__ enum
   }
 
 AVRTEST_DEF_SYSCALL2_R20 (_26_p, 26, const void*);
-AVRTEST_DEF_SYSCALL2_R20 (_26_1, 26, unsigned char);
-AVRTEST_DEF_SYSCALL2_R20 (_26_2, 26, unsigned);
-AVRTEST_DEF_SYSCALL2_R20 (_26_4, 26, unsigned long);
+AVRTEST_DEF_SYSCALL2_R20 (_26_1, 26, __UINT8_TYPE__);
+AVRTEST_DEF_SYSCALL2_R20 (_26_2, 26, __UINT16_TYPE__);
+AVRTEST_DEF_SYSCALL2_R20 (_26_4, 26, __UINT32_TYPE__);
 AVRTEST_DEF_SYSCALL1 (_27, 27, void*, 24)
 AVRTEST_DEF_SYSCALL1_0 (_28, 28, int, 24)
 AVRTEST_DEF_SYSCALL1 (_24, 24, char, 24)
 AVRTEST_DEF_SYSCALL1 (_29, 29, char, 24)
-AVRTEST_DEF_SYSCALL1 (_30, 30, int, 24) /* exit */
+AVRTEST_DEF_SYSCALL1 (_30, 30, __INT16_TYPE__, 24) /* exit */
 AVRTEST_DEF_SYSCALL0 (_31, 31) /* abort */
 AVRTEST_DEF_SYSCALL0 (_25, 25) /* abort_2nd_hit */
 
@@ -447,49 +448,51 @@ AVRTEST_DEF_SYSCALL1 (_3, 3, unsigned, 24)
 
 /* Cycle count, instruction cound, (pseudo) random number */
 AVRTEST_DEF_SYSCALL1   (_4_r, 4, unsigned char, 24)
-AVRTEST_DEF_SYSCALL1_1 (_4_g, 4, unsigned long, 22, unsigned char, 24)
+AVRTEST_DEF_SYSCALL1_1 (_4_g, 4, __UINT32_TYPE__, 22, unsigned char, 24)
 
 /* Perf-meter control */
 AVRTEST_DEF_SYSCALL1 (_5, 5, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_5_u, 5, unsigned long, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_5_s, 5, signed long,   20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_5_f, 5, float,         20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_5_u, 5, __UINT32_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_5_s, 5,  __INT32_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_5_f, 5, float,           20, unsigned char, 24)
 
 /* PERF_TAG */
 AVRTEST_DEF_SYSCALL2 (_6_s, 6, const volatile char*, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_6_i, 6, int, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_6_u, 6, unsigned, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_6_l, 6, long, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_6_ul, 6, unsigned long, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_6_i,  6,  __INT16_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_6_u,  6, __UINT16_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_6_l,  6,  __INT32_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_6_ul, 6, __UINT32_TYPE__, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_6_f,  6, float, 20, unsigned char, 24)
 
 /* Logging values */
 AVRTEST_DEF_SYSCALL1 (_7, 7, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_a, 7, const volatile void*, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_f, 7, float,                20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_u8,  7, unsigned char, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_s8,  7,   signed char, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_u16, 7, unsigned int,  20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_s16, 7,   signed int,  20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_u32, 7, unsigned long, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_s32, 7,   signed long, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_f, 7, float,             20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_u8,  7,  __UINT8_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_s8,  7,   __INT8_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_u16, 7, __UINT16_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_s16, 7,  __INT16_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_u32, 7, __UINT32_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_s32, 7,  __INT32_TYPE__, 20, unsigned char, 24)
 
 #ifdef __UINT24_MAX__
 AVRTEST_DEF_SYSCALL2 (_7_u24, 7, __uint24, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_s24, 7, __int24,  20, unsigned char, 24)
 #else
-AVRTEST_DEF_SYSCALL2 (_7_u24, 7, unsigned long, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_s24, 7,   signed long, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_u24, 7, __UINT32_TYPE__, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2 (_7_s24, 7,  __INT32_TYPE__, 20, unsigned char, 24)
 #endif
 
 /* Logging 64-bit values */
-AVRTEST_DEF_SYSCALL2 (_8_u64, 8, unsigned long long, 18, unsigned char, 26)
-AVRTEST_DEF_SYSCALL2 (_8_s64, 8,   signed long long, 18, unsigned char, 26)
+#if __SIZEOF_LONG_LONG__ == 8
+AVRTEST_DEF_SYSCALL2 (_8_u64, 8, __UINT64_TYPE__, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL2 (_8_s64, 8,  __INT64_TYPE__, 18, unsigned char, 26)
+#endif /* Have uint64_t */
 #if __SIZEOF_DOUBLE__ == 8
-AVRTEST_DEF_SYSCALL2 (_8_d64, 8,             double, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL2 (_8_d64, 8,          double, 18, unsigned char, 26)
 #endif
 #if __SIZEOF_LONG_DOUBLE__ == 8
-AVRTEST_DEF_SYSCALL2 (_8_l64, 8,        long double, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL2 (_8_l64, 8,     long double, 18, unsigned char, 26)
 #endif
 
 /* Misc stuff all in 21 */
@@ -531,13 +534,14 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 
 /* Emulating IEEE double functions */
 #ifndef __AVR_TINY__
-AVRTEST_DEF_SYSCALL2_1 (_23_u64, 23, unsigned long long, 18, unsigned char, 26)
-AVRTEST_DEF_SYSCALL3_1 (_23_u64_2, 23, unsigned long long, 18,
-                        unsigned long long, 10, unsigned char, 26)
+#if __SIZEOF_LONG_LONG__ == 8
+AVRTEST_DEF_SYSCALL2_1 (_23_u64, 23, __UINT64_TYPE__, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_23_u64_2, 23, __UINT64_TYPE__, 18,
+                        __UINT64_TYPE__, 10, unsigned char, 26)
 
 #define AVRTEST_DEFF(ID)                                \
-  static AT_INLINE unsigned long long                   \
-  avrtest_##ID##_d64 (unsigned long long _x)            \
+  static AT_INLINE __UINT64_TYPE__                      \
+  avrtest_##ID##_d64 (__UINT64_TYPE__ _x)               \
   {                                                     \
     return avrtest_syscall_23_u64 (_x, AVRTEST_##ID);   \
   }
@@ -550,8 +554,8 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                                \
-  static AT_INLINE unsigned long long                                   \
-  avrtest_##ID##_d64 (unsigned long long _x, unsigned long long _y)     \
+  static AT_INLINE __UINT64_TYPE__                                      \
+  avrtest_##ID##_d64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ _y)           \
   {                                                                     \
     return avrtest_syscall_23_u64_2 (_x, _y, AVRTEST_##ID);             \
   }
@@ -559,6 +563,7 @@ AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 #undef AVRTEST_DEFF
+#endif /* Have uint64_t */
 
 #if __SIZEOF_LONG_DOUBLE__ == 8
 AVRTEST_DEF_SYSCALL2_1 (_23, 23, long double, 18, unsigned char, 26)
@@ -643,7 +648,7 @@ avrtest_abort (void)
 static AT_INLINE void
 avrtest_exit (int _status)
 {
-  avrtest_syscall_30 (_status);
+  avrtest_syscall_30 ((__INT16_TYPE__) _status);
 }
 
 static AT_INLINE void
@@ -671,49 +676,49 @@ avrtest_abort_2nd_hit (void)
 }
 
 
-static AT_INLINE unsigned long
+static AT_INLINE __UINT32_TYPE__
 avrtest_fileio_p (unsigned char _what, const void *_pargs)
 {
   return avrtest_syscall_26_p (_what, _pargs);
 }
 
-static AT_INLINE unsigned long
-avrtest_fileio_1 (unsigned char _what, unsigned char _args)
+static AT_INLINE __UINT32_TYPE__
+avrtest_fileio_1 (unsigned char _what, __UINT8_TYPE__ _args)
 {
   return avrtest_syscall_26_1 (_what, _args);
 }
 
-static AT_INLINE unsigned long
-avrtest_fileio_2 (unsigned char _what, unsigned _args)
+static AT_INLINE __UINT32_TYPE__
+avrtest_fileio_2 (unsigned char _what, __UINT16_TYPE__ _args)
 {
   return avrtest_syscall_26_2 (_what, _args);
 }
 
-static AT_INLINE unsigned long
-avrtest_fileio_4 (unsigned char _what, unsigned long _args)
+static AT_INLINE __UINT32_TYPE__
+avrtest_fileio_4 (unsigned char _what, __UINT32_TYPE__ _args)
 {
   return avrtest_syscall_26_4 (_what, _args);
 }
 
-static AT_INLINE unsigned long
+static AT_INLINE __UINT32_TYPE__
 avrtest_cycles (void)
 {
   return avrtest_syscall_4_g (TICKS_GET_CYCLES_CMD);
 }
 
-static AT_INLINE unsigned long
+static AT_INLINE __UINT32_TYPE__
 avrtest_insns (void)
 {
   return avrtest_syscall_4_g (TICKS_GET_INSNS_CMD);
 }
 
-static AT_INLINE unsigned long
+static AT_INLINE __UINT32_TYPE__
 avrtest_rand (void)
 {
   return avrtest_syscall_4_g (TICKS_GET_RAND_CMD);
 }
 
-static AT_INLINE unsigned long
+static AT_INLINE __UINT32_TYPE__
 avrtest_prand (void)
 {
   return avrtest_syscall_4_g (TICKS_GET_PRAND_CMD);
