@@ -52,6 +52,8 @@ static void log_add_ (const char *fmt, ...)
         log_add_ (__VA_ARGS__); \
     } while (0)
 
+#define str_append(str, ...)                    \
+  sprintf ((str) + strlen (str), __VA_ARGS__)
 
 const layout_t
 layout[LOG_X_sentinel] =
@@ -496,34 +498,34 @@ sys_log_dump (int what)
         const uint8_t m_all = m_sign | m_inf | m_nan | m_zero | m_plusx;
 
         sprintf (txt, "{ flags = ");
-        sprintf (txt, flags <= 1 ? "%s%d [%s" : "%s0x%02x [%s", txt, flags,
-                 flags & m_sign ? "-" : "+");
-        if (flags & m_inf)   sprintf (txt, "%s,Inf", txt);
-        if (flags & m_nan)   sprintf (txt, "%s,NaN", txt);
-        if (flags & m_zero)  sprintf (txt, "%s,Zero", txt);
-        if (flags & m_plusx) sprintf (txt, "%s,PlusX", txt);
-        if (flags & ~m_all)  sprintf (txt, "%s,???", txt);
+        str_append (txt, flags <= 1 ? "%d" : "0x%02x", flags);
+        str_append (txt, " [%c", (flags & m_sign) ? '-' : '+');
+        if (flags & m_inf)   str_append (txt, ",Inf");
+        if (flags & m_nan)   str_append (txt, ",NaN");
+        if (flags & m_zero)  str_append (txt, ",Zero");
+        if (flags & m_plusx) str_append (txt, ",PlusX");
+        if (flags & ~m_all)  str_append (txt, ",???");
 
         uint64_t mant = 0;
-        sprintf (txt, "%s], mant = { 0x", txt);
+        str_append (txt, "], mant = { 0x");
         for (int i = n_mant - 1; i >= 0; --i)
           {
             uint8_t b = get_mem_byte (addr + 1 + i);
-            sprintf (txt, "%s%02x ", txt, b);
+            str_append (txt, "%02x ", b);
             mant = (mant << 8) | b;
           }
         // mant_bits = 56 = 1 + IEEE_mant_bits + 3
         const uint8_t msb = mant >> (8 * n_mant - 1);
-        // Make mant such that is has 13 + 1 nibbles at the low end.
+        // Make mant such that it has 13 + 1 nibbles at the low end.
         mant <<= 1;
         const uint8_t lsn = mant & 0xf;
-        // Make mant such that is has 13 nibbles at the low end.
+        // Make mant such that it has 13 nibbles at the low end.
         mant >>= 4;
         // mant = 0x1.[IEEE_mant_bits] | 3 extra f7 bits
         mant &= (UINT64_C(1) << 52) - 1;
-        sprintf (txt, "%s} = 0x%u.%013" PRIx64 "|%u, expo = %d }", txt,
-                 msb, mant, lsn,
-                 get_mem_value (addr + 1 + n_mant, & layout[LOG_S16_CMD]));
+        str_append (txt, "} = 0x%u.%013" PRIx64 "|%u, expo = %d }",
+                    msb, mant, lsn,
+                    get_mem_value (addr + 1 + n_mant, & layout[LOG_S16_CMD]));
         printf (fmt, txt);
       }
       break;
