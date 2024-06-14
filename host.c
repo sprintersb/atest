@@ -535,6 +535,22 @@ sys_log_dump (int what)
 
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof(*X))
 
+static int
+is_special_ulp (const avr_float_t *x, const avr_float_t *y)
+{
+  if (x->fclass == FT_NAN && y->fclass == FT_NAN)
+    return 0;
+  else if (x->fclass == FT_INF && y->fclass == FT_INF
+           && x->sign_bit == y->sign_bit)
+    return 0;
+  else if (x->fclass >= FT_INF || y->fclass >= FT_INF)
+    return 12345;
+
+  if (x->mant1 == 0 && y->mant1 == 0)
+    return 0;
+
+  return -1;
+}
 
 // Emulating IEEE single functions.
 
@@ -580,6 +596,32 @@ set_reg_float (int regno, float f)
 {
   memcpy (cpu_address (regno, AR_REG), &f, sizeof (float));
 }
+
+static avr_float_t
+get_reg_avr_float (int regno)
+{
+  uint32_t rval;
+  memcpy (&rval, cpu_address (regno, AR_REG), sizeof (rval));
+  return decode_avr_float ((unsigned) rval);
+}
+
+/* Error of X in units of ULPs (unit in the last place / unit of least
+   precision).  Y is the reference / assumed correct value.  */
+
+static float
+get_fulp (const avr_float_t *x, const avr_float_t *y)
+{
+  int iulp = is_special_ulp (x, y);
+  if (iulp >= 0)
+    return iulp;
+  float hx = ldexpf (x->mant1, x->exp);
+  float hy = ldexpf (y->mant1, y->exp);
+  float ulp = ldexpf (1, y->exp);
+
+  float z = (hx - hy) / ulp;
+  return fabsf (z);
+}
+
 
 typedef struct
 {
@@ -628,6 +670,13 @@ emul_float2 (uint8_t fid)
     case AVRTEST_div: name = "div"; z = x / y; break;
     case AVRTEST_add: name = "add"; z = x + y; break;
     case AVRTEST_sub: name = "sub"; z = x - y; break;
+    case AVRTEST_ulp: name = "ulp";
+      {
+        avr_float_t ax = get_reg_avr_float (22);
+        avr_float_t ay = get_reg_avr_float (18);
+        z = get_fulp (& ax, & ay);
+        break;
+      }
     default:
       fid -= AVRTEST_EMUL_2args;
       if (fid >= ARRAY_SIZE (func2f) || ! func2f[fid].fun)
@@ -722,6 +771,32 @@ set_reg_double (int regno, host_double_t d)
   memcpy (cpu_address (regno, AR_REG), &d, sizeof (host_double_t));
 }
 
+static avr_float_t
+get_reg_avr_double (int regno)
+{
+  uint64_t rval;
+  memcpy (&rval, cpu_address (regno, AR_REG), sizeof (rval));
+  return decode_avr_double (rval);
+}
+
+/* Error of X in units of ULPs (unit in the last place / unit of least
+   precision).  Y is the reference / assumed correct value.  */
+
+static host_double_t
+get_dulp (const avr_float_t *x, const avr_float_t *y)
+{
+  int iulp = is_special_ulp (x, y);
+  if (iulp >= 0)
+    return iulp;
+  host_double_t hx = ldexp (x->mant1, x->exp);
+  host_double_t hy = ldexp (y->mant1, y->exp);
+  host_double_t ulp = ldexp (1, y->exp);
+
+  host_double_t z = (hx - hy) / ulp;
+  return fabs (z);
+}
+
+
 typedef struct
 {
   host_double_t (*fun) (host_double_t);
@@ -777,6 +852,13 @@ emul_double2 (uint8_t fid)
     case AVRTEST_div: name = "div"; z = x / y; break;
     case AVRTEST_add: name = "add"; z = x + y; break;
     case AVRTEST_sub: name = "sub"; z = x - y; break;
+    case AVRTEST_ulp: name = "ulp";
+      {
+        avr_float_t ax = get_reg_avr_double (18);
+        avr_float_t ay = get_reg_avr_double (10);
+        z = get_dulp (& ax, & ay);
+        break;
+      }
     default:
       fid -= AVRTEST_EMUL_2args;
       if (fid >= ARRAY_SIZE (func2l) || ! func2l[fid].fun)
@@ -795,7 +877,7 @@ emul_double2 (uint8_t fid)
 void sys_emul_double (uint8_t fid)
 {
   if (fid >= AVRTEST_EMUL_sentinel)
-    leave (LEAVE_USAGE, "unknown emulate function %u\n", fid);
+    leave (LEAVE_USAGE, "unknown IEEE double emulate function %u\n", fid);
 
   if (fid >= AVRTEST_EMUL_2args)
     {

@@ -76,6 +76,7 @@ enum
     AVRTEST_atan2, AVRTEST_hypot,
     AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
     AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
+    AVRTEST_ulp,
     AVRTEST_EMUL_sentinel
   };
 
@@ -544,6 +545,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
+AVRTEST_DEFF(ulp)
 #undef AVRTEST_DEFF
 
 
@@ -577,6 +579,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
+AVRTEST_DEFF(ulp)
 #undef AVRTEST_DEFF
 #endif /* Have uint64_t */
 
@@ -608,6 +611,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(fabs)
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
+AVRTEST_DEFF(ulp)
 #undef AVRTEST_DEFF
 #else /* long double = 4 */
 #define avrtest_sinl   avrtest_sinf
@@ -643,6 +647,7 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 #define avrtest_divl   avrtest_divf
 #define avrtest_addl   avrtest_addf
 #define avrtest_subl   avrtest_subf
+#define avrtest_ulpl   avrtest_ulpf
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 

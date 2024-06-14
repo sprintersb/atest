@@ -934,7 +934,7 @@ Supported functions with one float argument are:
     exp, log, log2, sqrt, cbrt, trunc, ceil, floor, round, fabs.
 
 Supported functions with two float arguments are:
-    mul, div, add, sub,
+    mul, div, add, sub, ulp,
     pow, atan2, hypot, fmin, fmax, fmod.
 
 > :warning:
