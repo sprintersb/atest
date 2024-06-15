@@ -219,9 +219,14 @@ Makefile like ATmega16, you can just run
 
     make exit-atmega16.o
 
-Notice that an exit module is not structly required in a program that's
+Notice that an exit module is not strictly required in a program that's
 simulated with avrtest.  But it defines streams like stdout so that
-functions like printf behave like in a hosted environment.
+functions like  printf  behave like in a hosted environment without
+any further ado.  Moreover, the exit module implements  exit()  in such
+a way that it reports the program's exit code to the host, whereas
+without the module, the simulator will just print
+"infinite loop detected (normal exit)" as it hits the  rjmp .-2  in
+the stock exit implementation
 
 
 ================
@@ -444,7 +449,7 @@ thereafter and sets argc = 0, argv = NULL and env as described above.
 -no-log and Logging Control
 ===========================
 
-* This feature is only supported by the avrtest_log family.
+* Instruction logging is only supported by the avrtest_log family.
 
 avrtest_log will log address and action of each executed instruction to
 standard output of the host.  In cases where that is too much a flood of
@@ -940,8 +945,7 @@ avrtest supports syscalls like
     long double avrtest_mull (long double, long double);
     long double avrtest_sinl (long double);
 
-in order to help with IEEE double implementation.  These functions are
-only available if long double is a 64-bit type.  There are syscalls like
+Plus, there are syscalls like
 
     uint64_t avrtest_mul_d64 (uint64_t, uint64_t);
     uint64_t double avrtest_sin_d64 (uint64_t);

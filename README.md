@@ -250,9 +250,14 @@ Makefile like ATmega16, you can just run
 
     make exit-atmega16.o
 
-Notice that an exit module is not structly required in a program that's
+Notice that an exit module is not strictly required in a program that's
 simulated with avrtest.  But it defines streams like stdout so that
-functions like `printf` behave like in a hosted environment.
+functions like `printf` behave like in a hosted environment without
+any further ado.  Moreover, the exit module implements `exit()` in such
+a way that it reports the program's exit code to the host, whereas
+without the module, the simulator will just print
+*"infinite loop detected (normal exit)"* as it hits the `rjmp .-2` in
+the stock exit implementation
 
 
 `-h`: Getting Help
@@ -321,7 +326,7 @@ print its contents with `-v`.
 In the following situations, `-s SIZE` can be used to specify the flash size:
 
 * The program does not use startup-code from AVR-LibC.  In that case,
-  you can specify, say `-s 8192` or `-s 0x2000`  or ´-s 8k` for ATmega8.
+  you can specify, say `-s 8192` or `-s 0x2000`  or `-s 8k` for ATmega8.
 
 * You want to use a flash size other than shipped with `crt<mcu>.o`.
 
@@ -465,13 +470,13 @@ thereafter and sets `argc=0`, `argv=NULL` and `env` as described above.
 
 
 `-no-log` and Logging Control
-============================
+=============================
 
-> :warning: This feature is only supported by the avrtest_log family.
+> :warning: Instruction logging is only supported by the avrtest_log family.
 
 avrtest_log will log address and action of each executed instruction to
 standard output of the host.  In cases where that is too much a flood of
-information, you can start avrtest_log with -no-log and turn on instruction
+information, you can start avrtest_log with `-no-log` and turn on instruction
 logging by executing special commands defined in `avrtest.h`:
 
 ```cpp
@@ -504,10 +509,12 @@ the compiler to machine instructions that might affect code generation
 for the surrounding code (register allocation, jump offsets, ...).
 The commands have low overhead; it's not more than an avrtest syscall.
 
-LOG_ON, LOG_OFF, LOG_PUSH_ON, LOG_PUSH_OFF and LOG_POP are also supplied
+`LOG_ON`, `LOG_OFF`, `LOG_PUSH_ON`, `LOG_PUSH_OFF` and `LOG_POP`
+are also supplied
 as macros that can be used from assembly code.  They have no effect
 on the internal state of the program (except for the program counter:
 the respective syscalls consume 4 bytes of code).
+
 
 Logging Values to the Host Computer
 ====================================
@@ -966,7 +973,7 @@ avrtest supports syscalls like
     long double avrtest_mull (long double, long double);
     long double avrtest_sinl (long double);
 
-There are syscalls like
+Plus, there are syscalls like
 
     uint64_t avrtest_mul_d64 (uint64_t, uint64_t);
     uint64_t double avrtest_sin_d64 (uint64_t);
@@ -995,6 +1002,7 @@ long double compute_sqrtl (long double)
     return y;
 }
 ```
+
 
 Assembler Support in `avrtest.h`
 ===============================
