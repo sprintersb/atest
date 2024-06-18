@@ -1794,7 +1794,7 @@ static void sys_misc (uint8_t what)
     case AVRTEST_MISC_flmap:
       // Devices like AVR128* and AVR64* see a 32k portion of their flash
       // memory in the RAM address space.  Which 32k segment is visible can
-      // be chosen by NVMCTRL_CTRLB.FLMAP.  The target code passes down FLAMP.
+      // be chosen by NVMCTRL_CTRLB.FLMAP.  The target code passes down FLMAP.
       // FIXME: The appropriate way to do this would be to return to magic
       // port addresses, but limited FLMAP support should be fine for now.
       {
