@@ -15,7 +15,7 @@ Introduction
 ============
 
 avrtest is an instruction set simulator for AVR core families
-    avr51: ATmega128*, AT90usb128*, ATtiny2313, ... with a 2-byte PC.
+    avr51: ATmega128*, AT90USB128*, ATtiny2313, ... with a 2-byte PC.
     avr6:  ATmega256* with a 3-byte PC.
 
 avrtest-xmega is an instruction set simulator for AVR XMEGA core families
@@ -318,8 +318,8 @@ The following exit stati will be returned with -q:
 
   -  0  Everything went fine.
   -  1  Target program called abort()
-  -  x  Target program called exit (x)
-  - 10  Program timeout as set by -m MAXCOUNT.
+  -  x  Target program called exit(x)
+  - 10  Program timeout as set by -m MAXCOUNT
   - 11  Something is wrong with the program file:  Does not fit into
         memory, not an AVR executable, ELF headers broken, ...
   - 12  The program goes haywire:  Stack overflow, illegal instruction or PC.

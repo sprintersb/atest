@@ -47,7 +47,7 @@ Introduction
 ============
 
 **avrtest** is an instruction set simulator for AVR core families<br>
-`avr51`: ATmega128*, AT90usb128*, ATtiny2313, ... with a 2-byte PC<br>
+`avr51`: ATmega128*, AT90USB128*, ATtiny2313, ... with a 2-byte PC<br>
 `avr6`: ATmega256* with a 3-byte PC
 
 **avrtest-xmega** is an instruction set simulator for AVR XMEGA core families<br>
@@ -155,10 +155,9 @@ When running the program with
     avrtest inout.elf
 
 the simulator will print a `Q` on the console and wait for input.
+Type `1<Enter>` and the output will be
+
 ```
-Type '1<Enter>' and the output will be
-
-
 Q1
 2
  exit status: EXIT
@@ -257,7 +256,7 @@ any further ado.  Moreover, the exit module implements `exit()` in such
 a way that it reports the program's exit code to the host, whereas
 without the module, the simulator will just print
 *"infinite loop detected (normal exit)"* as it hits the `rjmp .-2` in
-the stock exit implementation
+the stock `exit` implementation
 
 
 `-h`: Getting Help
@@ -348,8 +347,8 @@ The following exit stati will be returned with `-q`:
 
   -  0 – Everything went fine.
   -  1 – Target program called `abort()`
-  - `x` – Target program called `exit (x)`
-  - 10 – Program timeout as set by `-m MAXCOUNT`.
+  - `x` – Target program called `exit(x)`
+  - 10 – Program timeout as set by `-m MAXCOUNT`
   - 11 – Something is wrong with the program file:  Does not fit into
         memory, not an AVR executable, ELF headers broken, ...
   - 12 – The program goes haywire:  Stack overflow, illegal instruction or PC.
@@ -498,7 +497,7 @@ LOG_POP;
 // it off again.
 LOG_SET (N);
 
-// Turn on logging during performane measurement described below,
+// Turn on logging during performance measurement described below,
 // i.e. if any timer is in a START / STOP round.
 LOG_PERF;
 ```
