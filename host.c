@@ -1,6 +1,6 @@
 /*
   This file is part of AVRtest -- A simple simulator for the
-  Atmel AVR family of microcontrollers designed to test the compiler.
+  AVR family of 8-bit microcontrollers designed to test the compiler.
 
   Copyright (C) 2019-2024 Free Software Foundation, Inc.
 
