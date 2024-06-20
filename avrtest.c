@@ -1,23 +1,23 @@
 /*
-  This file is part of avrtest -- A simple simulator for the
+  This file is part of AVRtest -- A simple simulator for the
   Atmel AVR family of microcontrollers designed to test the compiler.
 
   Copyright (C) 2001, 2002, 2003   Theodore A. Roth, Klaus Rudolph
   Copyright (C) 2007 Paulo Marques
   Copyright (C) 2008-2024 Free Software Foundation, Inc.
 
-  avrtest is free software; you can redistribute it and/or modify
+  AVRtest is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
 
-  avrtest is distributed in the hope that it will be useful,
+  AVRtest is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with avrtest; see the file COPYING.  If not, write to
+  along with AVRtest; see the file COPYING.  If not, write to
   the Free Software Foundation, 59 Temple Place - Suite 330,
   Boston, MA 02111-1307, USA.  */
 
@@ -153,7 +153,7 @@ typedef struct
   const char *text;
   // Specify kind of failure (not from target program) error
   const char *kind;
-  // Whether we exit because of avrtest or usage problems rather than
+  // Whether we exit because of AVRtest or usage problems rather than
   // problems in the target program
   int failure;
   // Exit value with -q quiet operation, cf. README
@@ -258,7 +258,7 @@ leave (int n, const char *reason, ...)
 
 // ---------------------------------------------------------------------------
 
-// vars used with -runtime to measure avrtest performance
+// vars used with -runtime to measure AVRtest performance
 
 static struct timeval t_start, t_decode, t_execute, t_load;
 
@@ -1666,7 +1666,7 @@ static OP_FUNC_TYPE func_FMULSU (int rd, int rr)
 
 
 /* Supply logging facility for modules other than logging.c that are
-   present in avrtest.  This way, the module does not depend on macro
+   present in AVRtest.  This way, the module does not depend on macro
    AVRTEST_LOG.  This approach should only be used if loss of speed
    of execution if logging is *not* available is *no* issue, e.g. when
    used by a syscall.
@@ -1832,7 +1832,7 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
 }
 
 
-/* avrtest uses a concept called "syscall" to let the program interact with
+/* AVRtest uses a concept called "syscall" to let the program interact with
    the simulator.  The assumption is that the instruction sequence
 
        CPSE N, N
@@ -1876,12 +1876,12 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
 
    The simulator accounts no cycles to executing SYSCALL pseudo instructions.
 
-   The former approach of avrtest to interact with the simulated program were
+   The former approach of AVRtest to interact with the simulated program were
    special memory locations called "magic ports".  Writing to or reading from
    such a location triggered specific actions.  The drawback of that approach
-   is that for each memory access which avrtest is simulating, it must test
+   is that for each memory access which AVRtest is simulating, it must test
    whether such a special location is being accessed.  These tests are no more
-   needed with the syscall approach and make avrtest run faster.  */
+   needed with the syscall approach and make AVRtest run faster.  */
 
 // 0001 00rd dddd rrrr 1111 1111 1111 1111 | CPSE r,r $ 0xffff | syscall r
 static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
@@ -1894,13 +1894,13 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
       log_append ("not implemented ");
       return;
 
-    // Formerly only supported by avrtest_log, but avrtest can support
+    // Formerly only supported by avrtest_log, but AVRtest can support
     // them without any penalty.  Implemented in host.c.
     case 4: sys_ticks_cmd (get_word_reg_raw (24)); break; // Cycles, rand ...
     case 7: sys_log_dump (get_word_reg_raw (24)); break;  // Log values
     case 8: sys_log_dump (get_word_reg_raw (26)); break;  // Log 64-bit values
 
-    // Supported by all avrtest flavours and implemented...
+    // Supported by all AVRtest flavours and implemented...
     // ...in host.c
     case 22: sys_emul_float  (cpu_reg[26]); break;
     case 23: sys_emul_double (cpu_reg[26]); break;
