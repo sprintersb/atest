@@ -126,6 +126,14 @@ extern bool have_syscall[32];
 #define FASTCALL /* empty */
 #endif
 
+#if defined (__MINGW_PRINTF_FORMAT)
+#define ATTR_PRINTF(N1, N2)                                     \
+  __attribute__((__format__(__MINGW_PRINTF_FORMAT,N1,N2)))
+#else
+#define ATTR_PRINTF(N1, N2)                                     \
+  __attribute__((__format__(printf,N1,N2)))
+#endif
+
 enum
   {
     LEAVE_EXIT,
@@ -157,9 +165,9 @@ enum
     IL_TODO
   };
 
-__attribute__((__format__(printf,2,3)))
+ATTR_PRINTF(2,3)
 extern void NOINLINE NORETURN leave (int status, const char *reason, ...);
-__attribute__((__format__(printf,1,2)))
+ATTR_PRINTF(1,2)
 extern void qprintf (const char *fmt, ...);
 extern byte* cpu_address (int, int);
 extern void* get_mem (unsigned, size_t, const char*);
@@ -215,7 +223,7 @@ extern void log_va (const char*, va_list);
 extern unsigned old_PC, old_old_PC;
 extern bool log_unused;
 extern void log_init (unsigned);
-__attribute__((__format__(printf,1,2)))
+ATTR_PRINTF(1,2)
 extern void log_append (const char *fmt, ...);
 extern void log_append_va (const char *fmt, va_list);
 extern void log_add_instr (const decoded_t *op);

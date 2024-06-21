@@ -36,7 +36,7 @@
 #define LEN_LOG_STRING      500
 #define LEN_LOG_XFMT        500
 
-__attribute__((__format__(printf,1,2)))
+ATTR_PRINTF(1,2)
 static void log_add_ (const char *fmt, ...)
 {
   va_list args;
