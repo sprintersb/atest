@@ -1,0 +1,46 @@
+# Directory where to find the avrtest executable and the exit-*.o modules.
+# "avrtest_dir" can be specified in .dejagnurc or be overriden below.
+
+# set avrtest_dir "/home/pmarques"
+
+# Used as -mmcu when compiling a C source with avr-gcc and to find the
+# right exit*.o module.  If you need a specific exit-${mmcu}.o module,
+# then run:
+#
+# > cd ${avrtest_dir}
+# > make exit-${mmcu}.o
+
+set mmcu "atxmega128a1"
+
+# MCU for avrtest.
+# One of: "avr51", "avr6", "avrxmega6", "avrxmega3", "avrtiny".
+
+set avrtest_mmcu "avrxmega7"
+
+# Extra options to pass to avrtest.
+
+set avrtest_opts ""
+
+# "avrlibc_include_dir" will be used as search path for include
+# files from AVR-LibC where stdio.h etc. is located.  You can set
+# it in .dejagnurc or override it below.  It needs not to be in the
+# install path of the toolchain under test, but should be "reasonably close"
+# to the upcoming installation.  This is only needed if the install path
+# doesn't already contain AVR-LibC headers.
+
+# set avrlibc_include_dir "/avrgcc_install/avr/include"
+
+# Extra CFLAGS to add to all compilations.  Notice that you can also
+# use --tool_opts in RUNTESTFLAGS to accomplish this:
+# > make -k check-gcc RUNTESTFLAGS="--target_board=... --tool_opts='...' ..."
+
+# set extra_cflags ""
+
+# Extra LDFLAGS to add to all compilations.  This serves to arrange
+# the memory layout and sizes so as to reduce the numbber of test
+# that are FAILing due to small memory.  The simulator has plenty
+# of memory, and there is no need to stick to AVR harware limitations.
+
+set extra_ldflags " -Tdata=0x802000 -Wl,--defsym,__DATA_REGION_ORIGIN__=0x802000 -Wl,--defsym,__DATA_REGION_LENGTH__=0xe000 -Wl,--defsym,__stack=0x1fff -Wl,--defsym,__heap_end=0x80ffff"
+
+load_generic_config "avrtest"
