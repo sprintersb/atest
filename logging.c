@@ -242,7 +242,7 @@ log_set_func_symbol (int addr, size_t stoff, bool is_func)
   // like "L0^A".  According to Binutils documentation "Local Labels" at
   // https://sourceware.org/binutils/docs-2.40/as/Symbol-Names.html
   // such a label would result from "L0$".  Ignore them.
-  bool nonprint = name[0] && name[1] && name[2] < 0x20;
+  bool nonprint = name[0] && name[1] && name[2] && name[2] < 0x20;
 
   if (addr % 2 != 0
       // Something weird, maybe orphan etc.
