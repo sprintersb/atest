@@ -53,7 +53,7 @@ static const char USAGE[] =
   "                for ATmega8, SIZE would be 8K or 8192 or 0x2000.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
   "                requested.  Pass exit status from the program.\n"
-  "  -v            Verbose mode.  Print the loaded ELF program headers."
+  "  -v            Verbose mode.  Print the loaded ELF program headers.\n"
   "  -runtime      Print avrtest execution time.\n"
   "  -no-log       Disable logging in avrtest_log.  Useful when capturing\n"
   "                performance data.  Logging can still be controlled by\n"
