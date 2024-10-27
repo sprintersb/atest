@@ -1960,6 +1960,9 @@ do_step (void)
 static INLINE void
 execute (void)
 {
+  for (int i = 0; i < 32; ++i)
+    cpu_reg[i] = 0xcc;
+
   ram_valid_mask = (is_xmega && arch.has_rampd) ? 0xffffff : 0xffff;
 
   uint64_t max_insns = program.max_insns;
