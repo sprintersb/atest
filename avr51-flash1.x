@@ -167,8 +167,13 @@ SECTIONS
 
     *(.progmemx.*)
 
-    . = 0x10000; 
+    . = MAX (ABSOLUTE(0x10000), ABSOLUTE(.));
+    __progmem1_start = .;
     *(.progmem1.*)
+    __progmem1_end = .;
+    ASSERT (__progmem1_start == __progmem1_end || __progmem1_end <= ABSOLUTE(0x20000),
+            ".progmem1.data exceeds 0x1ffff");
+
   }  > text
   .data	  : AT (ADDR (.text) + SIZEOF (.text))
   {
