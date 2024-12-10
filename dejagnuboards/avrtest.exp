@@ -28,7 +28,7 @@ proc sim_load {dest prog args} {
 
     set avrtest_exe "${avrtest_dir}/avrtest${xmega}"
     set avrtest_options "-mmcu=${avrtest_mmcu} -no-stdin -no-stderr \
-		${avrtest_opts} -m 200000000"
+		${avrtest_opts} -m 200000000 -e 0"
 
 #warning "${avrtest_exe} ${avrtest_options} $prog"
 
@@ -39,6 +39,8 @@ proc sim_load {dest prog args} {
     #     For now, just ignore writes to stderr.  Alternative is to
     #     [exec avrtest ... 2>@1] but then all stderr babbling would end up
     #     in `result`.
+    # -e 0: Set the entry point to address 0x0.  Otherwise, test cases with
+    #     the symbol `start' may inadvertently start at the wrong address.
     # {*} is required to expand ${avrtest_options} so that it's not perceived
     #     as a single option.
     set result [exec ${avrtest_exe} {*}${avrtest_options} $prog]
