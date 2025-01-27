@@ -179,7 +179,7 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
 * Get avr-gcc, Binutils and AVR-LibC built from sources and working.
   For build instructions, see for example the
-  [AVR-LibC documentation](https://avrdudes.github.io/avr-libc/avr-libc-user-manual-2.2.0/install_tools.html).
+  [AVR-LibC documentation](https://avrdudes.github.io/avr-libc/avr-libc-user-manual/install_tools.html).
 
 * Install [DejaGNU](https://www.gnu.org/software/dejagnu/),
   [expect](https://core.tcl-lang.org/expect/index) and TCL
