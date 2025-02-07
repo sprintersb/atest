@@ -106,7 +106,8 @@ Store the C source as `hello.c` and compile it with, e.g.
     avr-gcc hello.c -O -mmcu=atmega128 -o hello.elf /someplace/avrtest/exit-atmega128.o
 
 The `exit-*.o` object implements stdout as a stream writing through to the
-host computer's stdout, similar for stderr.  Running the program
+host computer's stdout, similar for stderr.  Similarly, stdin reads from
+the host stdin.  Running the program
 
     avrtest hello.elf
 

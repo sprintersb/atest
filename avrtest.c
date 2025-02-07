@@ -1722,6 +1722,9 @@ static void sys_argc_argv (void)
     }
 }
 
+// Defined in stdio.h
+#define AVR_EOF (-1)
+
 static void sys_stdin (void)
 {
   if (options.do_stdin)
@@ -1732,7 +1735,10 @@ static void sys_stdin (void)
       put_word_reg (24, getchar());
     }
   else
+  {
     log_append ("-no-stdin");
+    put_word_reg (24, AVR_EOF);
+  }
 }
 
 static void sys_stdout (void)

@@ -3,6 +3,9 @@
                           avrtest NEWS
                           ============
 
+* exit.o now sets stdin as a stream reading via                  2025-02-08
+  avrtest_getchar().
+
 * avrtest.h now works with -mint8.                               2024-06-12
   Notice that an -mint8 programm must be terminated with
   some abort flavour or with avrtest_exit.  Returning from
