@@ -97,11 +97,13 @@ table_add (uint8_t x)
 static uint8_t
 update_zns_flags (int result, uint8_t sreg)
 {
+  const bool flag_N = result & 0x80;
+  const bool flag_V = sreg & FLAG_V;
   if ((result & 0xFF) == 0x00)
     sreg |= FLAG_Z;
-  if (result & 0x80)
+  if (flag_N)
     sreg |= FLAG_N;
-  if (((sreg & FLAG_N) != 0) != ((sreg & FLAG_V) != 0))
+  if (flag_N ^ flag_V)
     sreg |= FLAG_S;
   return sreg;
 }
@@ -120,14 +122,17 @@ gen_flag_update_tables (void)
     printf ("// Included by  : avrtest.c\n");
 
   tb = what == TABLE_C ? TB_GLOBAL : TB_EXTERN;
-  // build flag update table for 8 bit addition
+
+  // Build flag update table for 8 bit addition.
   table_start ("flag_update_table_add8", 8192);
   for (int i = 0; i < 8192; i++)
     {
-      int result = i & FUT_ADD8_RES;
+      const int result = i & FUT_ADD8_RES;
+      const bool Rd7 = i & FUT_ADD8_V1_80;
+      const bool Rr7 = i & FUT_ADD8_V2_80;
+      const bool R7 = result & 0x80;
       uint8_t sreg = 0;
-      if ((!(i & FUT_ADD8_V1_80) == !(i & FUT_ADD8_V2_80))
-          && (!(result & 0x80) != !(i & FUT_ADD8_V1_80)))
+      if ((Rd7 & Rr7 & !R7) | (!Rd7 & !Rr7 & R7))
         sreg |= FLAG_V;
       if (result & 0x100)
         sreg |= FLAG_C;
@@ -141,14 +146,16 @@ gen_flag_update_tables (void)
     }
   table_end ();
 
-  // build flag update table for 8 bit subtraction
+  // Build flag update table for 8 bit subtraction.
   table_start ("flag_update_table_sub8", 8192);
   for (int i = 0; i < 8192; i++)
     {
-      int result = i & FUT_SUB8_RES;
+      const int result = i & FUT_SUB8_RES;
+      const bool Rd7 = i & FUT_ADD8_V1_80;
+      const bool Rr7 = i & FUT_ADD8_V2_80;
+      const bool R7 = result & 0x80;
       uint8_t sreg = 0;
-      if ((!(result & 0x80) == !(i & FUT_SUB8_V2_80))
-          && (!(i & FUT_SUB8_V1_80) != !(i & FUT_SUB8_V2_80)))
+      if ((Rd7 & !Rr7 & !R7) | (!Rd7 & Rr7 & R7))
         sreg |= FLAG_V;
       if (result & 0x100)
         sreg |= FLAG_C;
@@ -162,22 +169,24 @@ gen_flag_update_tables (void)
     }
   table_end ();
 
-  // build flag update table for 8 bit rotation
+  // Build flag update table for 8-bit rotation.
   table_start ("flag_update_table_ror8", 512);
   for (int i = 0; i < 512; i++)
     {
-      int result = i >> 1;
+      const int result = i >> 1;
+      const bool flag_C = i & 0x01;
+      const bool flag_N = result & 0x80;
       uint8_t sreg = 0;
-      if (i & 0x01)
+      if (flag_C)
         sreg |= FLAG_C;
-      if (((result & 0x80) != 0) != ((sreg & FLAG_C) != 0))
+      if (flag_N ^ flag_C)
         sreg |= FLAG_V;
       sreg = update_zns_flags (result, sreg);
       table_add (sreg);
     }
   table_end ();
 
-  // build flag update table for increment
+  // Build flag update table for increment.
   table_start ("flag_update_table_inc", 256);
   for (int i = 0; i < 256; i++)
     {
@@ -187,7 +196,7 @@ gen_flag_update_tables (void)
     }
   table_end ();
 
-  // build flag update table for decrement
+  // Build flag update table for decrement.
   table_start ("flag_update_table_dec", 256);
   for (int i = 0; i < 256; i++)
     {
@@ -197,7 +206,7 @@ gen_flag_update_tables (void)
     }
   table_end ();
 
-  // Implement the following table in flag-tanles.h so that
+  // Implement the following table in flag-tables.h so that
   // GCC can look up values at compile time (CLR).
   tb = what == TABLE_C ? TB_NOTHING : TB_STATIC;
   // build flag update table for logical operations
