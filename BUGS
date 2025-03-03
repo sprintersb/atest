@@ -1,3 +1,8 @@
+* The 8-bit subtractions SUB and SUBI had a wrong calculation
+of the H flag.
+
+  Affected versions: All up to 2025-03-03
+
 * The avr51-flash1.x linker script missed the .progmemx.* sections.
 The script is used in some address-space tests in the avr-gcc
 test suite.  With AVR-LibC issue #962, all constant lookup data

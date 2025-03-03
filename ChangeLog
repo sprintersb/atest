@@ -1,3 +1,11 @@
+2025-03-03  Georg-Johann Lay  <avr@gjlay.de>
+
+	Fix wrong H flag computation in SUB and SUBI.
+
+	* gen-flag-tables.c (gen_flag_update_tables): Fix
+	computation of flag_update_table_sub8[].
+	* flag-tables.c: Rebuild.
+
 2024-06-12  Georg-Johann Lay  <avr@gjlay.de>
 
 	Support -mint8 in avrtest.h.

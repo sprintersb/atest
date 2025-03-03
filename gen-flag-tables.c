@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "sreg.h"
@@ -130,9 +131,10 @@ gen_flag_update_tables (void)
         sreg |= FLAG_V;
       if (result & 0x100)
         sreg |= FLAG_C;
-      if (((i & 0x1800) == 0x1800)
-          || ((result & 0x08) == 0
-              && ((i & 0x1800) != 0x0000)))
+      const bool Rd3 = i & FUT_ADD8_V1_08;
+      const bool Rr3 = i & FUT_ADD8_V2_08;
+      const bool R3 = result & 0x08;
+      if ((Rd3 & Rr3) | (Rr3 & !R3) | (!R3 & Rd3))
         sreg |= FLAG_H;
       sreg = update_zns_flags (result, sreg);
       table_add (sreg);
@@ -150,9 +152,10 @@ gen_flag_update_tables (void)
         sreg |= FLAG_V;
       if (result & 0x100)
         sreg |= FLAG_C;
-      if (((i & 0x1800) == 0x1800)
-          || ((result & 0x08) == 0
-              && ((i & 0x1800) != 0x0000)))
+      const bool Rd3 = i & FUT_ADD8_V1_08;
+      const bool Rr3 = i & FUT_ADD8_V2_08;
+      const bool R3 = result & 0x08;
+      if ((!Rd3 & Rr3) | (Rr3 & R3) | (R3 & !Rd3))
         sreg |= FLAG_H;
       sreg = update_zns_flags (result, sreg);
       table_add (sreg);
