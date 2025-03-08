@@ -311,15 +311,17 @@ print_runtime (void)
           d_ms > 0.01 ? n_decoded/d_ms : 0.0, n_decoded, n_decoded);
 
   printf ("     execute: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-          " %6.2f%%,  %10.3f instructions/ms\n",
+          " %6.2f%%,  %10.3f instructions/ms = %.2f MHz\n",
           e_sec/60, e_sec%60, e_us, e_sec, e_us/1000,
           r_ms > 0.01 ? 100.*e_ms/r_ms : 0.0,
-          e_ms > 0.01 ? p->n_insns/e_ms : 0.0);
+          e_ms > 0.01 ? p->n_insns/e_ms : 0.0,
+          e_ms > 1e-5 ? p->n_cycles / (1000 * e_ms) : 0.0);
 
   printf (" avrtest run: %lu:%02lu.%06lu  = %3lu.%03lu sec  ="
-          " %6.2f%%,  %10.3f instructions/ms\n",
+          " %6.2f%%,  %10.3f instructions/ms = %.2f MHz\n",
           r_sec/60, r_sec%60, r_us, r_sec, r_us/1000, 100.,
-          r_ms > 0.01 ? p->n_insns/r_ms : 0.0);
+          r_ms > 0.01 ? p->n_insns/r_ms : 0.0,
+          r_ms > 1e-5 ? p->n_cycles / (1000 * r_ms) : 0.0);
 }
 
 
