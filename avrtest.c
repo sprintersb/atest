@@ -532,11 +532,12 @@ FUT_ADD_SUB_INDEX (unsigned v1, unsigned v2, unsigned res)
      | ((v1 & 0x80) << 3)
      | ((v2 & 0x80) << 2)
      | (res & 0x1FF) */
-  unsigned v = 2 * (v1 & 0x88) + (v2 & 0x88);
+  uint16_t v = 2 * (v1 & 0x88) + (v2 & 0x88);
   // v such that: v & 0x1e00 = v1.3 | v2.3 | v1.7 | v2.7 | 0 || 00000000
   //                             12     11     10      9   8    76543210
   v *= 0x104;
-  return (res & 0x1ff) | (v & 0x1e00);
+  v &= 0x1e00;
+  return (res & 0x1ff) | v;
 }
 
 #define FUT_ADDSUB16_INDEX(v1, res)                             \
