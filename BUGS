@@ -1,5 +1,4 @@
-* The 8-bit subtractions SUB and SUBI had a wrong calculation
-of the H flag.
+* Wrong H flag for instructions SUB, SUBI, SBC, SBCI, CP, CPI, CPC, NEG.
 
   Affected versions: All up to 2025-03-03
 
