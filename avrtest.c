@@ -921,7 +921,11 @@ static OP_FUNC_TYPE func_NOP (int rd, int rr)
 static OP_FUNC_TYPE func_RET (int rd, int rr)
 {
   pop_PC();
+#ifdef ISA_TINY
+  add_program_cycles (2);
+#else
   add_program_cycles (arch.pc_3bytes);
+#endif
 }
 
 /* 1001 0101 0001 1000 | RETI */

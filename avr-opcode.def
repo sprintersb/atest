@@ -108,7 +108,7 @@ AVR_OPCODE (BRBC,        1, 1,    "BR*C"   ) // *
 AVR_OPCODE (BRBS,        1, 1,    "BR*S"   ) // *
 AVR_OPCODE (BSET,        1, 1,    "SE*"    )
 AVR_OPCODE (BST,         1, 1,    "BST.*"  )
-AVR_OPCODE (CALL,        2, 4,    "CALL"   ) // *
+AVR_OPCODE (CALL,        2, 4-CX, "CALL"   ) // *
 AVR_OPCODE (CBI,         1, 2-CX, "CBI.*"  )
 AVR_OPCODE (COM,         1, 1,    "COM"    )
 AVR_OPCODE (CP,          1, 1,    "CP"     )
