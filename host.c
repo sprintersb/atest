@@ -242,14 +242,14 @@ decode_avr_double (uint64_t val)
 }
 
 
-/* Read a value as unsigned from R20.  Bytesize (1..4) and signedness are
+/* Read a value as unsigned from REGNO.  Bytesize (1..4) and signedness are
    determined by respective layout[].  If the value is signed a cast to
    signed will do the conversion.  */
 
 unsigned
-get_r20_value (const layout_t *lay)
+get_reg_value (int regno, const layout_t *lay)
 {
-  byte *p = cpu_address (20, AR_REG);
+  byte *p = cpu_address (regno, AR_REG);
   unsigned val = 0;
 
   if (lay->signed_p && (0x80 & p[lay->size - 1]))
@@ -420,7 +420,7 @@ sys_log_dump (int what)
   static char xfmt[LEN_LOG_XFMT];
   static char string[LEN_LOG_STRING];
   const layout_t *lay = & layout[what];
-  unsigned val = get_r20_value (lay);
+  unsigned val = get_reg_value (20, lay);
   const char *fmt = fmt_once ? xfmt : lay->fmt;
 
   if (fmt_once == 1)
@@ -657,6 +657,27 @@ static const func2f_t func2f[] =
 #undef _
 
 static void
+emul_float_misc (uint8_t fid)
+{
+  switch (fid)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown IEEE single misc function %u\n", fid);
+
+    case AVRTEST_ldexp:
+      {
+        float x = get_reg_float (22);
+        int y = (int16_t) get_reg_value (20, & layout[LOG_S16_CMD]);
+        float z = ldexpf (x, y);
+        const char *name = "ldexp";
+        log_add ("emulate %sf(" PRIF ", %d) = " PRIF "", name, x,x, y, z,z);
+        set_reg_float (22, z);
+        break;
+      }
+    } // switch
+}
+
+static void
 emul_float2 (uint8_t fid)
 {
   float x = get_reg_float (22);
@@ -696,6 +717,13 @@ void sys_emul_float (uint8_t fid)
 {
   if (fid >= AVRTEST_EMUL_sentinel)
     leave (LEAVE_USAGE, "unknown IEEE single emulate function %u\n", fid);
+
+  switch (fid)
+    {
+    case AVRTEST_ldexp:
+      emul_float_misc (fid);
+      return;
+    }
 
   if (fid >= AVRTEST_EMUL_2args)
     {
@@ -873,11 +901,44 @@ emul_double2 (uint8_t fid)
   set_reg_double (18, z);
 }
 
+static void
+emul_double_misc (uint8_t fid)
+{
+  switch (fid)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown IEEE double misc function %u\n", fid);
+
+    case AVRTEST_ldexp:
+      {
+        host_double_t x = get_reg_double (18);
+        int y = (int16_t) get_reg_value (16, & layout[LOG_S16_CMD]);
+        host_double_t z = -1;
+#if defined HOST_DOUBLE
+        z = ldexp (x, y);
+#elif defined HOST_LONG_DOUBLE
+        z = ldexpl (x, y);
+#endif
+        const char *name = "ldexp";
+        log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
+        set_reg_double (18, z);
+        break;
+      }
+    } // switch
+}
+
 // Emulate IEEE double functions like avrtest_sin and avrtest_mul.
 void sys_emul_double (uint8_t fid)
 {
   if (fid >= AVRTEST_EMUL_sentinel)
     leave (LEAVE_USAGE, "unknown IEEE double emulate function %u\n", fid);
+
+  switch (fid)
+    {
+    case AVRTEST_ldexp:
+      emul_double_misc (fid);
+      return;
+    }
 
   if (fid >= AVRTEST_EMUL_2args)
     {

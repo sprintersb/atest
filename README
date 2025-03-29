@@ -919,6 +919,9 @@ Supported functions with two float arguments are:
     mul, div, add, sub, ulp,
     pow, atan2, hypot, fmin, fmax, fmod.
 
+Some more functions are:
+    ldexp.
+
 Don't forget to append 'f' to the function name for the float versions.
 
 AVRtest will terminate with an error if the host IEEE single cannot

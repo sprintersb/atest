@@ -59,7 +59,7 @@ typedef struct
 
 extern const layout_t layout[];
 
-extern unsigned get_r20_value (const layout_t*);
+extern unsigned get_reg_value (int regno, const layout_t*);
 extern char* read_string (char*, unsigned, bool, size_t);
 extern avr_float_t decode_avr_float (unsigned);
 extern avr_float_t decode_avr_double (uint64_t);

@@ -171,7 +171,7 @@ sys_perf_tag_cmd (int x)
   log_append ("PERF%s %d", s, PERF_N (x));
 
   const layout_t *lay = & layout[cmd];
-  unsigned raw = get_r20_value (lay);
+  unsigned raw = get_reg_value (20, lay);
 
   switch (tag_cmd)
     {
@@ -329,7 +329,7 @@ perf_stat (perfs_t *p, int i, int cmd)
     }
 
   double dval;
-  signed sraw = get_r20_value (& layout[LOG_S32_CMD]);
+  signed sraw = get_reg_value (20, & layout[LOG_S32_CMD]);
   unsigned uraw = (unsigned) sraw & 0xffffffff;
   if (PERF_STAT_U32_CMD == cmd)
     dval = (double) uraw;

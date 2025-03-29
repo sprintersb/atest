@@ -944,6 +944,9 @@ Supported functions with two float arguments are:
     mul, div, add, sub, ulp,
     pow, atan2, hypot, fmin, fmax, fmod.
 
+Some more functions are:
+    ldexp.
+
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.
 

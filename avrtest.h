@@ -77,6 +77,7 @@ enum
     AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
     AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
     AVRTEST_ulp,
+    AVRTEST_ldexp,
     AVRTEST_EMUL_sentinel
   };
 
@@ -521,6 +522,7 @@ static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 /* Emulating IEEE single functions */
 AVRTEST_DEF_SYSCALL2_1 (_22, 22, float, 22, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_22_2, 22, float, 22, float, 18, unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_22_2fi, 22, float, 22, int, 20, unsigned char, 26)
 
 #define AVRTEST_DEFF(ID)                          \
   static AT_INLINE float                          \
@@ -548,6 +550,11 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp)
 #undef AVRTEST_DEFF
 
+static AT_INLINE float
+avrtest_ldexpf (float _x, int _y)
+{
+  return avrtest_syscall_22_2fi (_x, _y, AVRTEST_ldexp);
+}
 
 /* Emulating IEEE double functions */
 #ifndef __AVR_TINY__
@@ -555,6 +562,8 @@ AVRTEST_DEFF(ulp)
 AVRTEST_DEF_SYSCALL2_1 (_23_u64, 23, __UINT64_TYPE__, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_23_u64_2, 23, __UINT64_TYPE__, 18,
                         __UINT64_TYPE__, 10, unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_23_u64_2di, 23, __UINT64_TYPE__, 18, int, 16,
+                        unsigned char, 26)
 
 #define AVRTEST_DEFF(ID)                                \
   static AT_INLINE __UINT64_TYPE__                      \
@@ -581,11 +590,20 @@ AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp)
 #undef AVRTEST_DEFF
+
+static AT_INLINE __UINT64_TYPE__
+avrtest_ldexp_d64 (__UINT64_TYPE__ _x, int _y)
+{
+  return avrtest_syscall_23_u64_2di (_x, _y, AVRTEST_ldexp);
+}
+
 #endif /* Have uint64_t */
 
 #if __SIZEOF_LONG_DOUBLE__ == 8
 AVRTEST_DEF_SYSCALL2_1 (_23, 23, long double, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_23_2, 23, long double, 18, long double, 10,
+                        unsigned char, 26)
+AVRTEST_DEF_SYSCALL3_1 (_23_2di, 23, long double, 18, int, 16,
                         unsigned char, 26)
 
 #define AVRTEST_DEFF(ID)                                \
@@ -613,6 +631,13 @@ AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp)
 #undef AVRTEST_DEFF
+
+static AT_INLINE long double
+avrtest_ldexpl (long double _x, int _y)
+{
+  return avrtest_syscall_23_2di (_x, _y, AVRTEST_ldexp);
+}
+
 #else /* long double = 4 */
 #define avrtest_sinl   avrtest_sinf
 #define avrtest_asinl  avrtest_asinf
@@ -648,6 +673,7 @@ AVRTEST_DEFF(ulp)
 #define avrtest_addl   avrtest_addf
 #define avrtest_subl   avrtest_subf
 #define avrtest_ulpl   avrtest_ulpf
+#define avrtest_ldexpl avrtest_ldexpf
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 
