@@ -322,22 +322,11 @@ get_mem_byte (unsigned addr)
   return get_mem_value (addr, & lay_1);
 }
 
-
-typedef struct
-{
-  // Offset set by RESET.
-  uint64_t n_insns;
-  uint64_t n_cycles;
-  // Current value for PRAND mode
-  uint32_t pvalue;
-} ticks_port_t;
-
+ticks_port_t ticks_port;
 
 void
 sys_ticks_cmd (int cfg)
 {
-  static ticks_port_t ticks_port;
-
   // a prime m
   const uint32_t prand_m = 0xfffffffb;
   // phi (m)
@@ -354,6 +343,7 @@ sys_ticks_cmd (int cfg)
       if (cfg & TICKS_RESET_CYCLES_CMD)
         {
           log_add (" cycles");
+          tp->call.state = 0;
           tp->n_cycles = program.n_cycles;
         }
       if (cfg & TICKS_RESET_INSNS_CMD)
@@ -369,14 +359,30 @@ sys_ticks_cmd (int cfg)
       return;
     }
 
+  if (cfg == TICKS_CYCLES_CALL_CMD)
+    {
+      tp->call.state = 1;
+      log_add ("ticks cycles call");
+      return;
+    }
+
   const char *what = "???";
   uint32_t value = 0;
 
   switch (cfg)
     {
     case TICKS_GET_CYCLES_CMD:
-      what = "cycles";
-      value = (uint32_t) (program.n_cycles - tp->n_cycles);
+      if (tp->call.state == 3)
+        {
+          tp->call.state = 0;
+          what = "cycles.call";
+          value = tp->call.n_cycles;
+        }
+      else
+        {
+          what = "cycles";
+          value = (uint32_t) (program.n_cycles - tp->n_cycles);
+        }
       break;
     case TICKS_GET_INSNS_CMD:
       what = "insn";

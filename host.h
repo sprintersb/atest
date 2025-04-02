@@ -63,6 +63,34 @@ extern unsigned get_reg_value (int regno, const layout_t*);
 extern char* read_string (char*, unsigned, bool, size_t);
 extern avr_float_t decode_avr_float (unsigned);
 extern avr_float_t decode_avr_double (uint64_t);
+
+typedef struct
+{
+  // Offset set by RESET.
+  uint64_t n_insns;
+  uint64_t n_cycles;
+  // Current value for PRAND mode
+  uint32_t pvalue;
+
+  struct
+  {
+    // 0: Nothing to do.
+    // 1: Pending next [R]CALL after avrtest_cycles_call().
+    // 2: Pending respective RET.
+    // 3: After RET, pending avrtest_cycles().
+    int state;
+    // Expected location where the associated RET returns to.
+    unsigned pc_ret;
+    // Expected SP after the associated RET.
+    int sp_ret;
+    uint64_t n_cycles_before_call;
+    uint64_t n_cycles_after_ret;
+    uint32_t n_cycles;
+  } call;
+} ticks_port_t;
+
+extern ticks_port_t ticks_port;
+
 extern void sys_ticks_cmd (int);
 extern void sys_log_dump (int);
 extern void sys_emul_double (uint8_t);

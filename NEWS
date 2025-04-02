@@ -3,6 +3,9 @@
                           avrtest NEWS
                           ============
 
+* Support avrtest_cycles_call() for more precise measurement     2025-04-02
+  of cycles consumed by a function call.
+
 * Fixed wrong H flag computation in SUB and SUBI.                2025-03-03
 
 * exit.o now sets stdin as a stream reading via                  2025-02-08

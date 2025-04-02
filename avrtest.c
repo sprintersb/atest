@@ -427,6 +427,14 @@ put_word_reg (int regno, int value)
 // read a word from memory / ioport / register
 
 static INLINE int
+data_read_word_raw (int address)
+{
+  int ret = (data_read_byte_raw (address)
+             | (data_read_byte_raw (address + 1) << 8));
+  return ret;
+}
+
+static INLINE int
 data_read_word (int address)
 {
   int ret = (data_read_byte_raw (address)
@@ -850,6 +858,34 @@ static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
   leave (LEAVE_FATAL, "in func_ILLEGAL");
 }
 
+static INLINE void
+maybe_cycles_call_start (void)
+{
+  if (ticks_port.call.state == 1)
+    {
+      ticks_port.call.state = 2;
+      ticks_port.call.pc_ret = cpu_PC;
+      ticks_port.call.sp_ret = data_read_word_raw (SPL);
+      ticks_port.call.n_cycles_before_call = program.n_cycles;
+      log_append ("*** cycles.call...0x%x *** ", 2 * cpu_PC);
+    }
+}
+
+static INLINE void
+maybe_cycles_call_end (void)
+{
+  if (ticks_port.call.state == 2
+      && cpu_PC == ticks_port.call.pc_ret
+      && ticks_port.call.sp_ret == data_read_word_raw (SPL))
+    {
+      ticks_port.call.state = 3;
+      ticks_port.call.n_cycles_after_ret = program.n_cycles;
+      uint32_t cyc = program.n_cycles - ticks_port.call.n_cycles_before_call;
+      ticks_port.call.n_cycles = cyc;
+      log_append (" *** cycles.call=%u", (unsigned) cyc);
+    }
+}
+
 // ----------------------------------------------------------------------------
 //     opcode execution functions
 
@@ -926,6 +962,8 @@ static OP_FUNC_TYPE func_RET (int rd, int rr)
 #else
   add_program_cycles (arch.pc_3bytes);
 #endif
+
+  maybe_cycles_call_end ();
 }
 
 /* 1001 0101 0001 1000 | RETI */
@@ -1500,6 +1538,8 @@ static OP_FUNC_TYPE func_JMP (int rd, int rr)
 /* 1001 010k kkkk 111k | CALL */
 static OP_FUNC_TYPE func_CALL (int rd, int rr)
 {
+  maybe_cycles_call_start ();
+
   push_PC();
   set_pc (rr | (rd << 16));
   add_program_cycles (arch.pc_3bytes);
@@ -1623,6 +1663,8 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
 /* 1101 kkkk kkkk kkkk | RCALL */
 static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 {
+  maybe_cycles_call_start ();
+
   int delta = (int16_t) rr;
   push_PC();
   add_pc (delta);

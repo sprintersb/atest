@@ -27,10 +27,11 @@ enum
     TICKS_GET_INSNS_CMD,
     TICKS_GET_RAND_CMD,
     TICKS_GET_PRAND_CMD,
+    TICKS_CYCLES_CALL_CMD,
 
-    TICKS_RESET_CYCLES_CMD = 1 << 2,
-    TICKS_RESET_INSNS_CMD  = 1 << 3,
-    TICKS_RESET_PRAND_CMD  = 1 << 4,
+    TICKS_RESET_CYCLES_CMD = 1 << 3,
+    TICKS_RESET_INSNS_CMD  = 1 << 4,
+    TICKS_RESET_PRAND_CMD  = 1 << 5,
     TICKS_RESET_ALL_CMD = TICKS_RESET_CYCLES_CMD
                           | TICKS_RESET_INSNS_CMD
                           | TICKS_RESET_PRAND_CMD
@@ -768,6 +769,12 @@ static AT_INLINE __UINT32_TYPE__
 avrtest_prand (void)
 {
   return avrtest_syscall_4_g (TICKS_GET_PRAND_CMD);
+}
+
+static AT_INLINE void
+avrtest_cycles_call (void)
+{
+  avrtest_syscall_4_r (TICKS_CYCLES_CALL_CMD);
 }
 
 static AT_INLINE void
