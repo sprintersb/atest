@@ -78,14 +78,17 @@ enum
     AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
     AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
     AVRTEST_ulp,
-    AVRTEST_ldexp,
+    AVRTEST_EMUL_misc,
+    AVRTEST_ldexp = AVRTEST_EMUL_misc,
+    AVRTEST_u32to, AVRTEST_s32to,
+    AVRTEST_cmp,
     AVRTEST_EMUL_sentinel
   };
 
 enum
   {
-      AVRTEST_MISC_flmap,
-      AVRTEST_MISC_sentinel
+    AVRTEST_MISC_flmap,
+    AVRTEST_MISC_sentinel
   };
 
 #ifdef IN_AVRTEST
@@ -411,6 +414,35 @@ __extension__ enum
     return r##R0;                                           \
   }
 
+#define AVRTEST_DEF_SYSCALL3_r(S, N, T0, R0, T1, R1, T2, R2)\
+  static AT_INLINE                                          \
+  T0 avrtest_syscall ## S (T1 _v1_, T2 _v2_)                \
+  {                                                         \
+    register T0 res##R0 __asm (#R0);                        \
+    register T1 r##R1 __asm (#R1) = _v1_;                   \
+    register T2 r##R2 __asm (#R2) = _v2_;                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "=r" (res##R0)                    \
+                        : "n" (N), "n" (SYSCo_ ## N),       \
+                          "r" (r##R1), "r" (r##R2));        \
+    return res##R0;                                         \
+  }
+
+#define AVRTEST_DEF_SYSCALL4_r(S, N, T0, R0, T1, R1, T2, R2, T3, R3)    \
+  static AT_INLINE                                                      \
+  T0 avrtest_syscall ## S (T1 _v1_, T2 _v2_, T3 _v3_)                   \
+  {                                                                     \
+    register T0 res##R0 __asm (#R0);                                    \
+    register T1 r##R1 __asm (#R1) = _v1_;                               \
+    register T2 r##R2 __asm (#R2) = _v2_;                               \
+    register T3 r##R3 __asm (#R3) = _v3_;                               \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"                        \
+                        : "=r" (res##R0)                                \
+                        : "n" (N), "n" (SYSCo_ ## N),                   \
+                          "r" (r##R1), "r" (r##R2), "r" (r##R3));       \
+    return res##R0;                                                     \
+  }
+
 
 #define AVRTEST_DEF_SYSCALL2_R20(S, N, T2)                  \
   static AT_INLINE                                          \
@@ -518,6 +550,27 @@ AVRTEST_DEF_SYSCALL2 (_21a, 21, unsigned char, 26, unsigned char, 24)
 static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 {
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
+}
+
+AVRTEST_DEF_SYSCALL3_r (_22_u32to, 22, float, 22,
+                      unsigned char, 26, __UINT32_TYPE__, 22)
+static AT_INLINE float avrtest_utof (__UINT32_TYPE__ _u)
+{
+  return avrtest_syscall_22_u32to (AVRTEST_u32to, _u);
+}
+
+AVRTEST_DEF_SYSCALL3_r (_22_s32to, 22, float, 22,
+                      unsigned char, 26, __INT32_TYPE__, 22)
+static AT_INLINE float avrtest_stof (__INT32_TYPE__ _s)
+{
+  return avrtest_syscall_22_s32to (AVRTEST_s32to, _s);
+}
+
+AVRTEST_DEF_SYSCALL4_r (_22_cmp, 22, __INT8_TYPE__, 24,
+                        unsigned char, 26, float, 22, float, 18)
+static AT_INLINE __INT8_TYPE__ avrtest_cmpf (float _x, float _y)
+{
+  return avrtest_syscall_22_cmp (AVRTEST_cmp, _x, _y);
 }
 
 /* Emulating IEEE single functions */

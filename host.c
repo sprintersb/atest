@@ -680,6 +680,38 @@ emul_float_misc (uint8_t fid)
         set_reg_float (22, z);
         break;
       }
+
+    case AVRTEST_u32to:
+      {
+        uint32_t u32 = (uint32_t) get_reg_value (22, & layout[LOG_U32_CMD]);
+        float z = (float) u32;
+        log_add ("utof(%u=0x%x) = " PRIF, (unsigned) u32, (unsigned) u32, z,z);
+        set_reg_float (22, z);
+        break;
+      }
+
+    case AVRTEST_s32to:
+      {
+        int32_t s32 = (int32_t) get_reg_value (22, & layout[LOG_S32_CMD]);
+        float z = (float) s32;
+        log_add ("stof(%d=0x%x) = " PRIF, (signed) s32, (signed) s32, z,z);
+        set_reg_float (22, z);
+        break;
+      }
+
+    case AVRTEST_cmp:
+      {
+        float x = get_reg_float (22);
+        float y = get_reg_float (18);
+        int8_t z = 0?0
+          : x < y  ? -1
+          : x > y  ? +1
+          : x == y ? 0
+          : -128;
+        log_add ("cmpf(" PRIF ", " PRIF ") = %d", x,x, y,y, (signed) z);
+        * cpu_address (24, AR_REG) = (byte) z;
+        break;
+      }
     } // switch
 }
 
@@ -724,9 +756,8 @@ void sys_emul_float (uint8_t fid)
   if (fid >= AVRTEST_EMUL_sentinel)
     leave (LEAVE_USAGE, "unknown IEEE single emulate function %u\n", fid);
 
-  switch (fid)
+  if (fid >= AVRTEST_EMUL_misc)
     {
-    case AVRTEST_ldexp:
       emul_float_misc (fid);
       return;
     }

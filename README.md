@@ -958,10 +958,15 @@ Supported functions with two float arguments are:
     pow, atan2, hypot, fmin, fmax, fmod.
 
 Some more functions are:
-    ldexp.
+    ldexp, cmp, uto, sto.
 
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.
+
+`avrtest_utof` and `avrtest_stof` convert uint32_t resp. int32_t to float.
+`avrtest_cmpf` compares two floating-point values.  It returns -1, 0, +1
+when the values are less, equal or greater, respectively.
+It returns -128 for unordered comparisons.
 
 AVRtest will terminate with an error when the host IEEE single cannot
 be used for emulation.
