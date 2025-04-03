@@ -959,6 +959,12 @@ float compute_sinf (float x)
     return y;
 }
 
+The following fixed-point to float conversions are supported.
+They require that <stdfix.h> is included prior to avrtest.h:
+
+avrtest_rtof, avrtest_hrtof, avrtest_urtof, avrtest_uhrtof,
+avrtest_ktof, avrtest_hktof, avrtest_uktof, avrtest_uhktof.
+
 
 =====================
 IEEE double Emulation

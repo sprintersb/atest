@@ -1865,6 +1865,15 @@ static void sys_misc (uint8_t what)
         memcpy (cpu_data + rodata_vma, cpu_flash + rodata_lma, rodata_len);
         break;
       }
+
+    case AVRTEST_MISC_nofxtof:
+    case AVRTEST_MISC_rtof:   case AVRTEST_MISC_urtof:
+    case AVRTEST_MISC_ktof:   case AVRTEST_MISC_uktof:
+    case AVRTEST_MISC_hrtof:  case AVRTEST_MISC_uhrtof:
+    case AVRTEST_MISC_hktof:  case AVRTEST_MISC_uhktof:
+      sys_misc_fxtof (what);
+      break;
+
     default:
       leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);
     }

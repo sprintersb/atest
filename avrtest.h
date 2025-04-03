@@ -88,6 +88,11 @@ enum
 enum
   {
     AVRTEST_MISC_flmap,
+    AVRTEST_MISC_nofxtof,
+    AVRTEST_MISC_rtof, AVRTEST_MISC_hrtof,
+    AVRTEST_MISC_ktof, AVRTEST_MISC_hktof,
+    AVRTEST_MISC_urtof, AVRTEST_MISC_uhrtof,
+    AVRTEST_MISC_uktof, AVRTEST_MISC_uhktof,
     AVRTEST_MISC_sentinel
   };
 
@@ -551,6 +556,37 @@ static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 {
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
 }
+
+#ifdef _AVRGCC_STDFIX_H
+AVRTEST_DEF_SYSCALL3_r (_21_ktof,21,  float,22, unsigned char,26, _Accum,22)
+AVRTEST_DEF_SYSCALL3_r (_21_uktof,21, float,22, unsigned char,26, unsigned _Accum,22)
+AVRTEST_DEF_SYSCALL3_r (_21_rtof,21,  float,22, unsigned char,26, _Fract,24)
+AVRTEST_DEF_SYSCALL3_r (_21_urtof,21, float,22, unsigned char,26, unsigned _Fract,24)
+AVRTEST_DEF_SYSCALL3_r (_21_hktof,21,  float,22, unsigned char,26, short _Accum,24)
+AVRTEST_DEF_SYSCALL3_r (_21_uhktof,21, float,22, unsigned char,26, unsigned short _Accum,24)
+AVRTEST_DEF_SYSCALL3_r (_21_hrtof,21,  float,22, unsigned char,26, short _Fract,24)
+AVRTEST_DEF_SYSCALL3_r (_21_uhrtof,21, float,22, unsigned char,26, unsigned short _Fract,24)
+#define AVRTEST_DEFF(ID, T, R)                                          \
+static AT_INLINE float avrtest_##ID##tof (T _x)                         \
+{                                                                       \
+    return avrtest_syscall_21_##ID##tof (AVRTEST_MISC_##ID##tof, _x);   \
+}
+#else
+AVRTEST_DEF_SYSCALL1 (_21_nofxtof,21, unsigned char,26)
+#define AVRTEST_DEFF(ID, T, R)                                          \
+static AT_INLINE float avrtest_##ID##tof (int _x)                       \
+{                                                                       \
+    (void) _x;                                                          \
+    avrtest_syscall_21_nofxtof (AVRTEST_MISC_nofxtof);                  \
+    return 0.0f;                                                        \
+}
+#endif /* Require <stdfix.h> */
+AVRTEST_DEFF(k, _Accum, 22) AVRTEST_DEFF(uk, unsigned _Accum, 22)
+AVRTEST_DEFF(r, _Fract, 24) AVRTEST_DEFF(ur, unsigned _Fract, 24)
+AVRTEST_DEFF(hk, short _Accum, 24) AVRTEST_DEFF(uhk, unsigned short _Accum, 24)
+AVRTEST_DEFF(hr, short _Fract, 24) AVRTEST_DEFF(uhr, unsigned short _Fract, 24)
+#undef AVRTEST_DEFF
+
 
 AVRTEST_DEF_SYSCALL3_r (_22_u32to, 22, float, 22,
                       unsigned char, 26, __UINT32_TYPE__, 22)

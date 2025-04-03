@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support fixed-point to float conversions.                      2025-04-03
+
 * Support avrtest_cmpf(), avrtest_utof(), avrtest_stof().        2025-04-03
 
 * Support avrtest_cycles_call() for more precise measurement     2025-04-02

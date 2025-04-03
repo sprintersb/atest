@@ -587,6 +587,12 @@ void sys_emul_float (uint8_t fid)
   log_add ("not supported: %s", NO_FEMUL);
   leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
 }
+
+void sys_misc_fxtof (uint8_t fid)
+{
+  log_add ("not supported: %s", NO_FEMUL);
+  leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
+}
 #else // float emulation is supported
 
 static float
@@ -777,6 +783,64 @@ void sys_emul_float (uint8_t fid)
 
   set_reg_float (22, z);
 }
+
+
+void sys_misc_fxtof (uint8_t fid)
+{
+  // avrtest.h requires <stdfix.h> in order to make sure that types
+  // like _Accum are available and can be used in syscall prototypes.
+  // The conditional makes sure that avrtest.h works with C++ for example.
+  if (fid == AVRTEST_MISC_nofxtof)
+    leave (LEAVE_USAGE, "include <stdfix.h> prior to \"avrtest.h\" before"
+           " using fixed-point to float conversions");
+
+  bool sign = 0;
+  int size = 0;
+  int fbit = 0;
+  const char *name = "???";
+
+  switch (fid)
+    {
+#define CASE_FX(id, s, sz, fb)                          \
+  case AVRTEST_MISC_##id##tof:                          \
+    sign = s; size = sz; fbit = fb; name = #id;         \
+    break
+
+      CASE_FX (r,   1, 2, 15);
+      CASE_FX (k,   1, 4, 15);
+      CASE_FX (hr,  1, 1,  7);
+      CASE_FX (hk,  1, 2,  7);
+      CASE_FX (ur,  0, 2, 16);
+      CASE_FX (uk,  0, 4, 16);
+      CASE_FX (uhr, 0, 1,  8);
+      CASE_FX (uhk, 0, 2,  8);
+#undef CASE_FX
+    }
+
+  int regno = size <= 2 ? 24 : 22;
+
+  unsigned val = 0;
+  byte *p = cpu_address (regno, AR_REG);
+  for (int n = size; n; )
+    val = (val << 8) | p[--n];
+
+  float f = val;
+  if (sign)
+    {
+      unsigned smask = 1u << (8 * size - 1);
+      if (val & smask)
+        {
+          val |= -smask;
+          f = (signed) val;
+        }
+    }
+
+  set_reg_float (22, ldexpf (f, -fbit));
+
+  int ndigs = 2 + fbit / log2 (10);
+  log_add (" %stof(0x%0*x) = %.*f", name, 2 * size, val, ndigs, f);
+}
+
 #endif // NO_FEMUL
 
 
