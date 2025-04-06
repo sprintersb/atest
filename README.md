@@ -985,11 +985,12 @@ float compute_sinf (float x)
 }
 ```
 
-The following fixed-point to float conversions are supported.
-They require that `<stdfix.h>` is included prior to `avrtest.h`:
+Fixed-point to/from float conversions `avrtest_<fx>tof` and
+`avrtest_fto<fx>` are supported for `<fx>` in:
+* `k`, `uk`, `hk`, `uhk`, `r`, `ur`, `hr`, `uhr`.
 
-`avrtest_rtof`, `avrtest_hrtof`, `avrtest_urtof`, avrtest_uhrtof`,
-`avrtest_ktof`, `avrtest_hktof`, `avrtest_uktof`, avrtest_uhktof`.
+For example `uhk` are `unsigned short accum` conversions.
+They require that `<stdfix.h>` is included prior to `avrtest.h`.
 
 
 IEEE double Emulation

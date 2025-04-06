@@ -93,6 +93,10 @@ enum
     AVRTEST_MISC_ktof, AVRTEST_MISC_hktof,
     AVRTEST_MISC_urtof, AVRTEST_MISC_uhrtof,
     AVRTEST_MISC_uktof, AVRTEST_MISC_uhktof,
+    AVRTEST_MISC_ftor, AVRTEST_MISC_ftohr,
+    AVRTEST_MISC_ftok, AVRTEST_MISC_ftohk,
+    AVRTEST_MISC_ftour, AVRTEST_MISC_ftouhr,
+    AVRTEST_MISC_ftouk, AVRTEST_MISC_ftouhk,
     AVRTEST_MISC_sentinel
   };
 
@@ -419,32 +423,32 @@ __extension__ enum
     return r##R0;                                           \
   }
 
-#define AVRTEST_DEF_SYSCALL3_r(S, N, T0, R0, T1, R1, T2, R2)\
+#define AVRTEST_DEF_SYSCALL1_1m(S, N, T0, R0, T2, R2)       \
   static AT_INLINE                                          \
-  T0 avrtest_syscall ## S (T1 _v1_, T2 _v2_)                \
+  T0 avrtest_syscall ## S (unsigned char _v1_, T2 _v2_)     \
   {                                                         \
     register T0 res##R0 __asm (#R0);                        \
-    register T1 r##R1 __asm (#R1) = _v1_;                   \
+    register unsigned char r26 __asm("26") = _v1_;          \
     register T2 r##R2 __asm (#R2) = _v2_;                   \
     __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
                         : "=r" (res##R0)                    \
                         : "n" (N), "n" (SYSCo_ ## N),       \
-                          "r" (r##R1), "r" (r##R2));        \
+                          "r" (r26), "r" (r##R2));          \
     return res##R0;                                         \
   }
 
-#define AVRTEST_DEF_SYSCALL4_r(S, N, T0, R0, T1, R1, T2, R2, T3, R3)    \
+#define AVRTEST_DEF_SYSCALL2_1m(S, N, T0, R0, T2, R2, T3, R3)           \
   static AT_INLINE                                                      \
-  T0 avrtest_syscall ## S (T1 _v1_, T2 _v2_, T3 _v3_)                   \
+  T0 avrtest_syscall ## S (unsigned char _v1_, T2 _v2_, T3 _v3_)        \
   {                                                                     \
     register T0 res##R0 __asm (#R0);                                    \
-    register T1 r##R1 __asm (#R1) = _v1_;                               \
+    register unsigned char r26 __asm("26") = _v1_;                      \
     register T2 r##R2 __asm (#R2) = _v2_;                               \
     register T3 r##R3 __asm (#R3) = _v3_;                               \
     __asm __volatile__ (".long %2 ;; SYSCALL %1"                        \
                         : "=r" (res##R0)                                \
                         : "n" (N), "n" (SYSCo_ ## N),                   \
-                          "r" (r##R1), "r" (r##R2), "r" (r##R3));       \
+                          "r" (r26), "r" (r##R2), "r" (r##R3));         \
     return res##R0;                                                     \
   }
 
@@ -558,18 +562,31 @@ static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 }
 
 #ifdef _AVRGCC_STDFIX_H
-AVRTEST_DEF_SYSCALL3_r (_21_ktof,21,  float,22, unsigned char,26, _Accum,22)
-AVRTEST_DEF_SYSCALL3_r (_21_uktof,21, float,22, unsigned char,26, unsigned _Accum,22)
-AVRTEST_DEF_SYSCALL3_r (_21_rtof,21,  float,22, unsigned char,26, _Fract,24)
-AVRTEST_DEF_SYSCALL3_r (_21_urtof,21, float,22, unsigned char,26, unsigned _Fract,24)
-AVRTEST_DEF_SYSCALL3_r (_21_hktof,21,  float,22, unsigned char,26, short _Accum,24)
-AVRTEST_DEF_SYSCALL3_r (_21_uhktof,21, float,22, unsigned char,26, unsigned short _Accum,24)
-AVRTEST_DEF_SYSCALL3_r (_21_hrtof,21,  float,22, unsigned char,26, short _Fract,24)
-AVRTEST_DEF_SYSCALL3_r (_21_uhrtof,21, float,22, unsigned char,26, unsigned short _Fract,24)
+AVRTEST_DEF_SYSCALL1_1m (_21_ktof,21,  float,22, _Accum,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_uktof,21, float,22, unsigned _Accum,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_rtof,21,  float,22, _Fract,24)
+AVRTEST_DEF_SYSCALL1_1m (_21_urtof,21, float,22, unsigned _Fract,24)
+AVRTEST_DEF_SYSCALL1_1m (_21_hktof,21,  float,22, short _Accum,24)
+AVRTEST_DEF_SYSCALL1_1m (_21_uhktof,21, float,22, unsigned short _Accum,24)
+AVRTEST_DEF_SYSCALL1_1m (_21_hrtof,21,  float,22, short _Fract,24)
+AVRTEST_DEF_SYSCALL1_1m (_21_uhrtof,21, float,22, unsigned short _Fract,24)
+
+AVRTEST_DEF_SYSCALL1_1m (_21_ftok,21,   _Accum,22,          float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftouk,21,  unsigned _Accum,22, float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftor,21,   _Fract,24,          float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftour,21,  unsigned _Fract,24, float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftohk,21,  short _Accum,24,    float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftouhk,21, unsigned short _Accum,24, float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftohr,21,  short _Fract,24,          float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ftouhr,21, unsigned short _Fract,24, float,22)
 #define AVRTEST_DEFF(ID, T, R)                                          \
 static AT_INLINE float avrtest_##ID##tof (T _x)                         \
 {                                                                       \
     return avrtest_syscall_21_##ID##tof (AVRTEST_MISC_##ID##tof, _x);   \
+}                                                                       \
+static AT_INLINE T avrtest_fto##ID (float _x)                           \
+{                                                                       \
+    return avrtest_syscall_21_fto##ID (AVRTEST_MISC_fto##ID, _x);       \
 }
 #else
 AVRTEST_DEF_SYSCALL1 (_21_nofxtof,21, unsigned char,26)
@@ -579,6 +596,12 @@ static AT_INLINE float avrtest_##ID##tof (int _x)                       \
     (void) _x;                                                          \
     avrtest_syscall_21_nofxtof (AVRTEST_MISC_nofxtof);                  \
     return 0.0f;                                                        \
+}                                                                       \
+static AT_INLINE int avrtest_fto##ID (float _x)                         \
+{                                                                       \
+    (void) _x;                                                          \
+    avrtest_syscall_21_nofxtof (AVRTEST_MISC_nofxtof);                  \
+    return 0;                                                           \
 }
 #endif /* Require <stdfix.h> */
 AVRTEST_DEFF(k, _Accum, 22) AVRTEST_DEFF(uk, unsigned _Accum, 22)
@@ -588,22 +611,19 @@ AVRTEST_DEFF(hr, short _Fract, 24) AVRTEST_DEFF(uhr, unsigned short _Fract, 24)
 #undef AVRTEST_DEFF
 
 
-AVRTEST_DEF_SYSCALL3_r (_22_u32to, 22, float, 22,
-                      unsigned char, 26, __UINT32_TYPE__, 22)
+AVRTEST_DEF_SYSCALL1_1m (_22_u32to,22, float,22, __UINT32_TYPE__,22)
 static AT_INLINE float avrtest_utof (__UINT32_TYPE__ _u)
 {
   return avrtest_syscall_22_u32to (AVRTEST_u32to, _u);
 }
 
-AVRTEST_DEF_SYSCALL3_r (_22_s32to, 22, float, 22,
-                      unsigned char, 26, __INT32_TYPE__, 22)
+AVRTEST_DEF_SYSCALL1_1m (_22_s32to,22, float,22, __INT32_TYPE__,22)
 static AT_INLINE float avrtest_stof (__INT32_TYPE__ _s)
 {
   return avrtest_syscall_22_s32to (AVRTEST_s32to, _s);
 }
 
-AVRTEST_DEF_SYSCALL4_r (_22_cmp, 22, __INT8_TYPE__, 24,
-                        unsigned char, 26, float, 22, float, 18)
+AVRTEST_DEF_SYSCALL2_1m (_22_cmp,22, __INT8_TYPE__,24, float,22, float,18)
 static AT_INLINE __INT8_TYPE__ avrtest_cmpf (float _x, float _y)
 {
   return avrtest_syscall_22_cmp (AVRTEST_cmp, _x, _y);

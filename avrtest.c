@@ -1871,6 +1871,10 @@ static void sys_misc (uint8_t what)
     case AVRTEST_MISC_ktof:   case AVRTEST_MISC_uktof:
     case AVRTEST_MISC_hrtof:  case AVRTEST_MISC_uhrtof:
     case AVRTEST_MISC_hktof:  case AVRTEST_MISC_uhktof:
+    case AVRTEST_MISC_ftor:   case AVRTEST_MISC_ftour:
+    case AVRTEST_MISC_ftok:   case AVRTEST_MISC_ftouk:
+    case AVRTEST_MISC_ftohr:  case AVRTEST_MISC_ftouhr:
+    case AVRTEST_MISC_ftohk:  case AVRTEST_MISC_ftouhk:
       sys_misc_fxtof (what);
       break;
 

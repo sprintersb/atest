@@ -792,19 +792,23 @@ void sys_misc_fxtof (uint8_t fid)
   // The conditional makes sure that avrtest.h works with C++ for example.
   if (fid == AVRTEST_MISC_nofxtof)
     leave (LEAVE_USAGE, "include <stdfix.h> prior to \"avrtest.h\" before"
-           " using fixed-point to float conversions");
+           " using fixed-point to/from float conversions");
 
   bool sign = 0;
   int size = 0;
   int fbit = 0;
+  bool fxtof = 0;
   const char *name = "???";
 
   switch (fid)
     {
-#define CASE_FX(id, s, sz, fb)                          \
-  case AVRTEST_MISC_##id##tof:                          \
-    sign = s; size = sz; fbit = fb; name = #id;         \
-    break
+#define CASE_FX(id, s, sz, fb)                                  \
+      case AVRTEST_MISC_##id##tof:                              \
+        sign = s; size = sz; fbit = fb; name = #id; fxtof = 1;  \
+        break;                                                  \
+      case AVRTEST_MISC_fto##id:                                \
+        sign = s; size = sz; fbit = fb; name = #id; fxtof = 0;  \
+        break
 
       CASE_FX (r,   1, 2, 15);
       CASE_FX (k,   1, 4, 15);
@@ -818,27 +822,54 @@ void sys_misc_fxtof (uint8_t fid)
     }
 
   int regno = size <= 2 ? 24 : 22;
-
-  unsigned val = 0;
+  int ndigs = 3 + fbit / log2 (10);
   byte *p = cpu_address (regno, AR_REG);
-  for (int n = size; n; )
-    val = (val << 8) | p[--n];
 
-  float f = val;
-  if (sign)
+  if (fxtof)
     {
-      unsigned smask = 1u << (8 * size - 1);
-      if (val & smask)
+      unsigned val = 0;
+      for (int n = size; n; )
+        val = (val << 8) | p[--n];
+
+      float f = val;
+      if (sign)
         {
-          val |= -smask;
-          f = (signed) val;
+          unsigned smask = 1u << (8 * size - 1);
+          if (val & smask)
+            {
+              val |= -smask;
+              f = (signed) val;
+            }
         }
+
+      f = ldexpf (f, -fbit);
+      set_reg_float (22, f);
+
+      log_add (" %stof(0x%0*x) = %.*f", name, 2 * size, val, ndigs, f);
     }
+  else
+    {
+      // float -> fixed
+      const float f = get_reg_float (22);
+      float v = ldexpf (f, fbit);
+      int64_t v64 = v < 0 ? v - 0.5f : v + 0.5f;
 
-  set_reg_float (22, ldexpf (f, -fbit));
+      const int64_t mask = (1ull << (8 * size)) - 1;
+      const int64_t ma = mask >> sign;
+      const int64_t mi = sign ? -ma - 1 : 0;
+      if (v64 < mi) v64 = mi;
+      if (v64 > ma) v64 = ma;
 
-  int ndigs = 2 + fbit / log2 (10);
-  log_add (" %stof(0x%0*x) = %.*f", name, 2 * size, val, ndigs, f);
+      unsigned val = v64 & mask;
+
+      for (int i = 0; i < size; ++i)
+        {
+          *p++ = v64 & 0xff;
+          v64 >>= 8;
+        }
+
+      log_add (" fto%s(%.*f) = 0x%0*x", name, ndigs, f, 2 * size, val);
+    }
 }
 
 #endif // NO_FEMUL
