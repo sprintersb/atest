@@ -915,6 +915,14 @@ The values returned by `avrtest_prand()` do not depend on the host machine.
 They only depend on the number of calls since the last reset.
 
 
+================
+32-Bit Emulation
+================
+
+AVRtest supports syscalls like avrtest_<op>s32 and avrtest_<op>u32
+with obvious semantics for <op> in: mul, div, mod.
+
+
 =====================
 IEEE single Emulation
 =====================

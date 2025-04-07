@@ -88,6 +88,8 @@ enum
 enum
   {
     AVRTEST_MISC_flmap,
+    AVRTEST_MISC_mulu32, AVRTEST_MISC_divu32, AVRTEST_MISC_modu32,
+    AVRTEST_MISC_muls32, AVRTEST_MISC_divs32, AVRTEST_MISC_mods32,
     AVRTEST_MISC_nofxtof,
     AVRTEST_MISC_rtof, AVRTEST_MISC_hrtof,
     AVRTEST_MISC_ktof, AVRTEST_MISC_hktof,
@@ -560,6 +562,22 @@ static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 {
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
 }
+
+AVRTEST_DEF_SYSCALL2_1m (_21_u32,21, __UINT32_TYPE__,22, __UINT32_TYPE__,22, __UINT32_TYPE__,18)
+AVRTEST_DEF_SYSCALL2_1m (_21_s32,21, __INT32_TYPE__,22, __INT32_TYPE__,22, __INT32_TYPE__,18)
+#define AVRTEST_DEFF(OP)                                                \
+static AT_INLINE __UINT32_TYPE__                                        \
+avrtest_##OP##u32 (__UINT32_TYPE__ _x, __UINT32_TYPE__ _y)              \
+{                                                                       \
+    return avrtest_syscall_21_u32 (AVRTEST_MISC_##OP##u32, _x, _y);     \
+}                                                                       \
+static AT_INLINE __INT32_TYPE__                                         \
+avrtest_##OP##s32 (__INT32_TYPE__ _x, __INT32_TYPE__ _y)                \
+{                                                                       \
+    return avrtest_syscall_21_s32 (AVRTEST_MISC_##OP##s32, _x, _y);     \
+}
+AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
+#undef AVRTEST_DEFF
 
 #ifdef _AVRGCC_STDFIX_H
 AVRTEST_DEF_SYSCALL1_1m (_21_ktof,21,  float,22, _Accum,22)

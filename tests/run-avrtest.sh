@@ -63,7 +63,7 @@ myname="$0"
 
 AVRTEST_HOME=..
 
-: ${MCU_LIST="atmega128 attiny3216 atmega2560 atxmega128a3 attiny40" }
+: ${MCU_LIST="atmega128 attiny3216 atmega2560 atxmega128a3 at90s8515 attiny40" }
 
 FLAG_STOP=			# Stop at any error
 
@@ -107,9 +107,9 @@ while getopts $OPTS opt ; do
 done
 shift $((OPTIND - 1))
 
-test_list=${*:-"sreg/*.c"}
+test_list=${*:-"arith/*.c sreg/*.c"}
 
-CPPFLAGS="-Wundef -I."
+CPPFLAGS="-Wundef -I.."
 # -Wno-array-bounds: Ditch wrong warnings due to avr-gcc PR105523.
 # This works with more GCC versions than --param=min-pagesize=0.
 CFLAGS=${CFLAGS-"-W -Wall -pipe -Os ${EXTRA_CFLAGS}"}

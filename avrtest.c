@@ -1878,6 +1878,18 @@ static void sys_misc (uint8_t what)
       sys_misc_fxtof (what);
       break;
 
+    case AVRTEST_MISC_mulu32:
+    case AVRTEST_MISC_divu32:
+    case AVRTEST_MISC_modu32:
+      sys_misc_u32 (what);
+      break;
+
+    case AVRTEST_MISC_muls32:
+    case AVRTEST_MISC_divs32:
+    case AVRTEST_MISC_mods32:
+      sys_misc_s32 (what);
+      break;
+
     default:
       leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);
     }

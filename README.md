@@ -38,6 +38,7 @@ and easy-to-use simulator to run the
   - [Streams for the Host](#file-io--special-streams-for-the-hosts-stdin-stdout-stderr)
 * [Performance Measurement](#performance-measurement)
 * [Timing Data and Random Values](#timing-data-and-random-values)
+* [32-Bit Integer Emulation](#32-bit-integer-emulation)
 * [IEEE single Emulation](#ieee-single-emulation)
 * [IEEE double Emulation](#ieee-double-emulation)
 * [Assembler Support in avrtest.h](#assembler-support-in-avrtesth)
@@ -937,6 +938,13 @@ Example:
 The simulator does not account cycles to syscalls.
 The values returned by `avrtest_prand()` do not depend on the host machine.
 They only depend on the number of calls since the last reset.
+
+
+32-Bit Integer Emulation
+========================
+
+AVRtest supports syscalls like `avrtest_<op>s32` and `avrtest_<op>u32`
+with obvious semantics for `<op>` in: `mul`, `div`, `mod`.
 
 
 IEEE single Emulation

@@ -282,6 +282,19 @@ get_r18_value (const layout_t *lay)
 }
 
 
+/* Write value VAL to register REGNO.  */
+
+static void
+put_reg_value (int regno, int n_regs, uint64_t val)
+{
+  byte *p = cpu_address (regno, AR_REG);
+  for (int i = 0; i < n_regs; ++i)
+    {
+      *p++ = val & 0xff;
+      val >>= 8;
+    }
+}
+
 /* Read a value as unsigned from ADDR.  Bytesize (1..4) and signedness
    are determined by respective layout[].  If the value is signed, then
    a cast to signed will do the conversion.  */
@@ -403,14 +416,86 @@ sys_ticks_cmd (int cfg)
     }
 
   log_add ("ticks get %s: R22<-(%08x) = %u", what, value, value);
-  byte *p = cpu_address (22, AR_REG);
 
-  *p++ = value;
-  *p++ = value >> 8;
-  *p++ = value >> 16;
-  *p++ = value >> 24;
+  put_reg_value (22, 4, value);
 }
 
+
+void
+sys_misc_u32 (uint8_t what)
+{
+  uint32_t a = (uint32_t) get_reg_value (22, & layout[LOG_U32_CMD]);
+  uint32_t b = (uint32_t) get_reg_value (18, & layout[LOG_U32_CMD]);
+  uint32_t c = 0;
+  const char *op = "???";
+  const char *name = "???";
+
+  switch (what)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown misc 32-bit arith function %u\n", what);
+
+    case AVRTEST_MISC_mulu32: op = "*"; name = "mul";
+      c = a * b;
+      break;
+
+    case AVRTEST_MISC_divu32: op = "/"; name = "div";
+      c =  b == 0 ? UINT32_MAX : a / b;
+      break;
+
+    case AVRTEST_MISC_modu32: op = "%"; name = "mod";
+      c = b == 0 ? a : a % b;
+      break;
+    }
+
+  put_reg_value (22, 4, c);
+
+  log_add (" arith %su32: %u=0x%x %s %u=0x%x = %u=0x%x", name,
+           (unsigned) a, (unsigned) a, op, (unsigned) b, (unsigned) b,
+           (unsigned) c, (unsigned) c);
+}
+
+void
+sys_misc_s32 (uint8_t what)
+{
+  int32_t a = (int32_t) get_reg_value (22, & layout[LOG_S32_CMD]);
+  int32_t b = (int32_t) get_reg_value (18, & layout[LOG_S32_CMD]);
+  int32_t c = 0;
+  bool sign;
+  const char *op = "???";
+  const char *name = "???";
+
+  switch (what)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown misc 32-bit arith function %u\n", what);
+
+    case AVRTEST_MISC_muls32: op = "*"; name = "mul";
+      c = a * b;
+      break;
+
+    case AVRTEST_MISC_divs32: op = "/"; name = "div";
+      sign = (a < 0) ^ (b < 0);
+      c = 0?0
+        : b == 0                    ? sign ? 1 : -1
+        : a == INT32_MIN && b == -1 ? INT32_MIN
+        : a / b;
+      break;
+
+    case AVRTEST_MISC_mods32: op = "%"; name = "mod";
+      c = 0?0
+        : b == 0                    ? a
+        : a == INT32_MIN && b == -1 ? 0
+        : a % b;
+      break;
+    }
+
+  put_reg_value (22, 4, c);
+
+  log_add (" arith %ss32: %d=0x%x %s %d=0x%x = %d=0x%x", name,
+           (signed) a, (unsigned) (uint32_t) a, op, (signed) b,
+           (unsigned) (uint32_t) b, (signed) c, (unsigned) (uint32_t) c);
+}
 
 void
 sys_log_dump (int what)
@@ -715,7 +800,7 @@ emul_float_misc (uint8_t fid)
           : x == y ? 0
           : -128;
         log_add ("cmpf(" PRIF ", " PRIF ") = %d", x,x, y,y, (signed) z);
-        * cpu_address (24, AR_REG) = (byte) z;
+        put_reg_value (24, 1, z);
         break;
       }
     } // switch
@@ -823,10 +908,10 @@ void sys_misc_fxtof (uint8_t fid)
 
   int regno = size <= 2 ? 24 : 22;
   int ndigs = 3 + fbit / log2 (10);
-  byte *p = cpu_address (regno, AR_REG);
 
   if (fxtof)
     {
+      byte *p = cpu_address (regno, AR_REG);
       unsigned val = 0;
       for (int n = size; n; )
         val = (val << 8) | p[--n];
@@ -862,11 +947,7 @@ void sys_misc_fxtof (uint8_t fid)
 
       unsigned val = v64 & mask;
 
-      for (int i = 0; i < size; ++i)
-        {
-          *p++ = v64 & 0xff;
-          v64 >>= 8;
-        }
+      put_reg_value (regno, size, v64);
 
       log_add (" fto%s(%.*f) = 0x%0*x", name, ndigs, f, 2 * size, val);
     }

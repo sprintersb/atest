@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support mul, div and mod for int32_t and uint32_t.             2025-04-07
+
 * Support float to fixed-point conversions.                      2025-04-06
 
 * Support fixed-point to float conversions.                      2025-04-03
