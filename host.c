@@ -421,7 +421,7 @@ sys_ticks_cmd (int cfg)
 }
 
 
-void
+static void
 sys_misc_u32 (uint8_t what)
 {
   uint32_t a = (uint32_t) get_reg_value (22, & layout[LOG_U32_CMD]);
@@ -455,7 +455,8 @@ sys_misc_u32 (uint8_t what)
            (unsigned) c, (unsigned) c);
 }
 
-void
+
+static void
 sys_misc_s32 (uint8_t what)
 {
   int32_t a = (int32_t) get_reg_value (22, & layout[LOG_S32_CMD]);
@@ -673,7 +674,7 @@ void sys_emul_float (uint8_t fid)
   leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
 }
 
-void sys_misc_fxtof (uint8_t fid)
+static void sys_misc_fxtof (uint8_t fid)
 {
   log_add ("not supported: %s", NO_FEMUL);
   leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
@@ -870,7 +871,8 @@ void sys_emul_float (uint8_t fid)
 }
 
 
-void sys_misc_fxtof (uint8_t fid)
+static void
+sys_misc_fxtof (uint8_t fid)
 {
   // avrtest.h requires <stdfix.h> in order to make sure that types
   // like _Accum are available and can be used in syscall prototypes.
@@ -1169,6 +1171,41 @@ void sys_emul_double (uint8_t fid)
   set_reg_double (18, z);
 }
 #endif // NO_DEMUL
+
+
+void sys_misc_emul (uint8_t what)
+{
+  switch (what)
+    {
+    case AVRTEST_MISC_nofxtof:
+    case AVRTEST_MISC_rtof:   case AVRTEST_MISC_urtof:
+    case AVRTEST_MISC_ktof:   case AVRTEST_MISC_uktof:
+    case AVRTEST_MISC_hrtof:  case AVRTEST_MISC_uhrtof:
+    case AVRTEST_MISC_hktof:  case AVRTEST_MISC_uhktof:
+
+    case AVRTEST_MISC_ftor:   case AVRTEST_MISC_ftour:
+    case AVRTEST_MISC_ftok:   case AVRTEST_MISC_ftouk:
+    case AVRTEST_MISC_ftohr:  case AVRTEST_MISC_ftouhr:
+    case AVRTEST_MISC_ftohk:  case AVRTEST_MISC_ftouhk:
+      sys_misc_fxtof (what);
+      break;
+
+    case AVRTEST_MISC_mulu32:
+    case AVRTEST_MISC_divu32:
+    case AVRTEST_MISC_modu32:
+      sys_misc_u32 (what);
+      break;
+
+    case AVRTEST_MISC_muls32:
+    case AVRTEST_MISC_divs32:
+    case AVRTEST_MISC_mods32:
+      sys_misc_s32 (what);
+      break;
+
+    default:
+      leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);
+    }
+}
 
 
 // Magic values from avr-libc::stdio.h

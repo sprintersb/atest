@@ -1843,12 +1843,11 @@ static void sys_misc (uint8_t what)
 {
   log_append ("misc %u", what);
 
-  unsigned pc = 2 * cpu_PC - 4;
-  unsigned pc_len = arch.flash_addr_mask > 0xffff ? 6 : 4;
-
-  switch (what)
+  if (what == AVRTEST_MISC_flmap)
     {
-    case AVRTEST_MISC_flmap:
+      unsigned pc = 2 * cpu_PC - 4;
+      unsigned pc_len = arch.flash_addr_mask > 0xffff ? 6 : 4;
+
       // Devices like AVR128* and AVR64* see a 32k portion of their flash
       // memory in the RAM address space.  Which 32k segment is visible can
       // be chosen by NVMCTRL_CTRLB.FLMAP.  The target code passes down FLMAP.
@@ -1863,37 +1862,14 @@ static void sys_misc (uint8_t what)
           printf (">>> %0*x: copy Flash[0x%x--0x%x] to RAM:0x%x\n", pc_len, pc,
                   rodata_lma, rodata_lma + rodata_len - 1, rodata_vma);
         memcpy (cpu_data + rodata_vma, cpu_flash + rodata_lma, rodata_len);
-        break;
       }
-
-    case AVRTEST_MISC_nofxtof:
-    case AVRTEST_MISC_rtof:   case AVRTEST_MISC_urtof:
-    case AVRTEST_MISC_ktof:   case AVRTEST_MISC_uktof:
-    case AVRTEST_MISC_hrtof:  case AVRTEST_MISC_uhrtof:
-    case AVRTEST_MISC_hktof:  case AVRTEST_MISC_uhktof:
-    case AVRTEST_MISC_ftor:   case AVRTEST_MISC_ftour:
-    case AVRTEST_MISC_ftok:   case AVRTEST_MISC_ftouk:
-    case AVRTEST_MISC_ftohr:  case AVRTEST_MISC_ftouhr:
-    case AVRTEST_MISC_ftohk:  case AVRTEST_MISC_ftouhk:
-      sys_misc_fxtof (what);
-      break;
-
-    case AVRTEST_MISC_mulu32:
-    case AVRTEST_MISC_divu32:
-    case AVRTEST_MISC_modu32:
-      sys_misc_u32 (what);
-      break;
-
-    case AVRTEST_MISC_muls32:
-    case AVRTEST_MISC_divs32:
-    case AVRTEST_MISC_mods32:
-      sys_misc_s32 (what);
-      break;
-
-    default:
-      leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);
+    }
+  else
+    {
+      sys_misc_emul (what);
     }
 }
+
 
 static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
 {
