@@ -35,7 +35,7 @@
 static const char USAGE[] =
   "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]\n"
   "                 [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]\n"
-  "                 [-stdin[=FILE]] [-stdout[=FILE]] [-stderr[=FILE]]\n"
+  "                 [-log=FILE] [-stdin=FILE] [-stdout=FILE] [-stderr=FILE]\n"
   "                 [-q] [-flush] [-runtime] [-v]\n"
   "                 [-graph[=FILE]] [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
@@ -54,19 +54,20 @@ static const char USAGE[] =
   "                for ATmega8, SIZE would be 8K or 8192 or 0x2000.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
   "                requested.  Pass exit status from the program.\n"
-  "  -v            Verbose mode.  Print the loaded ELF program headers.\n"
+  "  -v            Verbose mode.  Print the loaded ELF program headers\n"
+  "                and the used streams.\n"
   "  -runtime      Print avrtest execution time.\n"
-  "  -no-log       Disable logging in avrtest_log.  Useful when capturing\n"
-  "                performance data.  Logging can still be controlled by\n"
-  "                the running program, cf. README.\n"
+  "  -no-log       Disable instruction logging in avrtest_log.  Logging\n"
+  "                can still be turned on with LOG_ON etc., see README.\n"
+  "  -log=FILE     Commands like LOG_U8 will print to FILE on the host.\n"
+  "                FILE must be stdout (default), stderr, *.log or *.txt.\n"
   "  -no-stdin     Disable avrtest_getchar (syscall 28) from avrtest.h.\n"
   "  -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.\n"
   "  -no-stderr    Disable avrtest_putchar_stderr (syscall 24).\n"
-  "  -flush        Flush the host's stdout resp. stderr stream after each\n"
-  "  -stdin=FILE   stdin reads from the host's FILE.  FILE must be a *.txt\n"
-  "                or a *.data file.\n"
+  "  -stdin=FILE   stdin reads from the host's *.txt or *.data FILE.\n"
   "  -stdout=FILE  Similar, but for stdout.\n"
   "  -stderr=FILE  Similar, but for stderr.\n"
+  "  -flush        Flush stdout resp. stderr after each character.\n"
   "  -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the\n"
   "                target program can access via file I/O (syscall 26).\n"
   "  -graph[=FILE] Write a .dot FILE representing the dynamic call graph.\n"
@@ -444,16 +445,55 @@ close_streams (void)
       if (*f->pstream && *f->pstream != *f->pstd_stream)
         fclose (*f->pstream);
     }
+
+  if (program.log_stream
+      && program.log_stream != stdout
+      && program.log_stream != stderr)
+    {
+      fclose (program.log_stream);
+    }
 }
 
 // Set program.stdout from -[no-]stdout[=filename].
 // Set program.stderr from -[no-]stderr[=filename].
 // Set program.stdin  from -[no-]stdin[=filename].
+// Set program.log_stream from -log=filename.
 static void
 set_streams (void)
 {
   for (size_t i = 0; i < ARRAY_SIZE (files); ++i)
     maybe_open_file (& files[i]);
+
+  const char *fname = options.s_log_filename;
+
+  if (options.do_log_filename)
+    {
+      if (str_eq ("stdout", fname))
+        ;
+      else if (str_eq ("stderr", fname))
+        {
+          program.log_stream = stderr;
+          if (options.do_verbose)
+            printf (">>> -log=stderr\n");
+        }
+      else if (str_suffix (".txt", fname) || str_suffix (".log", fname))
+        {
+          program.log_stream = fopen (fname, "w");
+          if (options.do_verbose)
+            {
+              if (program.log_stream)
+                printf (">>> -log=%s\n", fname);
+              else
+                printf (">>> -log=%s ignored: cannot open for write\n", fname);
+            }
+        }
+      else if (options.do_verbose)
+        printf (">>> -log=%s ignored: illegal file name (not *.log or *.txt\n",
+                fname);
+    }
+
+  if (!program.log_stream)
+    program.log_stream = stdout;
 
   atexit (close_streams);
 }

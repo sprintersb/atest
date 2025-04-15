@@ -73,7 +73,6 @@ const char s_SREG[] = "CZNVSHTI";
 
 
 unsigned old_PC, old_old_PC;
-bool log_unused;
 need_t need;
 static int maybe_SP_glitch;
 

@@ -81,6 +81,8 @@
 #define IS_AVRTEST_LOG 0
 #endif
 
+bool log_unused = IS_AVRTEST_LOG == 0;
+
 const bool is_avrtest_log = IS_AVRTEST_LOG == 1;
 const int io_base = IOBASE;
 

@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support -log=FILE for the LOG_XXX commands.                    2025-04-15
+
 * Support -stdout=FILE, -stderr=FILE and -stdin=FILE.            2025-04-15
 
 * Support mul, div and mod for int32_t and uint32_t.             2025-04-07

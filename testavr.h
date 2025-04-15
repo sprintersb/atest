@@ -106,6 +106,9 @@ typedef struct
 
   // from -stdout=<filename> etc.
   FILE *stdin, *stdout, *stderr;
+
+  // From -log=<filename>.
+  FILE *log_stream;
 } program_t;
 
 extern program_t program;
@@ -205,6 +208,7 @@ typedef struct
 } opcode_t;
 
 extern void log_va (const char*, va_list);
+extern bool log_unused;
 
 #ifndef AVRTEST_LOG
 
@@ -226,7 +230,6 @@ extern void log_va (const char*, va_list);
 #else
 
 extern unsigned old_PC, old_old_PC;
-extern bool log_unused;
 extern void log_init (unsigned);
 ATTR_PRINTF(1,2)
 extern void log_append (const char *fmt, ...);

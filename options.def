@@ -95,7 +95,8 @@ AVRTEST_OPT (args, 0, args)
    and behave as if disabled, i.e. specified as -no-...  */
 
 // Whether logging is active at program start
-AVRTEST_OPT (log, 1, log)
+AVRTEST_OPT (log,  1, log)
+AVRTEST_OPT (log=, 0, log_filename)
 
 // Whether to write a .dot graphic representing program execution
 AVRTEST_OPT (graph, 0, graph)

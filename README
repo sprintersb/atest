@@ -242,7 +242,7 @@ will print a help screen with available options:
 
   usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]
                  [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]
-                 [-stdin[=FILE]] [-stdout[=FILE]] [-stderr[=FILE]]
+                 [-log=FILE] [-stdin=FILE] [-stdout=FILE] [-stderr=FILE]
                  [-q] [-flush] [-runtime] [-v]
                  [-graph[=FILE]] [-sbox=FOLDER]
                  program [-args [...]]
@@ -261,19 +261,20 @@ Options:
                 for ATmega8, SIZE would be 8K or 8192 or 0x2000.
   -q            Quiet operation.  Only print messages explicitly
                 requested.  Pass exit status from the program.
-  -v            Verbose mode.  Print the loaded ELF program headers.
+  -v            Verbose mode.  Print the loaded ELF program headers
+                and the used streams.
   -runtime      Print avrtest execution time.
-  -no-log       Disable logging in avrtest_log.  Useful when capturing
-                performance data.  Logging can still be controlled by
-                the running program, cf. README.
+  -no-log       Disable instruction logging in avrtest_log.  Logging
+                can still be turned on with LOG_ON etc., see README.
+  -log=FILE     Commands like LOG_U8 will print to FILE on the host.
+                FILE must be stdout (default), stderr, *.log or *.txt.
   -no-stdin     Disable avrtest_getchar (syscall 28) from avrtest.h.
   -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.
   -no-stderr    Disable avrtest_putchar_stderr (syscall 24).
-  -flush        Flush the host's stdout resp. stderr stream after each
-  -stdin=FILE   stdin reads from the host's FILE.  FILE must be a *.txt
-                or a *.data file.
+  -stdin=FILE   stdin reads from the host's *.txt or *.data FILE.
   -stdout=FILE  Similar, but for stdout.
   -stderr=FILE  Similar, but for stderr.
+  -flush        Flush stdout resp. stderr after each character.
   -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the
                 target program can access via file I/O (syscall 26).
   -graph[=FILE] Write a .dot FILE representing the dynamic call graph.
@@ -497,6 +498,9 @@ the respective syscalls consume 4 bytes of code).
 ===================================
 Logging Values to the Host Computer
 ===================================
+
+The log destination can be set with -log=FILE, where FILE
+is stdout (default), stderr or a *.log or *.txt file name.
 
 In order to get values out of the running program, the following
 low-overhead, low-intrusive commands might be useful:

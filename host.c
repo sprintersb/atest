@@ -36,6 +36,15 @@
 #define LEN_LOG_STRING      500
 #define LEN_LOG_XFMT        500
 
+// LOG_XXX logs to -log=FILE.
+#define LOGPRINT(FMT, ...)                                      \
+  do {                                                          \
+    fprintf (program.log_stream, FMT, __VA_ARGS__);             \
+    if (!log_unused && program.log_stream != stdout)            \
+      printf (FMT, __VA_ARGS__);                                \
+  } while (0)
+
+
 ATTR_PRINTF(1,2)
 static void log_add_ (const char *fmt, ...)
 {
@@ -522,14 +531,14 @@ sys_log_dump (int what)
     {
     default:
       log_add ("log %d-byte value", lay->size);
-      printf (fmt, val);
+      LOGPRINT (fmt, val);
       break;
 
     case LOG_S64_CMD:
     case LOG_U64_CMD:
     case LOG_X64_CMD:
       log_add ("log %d-byte value", lay->size);
-      printf (fmt, get_r18_value (lay));
+      LOGPRINT (fmt, get_r18_value (lay));
       break;
 
     case LOG_SET_FMT_ONCE_CMD:
@@ -555,14 +564,14 @@ sys_log_dump (int what)
     case LOG_STR_CMD:
       log_add ("log string");
       read_string (string, val, lay->in_rom, sizeof (string));
-      printf (fmt, string);
+      LOGPRINT (fmt, string);
       break;
 
     case LOG_FLOAT_CMD:
       {
         log_add ("log float");
         avr_float_t af = decode_avr_float (val);
-        printf (fmt, af.x);
+        LOGPRINT (fmt, af.x);
       }
       break;
 
@@ -570,7 +579,7 @@ sys_log_dump (int what)
       {
         log_add ("log double");
         avr_float_t af = decode_avr_double (get_r18_value (lay));
-        printf (fmt, af.x);
+        LOGPRINT (fmt, af.x);
       }
       break;
 
@@ -618,7 +627,7 @@ sys_log_dump (int what)
         str_append (txt, "} = 0x%u.%013" PRIx64 "|%u, expo = %d }",
                     msb, mant, lsn,
                     get_mem_value (addr + 1 + n_mant, & layout[LOG_S16_CMD]));
-        printf (fmt, txt);
+        LOGPRINT (fmt, txt);
       }
       break;
     }
