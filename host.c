@@ -625,8 +625,6 @@ sys_log_dump (int what)
 }
 
 
-#define ARRAY_SIZE(X) (sizeof(X) / sizeof(*X))
-
 static int
 is_special_ulp (const avr_float_t *x, const avr_float_t *y)
 {

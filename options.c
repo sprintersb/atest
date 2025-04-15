@@ -35,6 +35,7 @@
 static const char USAGE[] =
   "  usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]\n"
   "                 [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]\n"
+  "                 [-stdin[=FILE]] [-stdout[=FILE]] [-stderr[=FILE]]\n"
   "                 [-q] [-flush] [-runtime] [-v]\n"
   "                 [-graph[=FILE]] [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
@@ -47,8 +48,8 @@ static const char USAGE[] =
   "                the entry point from the ELF program and 0 for non-ELF.\n"
   "  -pm OFFSET    Set OFFSET where the program memory is seen in the\n"
   "                LD's instruction address space (avrxmega3 only).\n"
-  "  -m MAXCOUNT   Execute at most MAXCOUNT instructions. Supported suffixes\n"
-  "                are k for 1000 and M for a million.\n"
+  "  -m MAXCOUNT   Execute at most MAXCOUNT instructions. Supported\n"
+  "                suffixes are k for 1000 and M for a million.\n"
   "  -s SIZE       The size of the simulated flash.  For a program built\n"
   "                for ATmega8, SIZE would be 8K or 8192 or 0x2000.\n"
   "  -q            Quiet operation.  Only print messages explicitly\n"
@@ -62,8 +63,10 @@ static const char USAGE[] =
   "  -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.\n"
   "  -no-stderr    Disable avrtest_putchar_stderr (syscall 24).\n"
   "  -flush        Flush the host's stdout resp. stderr stream after each\n"
-  "                (direct or indirect) call of avrtest_putchar (syscall 29)\n"
-  "                resp. avrtest_putchar_stderr (syscall 24).\n"
+  "  -stdin=FILE   stdin reads from the host's FILE.  FILE must be a *.txt\n"
+  "                or a *.data file.\n"
+  "  -stdout=FILE  Similar, but for stdout.\n"
+  "  -stderr=FILE  Similar, but for stderr.\n"
   "  -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the\n"
   "                target program can access via file I/O (syscall 26).\n"
   "  -graph[=FILE] Write a .dot FILE representing the dynamic call graph.\n"
@@ -346,6 +349,116 @@ get_valid_kilo (const char *str, const char *opt)
   return val;
 }
 
+
+typedef struct
+{
+  FILE *const *pstd_stream;       // &stdout
+  FILE ** pstream;                // &program.stdout
+
+  int *pdo_opt;                   // &options.do_stdout
+  int *pdo_opt_filename;          // &options.do_stdout_filename
+  const char *const *pfilename;   // &options.s_stdout_filename
+
+  const char *opt;                // "-stdout"
+  const char *action;             // "write"
+} file_t;
+
+#define MK_FILE(S, ACTION) {                                              \
+  &S, &program.S,                                                         \
+  &options.do_##S, &options.do_##S##_filename, &options.s_##S##_filename, \
+  "-" #S, ACTION                                                    \
+}
+
+file_t files[3] =
+  {
+    MK_FILE (stdout, "write"),
+    MK_FILE (stderr, "write"),
+    MK_FILE (stdin,  "read")
+  };
+
+
+// Set program.{stdout|stderr|stdin} according to -[no-]stdout[=FILE].
+static void
+maybe_open_file (file_t *f)
+{
+  FILE *stream = NULL;
+  bool verb = options.do_verbose && (*f->pdo_opt_filename || !*f->pdo_opt);
+
+  if (verb)
+    printf (">>> %s", f->opt);
+
+  if (*f->pdo_opt_filename) // options.do_stdout_filename etc.
+    {
+      if (verb)
+        printf ("=%s", *f->pfilename);
+
+      bool is_txt =  str_suffix (".txt",  *f->pfilename);
+      bool is_data = str_suffix (".data", *f->pfilename);
+
+      if (!is_txt && !is_data)
+        {
+          if (verb)
+            printf (" ignored: illegal file name (not *.txt or *.data)"
+                    ", using %s", 1 + f->opt);
+          stream = *f->pstd_stream;
+        }
+      else
+        {
+          char mode[3] = "..", *pmode = mode;
+          *pmode++ = f->action[0];
+          if (is_data)
+            *pmode++ = 'b';
+          *pmode++ = '\0';
+
+          stream = fopen (*f->pfilename, mode);
+
+          if (verb)
+            {
+              printf (" %s mode \"%s\"", f->action, mode);
+              if (!stream)
+                printf (" ignored: cannot open for %s", f->action);
+            }
+        }
+    }
+  else if (*f->pdo_opt) // options.do_stdout etc.
+    {
+      stream = *f->pstd_stream;
+    }
+  else if (verb)
+    printf ("=/dev/null");
+
+  if (verb)
+    printf ("\n");
+
+  *f->pstream = stream;
+}
+
+
+// Added to atexit() below.
+static void
+close_streams (void)
+{
+  for (size_t i = 0; i < ARRAY_SIZE (files); ++i)
+    {
+      file_t *f = & files[i];
+      if (*f->pstream && *f->pstream != *f->pstd_stream)
+        fclose (*f->pstream);
+    }
+}
+
+// Set program.stdout from -[no-]stdout[=filename].
+// Set program.stderr from -[no-]stderr[=filename].
+// Set program.stdin  from -[no-]stdin[=filename].
+static void
+set_streams (void)
+{
+  for (size_t i = 0; i < ARRAY_SIZE (files); ++i)
+    maybe_open_file (& files[i]);
+
+  atexit (close_streams);
+}
+
+
 static unsigned int flash_pm_offset;
 
 // parse command line arguments
@@ -371,6 +484,23 @@ parse_args (int argc, char *argv[])
   //  Use naive but very portable method to decode arguments.
   for (int i = 1; i < argc; i++)
     {
+      // "-no-stdout" sets options.do_stdout[_filename] = 0.
+      bool cont = false;
+      for (size_t j = 0; j < ARRAY_SIZE (files); ++j)
+        {
+          file_t *f = & files[j];
+          if (str_prefix ("-no", argv[i])
+              && str_prefix (f->opt, argv[i] + strlen ("-no")))
+            {
+              *f->pdo_opt = *f->pdo_opt_filename = 0;
+              cont = true;
+              break;
+            }
+        }
+      // Handled "-no-stdout" above.
+      if (cont)
+        continue;
+
       const char *p;
       int on = 0;
       const option_t *o;
@@ -496,6 +626,9 @@ parse_args (int argc, char *argv[])
           usage ("'-pm OFFSET' is only valid for avrxmega3");
       arch.flash_pm_offset = flash_pm_offset;
     }
+
+  // Set program.stdout from -stdout[=filename] etc.
+  set_streams ();
 }
 
 

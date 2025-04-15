@@ -1778,12 +1778,12 @@ static void sys_argc_argv (void)
 
 static void sys_stdin (void)
 {
-  if (options.do_stdin)
+  if (program.stdin)
     {
       log_append ("stdin ");
       if (IS_AVRTEST_LOG)
         fflush (stdout);
-      put_word_reg (24, getchar());
+      put_word_reg (24, getc (program.stdin));
     }
   else
   {
@@ -1794,13 +1794,13 @@ static void sys_stdin (void)
 
 static void sys_stdout (void)
 {
-  if (options.do_stdout)
+  if (program.stdout)
     {
       log_append ("stdout ");
       char c = (char) get_reg (24);
-      putchar (c);
+      putc (c, program.stdout);
       if (options.do_flush)
-        fflush (stdout);
+        fflush (program.stdout);
       if (isprint (c))
         log_append ("'%c'", c);
     }
@@ -1810,11 +1810,11 @@ static void sys_stdout (void)
 
 static void sys_stderr (void)
 {
-  if (options.do_stderr)
+  if (program.stderr)
     {
       log_append ("stderr ");
       char c = (char) get_reg (24);
-      fputc (c, stderr);
+      fputc (c, program.stderr);
       if (options.do_flush)
         fflush (stderr);
       if (isprint (c))

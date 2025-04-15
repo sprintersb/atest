@@ -103,6 +103,9 @@ typedef struct
 
   // ...and with directories stripped off
   const char *short_name;
+
+  // from -stdout=<filename> etc.
+  FILE *stdin, *stdout, *stderr;
 } program_t;
 
 extern program_t program;
@@ -115,6 +118,8 @@ extern const bool is_avrtest_log;
 extern const unsigned invalid_opcode;
 
 extern bool have_syscall[32];
+
+#define ARRAY_SIZE(X) (sizeof(X) / sizeof(*X))
 
 #define INLINE inline __attribute__((always_inline))
 #define NOINLINE __attribute__((noinline))
@@ -282,6 +287,14 @@ static INLINE bool
 str_prefix (const char *prefix, const char *str)
 {
   return 0 == strncmp (prefix, str, strlen (prefix));
+}
+
+static INLINE bool
+str_suffix (const char *suffix, const char *str)
+{
+  size_t lx = strlen (suffix);
+  size_t lstr = strlen (str);
+  return lx <= lstr && 0 == strcmp (str + lstr - lx, suffix);
 }
 
 static INLINE bool

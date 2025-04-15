@@ -242,6 +242,7 @@ will print a help screen with available options:
 
   usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]
                  [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]
+                 [-stdin[=FILE]] [-stdout[=FILE]] [-stderr[=FILE]]
                  [-q] [-flush] [-runtime] [-v]
                  [-graph[=FILE]] [-sbox=FOLDER]
                  program [-args [...]]
@@ -254,8 +255,8 @@ Options:
                 the entry point from the ELF program and 0 for non-ELF.
   -pm OFFSET    Set OFFSET where the program memory is seen in the
                 LD's instruction address space (avrxmega3 only).
-  -m MAXCOUNT   Execute at most MAXCOUNT instructions. Supported suffixes
-                are k for 1000 and M for a million.
+  -m MAXCOUNT   Execute at most MAXCOUNT instructions. Supported
+                suffixes are k for 1000 and M for a million.
   -s SIZE       The size of the simulated flash.  For a program built
                 for ATmega8, SIZE would be 8K or 8192 or 0x2000.
   -q            Quiet operation.  Only print messages explicitly
@@ -269,8 +270,10 @@ Options:
   -no-stdout    Disable avrtest_putchar (syscall 29) from avrtest.h.
   -no-stderr    Disable avrtest_putchar_stderr (syscall 24).
   -flush        Flush the host's stdout resp. stderr stream after each
-                (direct or indirect) call of avrtest_putchar (syscall 29)
-                resp. avrtest_putchar_stderr (syscall 24).
+  -stdin=FILE   stdin reads from the host's FILE.  FILE must be a *.txt
+                or a *.data file.
+  -stdout=FILE  Similar, but for stdout.
+  -stderr=FILE  Similar, but for stderr.
   -sbox SANDBOX Provide the path to SANDBOX, which is a folder that the
                 target program can access via file I/O (syscall 26).
   -graph[=FILE] Write a .dot FILE representing the dynamic call graph.
@@ -578,6 +581,11 @@ each time, where flmap ranges from 0 to 3.
 ==================================================
 File I/O with the File System of the Host Computer
 ==================================================
+
+!!! In order to printf to a file on the host there is
+!!! -stdout=FILE where FILE is a *.txt or *.data file.
+!!! Similarly, there are -stderr=FILE and -stdin=FILE.
+!!! No file I/O complications are needed.
 
 AVRtest supports basic file I/O capabilities that enable the target program
 to communicate with the host's file system.  In order to enable this, option
