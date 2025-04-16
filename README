@@ -9,6 +9,9 @@ microcontrollers distributed under the GNU General Public License.
 The main intention of AVRtest is to supply a fast, easy-to-use simulator
 to run the GCC testsuite for avr-gcc or parts of the AVR-LibC testsuite.
 
+Pre-built versions for Windows are available at
+https://sourceforge.net/projects/winavr/files/AVRtest
+
 
 ============
 Introduction

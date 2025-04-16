@@ -172,8 +172,8 @@ exit-%.o: dejagnuboards/exit.c avrtest.h Makefile
 fileio-%.o: dejagnuboards/fileio.c fileio.h avrtest.h Makefile
 	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*
 
-.PHONY: all all-host all-avr exe exit all-mingw32 all-avrtest
-.PHONY: clean clean-host clean-exit clean-fileio clean-avr
+.PHONY: all all-host all-avr exe exit all-mingw32 all-avrtest upload-mingw32
+.PHONY: clean clean-host clean-exit clean-fileio clean-avr clean-mingw32
 
 clean-host:
 	rm -f $(filter-out $(wildcard exit-*.[iso] fileio-*.[iso]) , $(wildcard *.[iso]))
@@ -189,4 +189,10 @@ clean-fileio:
 
 clean-avr: clean-exit clean-fileio
 
+clean-mingw32:
+	rm -f $(wildcard *.exe *-mingw32.[iso])
+
 clean: clean-host clean-avr
+
+upload-mingw32:
+	./make-mingw32.sh

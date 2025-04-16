@@ -11,6 +11,9 @@ and easy-to-use simulator to run the
 [GCC](https://gcc.gnu.org) testsuite for avr-gcc and parts of the
 [AVR-LibC](https://github.com/avrdudes/avr-libc) testsuite.
 
+Pre-built binaries for Windows are available at
+https://sourceforge.net/projects/winavr/files/AVRtest
+
 ## Table of Contents
 
 * [Introduction](#introduction)
