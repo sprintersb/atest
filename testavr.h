@@ -105,7 +105,7 @@ typedef struct
   const char *short_name;
 
   // from -stdout=<filename> etc.
-  FILE *stdin, *stdout, *stderr;
+  FILE *f_stdin, *f_stdout, *f_stderr;
 
   // From -log=<filename>.
   FILE *log_stream;

@@ -350,11 +350,14 @@ get_valid_kilo (const char *str, const char *opt)
   return val;
 }
 
+static FILE* get_stdout (void) { return stdout; }
+static FILE* get_stderr (void) { return stderr; }
+static FILE* get_stdin  (void) { return stdin; }
 
-typedef struct
+typedef struct file_t
 {
-  FILE *const *pstd_stream;       // &stdout
-  FILE ** pstream;                // &program.stdout
+  FILE *(*std_stream)(void);      // get_stdout()
+  FILE ** pstream;                // &program.f_stdout
 
   int *pdo_opt;                   // &options.do_stdout
   int *pdo_opt_filename;          // &options.do_stdout_filename
@@ -365,12 +368,12 @@ typedef struct
 } file_t;
 
 #define MK_FILE(S, ACTION) {                                              \
-  &S, &program.S,                                                         \
+  get_##S, &program.f_##S,                                                \
   &options.do_##S, &options.do_##S##_filename, &options.s_##S##_filename, \
-  "-" #S, ACTION                                                    \
+  "-" #S, ACTION                                                          \
 }
 
-file_t files[3] =
+static file_t files[3] =
   {
     MK_FILE (stdout, "write"),
     MK_FILE (stderr, "write"),
@@ -401,7 +404,7 @@ maybe_open_file (file_t *f)
           if (verb)
             printf (" ignored: illegal file name (not *.txt or *.data)"
                     ", using %s", 1 + f->opt);
-          stream = *f->pstd_stream;
+          stream = f->std_stream ();
         }
       else
         {
@@ -423,7 +426,7 @@ maybe_open_file (file_t *f)
     }
   else if (*f->pdo_opt) // options.do_stdout etc.
     {
-      stream = *f->pstd_stream;
+      stream = f->std_stream ();
     }
   else if (verb)
     printf ("=/dev/null");
@@ -442,7 +445,7 @@ close_streams (void)
   for (size_t i = 0; i < ARRAY_SIZE (files); ++i)
     {
       file_t *f = & files[i];
-      if (*f->pstream && *f->pstream != *f->pstd_stream)
+      if (*f->pstream && *f->pstream != f->std_stream ())
         fclose (*f->pstream);
     }
 
@@ -461,8 +464,11 @@ close_streams (void)
 static void
 set_streams (void)
 {
+  // -{stdout|stderr|stdin}=filename
   for (size_t i = 0; i < ARRAY_SIZE (files); ++i)
     maybe_open_file (& files[i]);
+
+  // -log=filename
 
   const char *fname = options.s_log_filename;
 
