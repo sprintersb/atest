@@ -2,6 +2,7 @@
 *.o
 *.s
 
+*.elf
 *.exe
 
 *.zip
