@@ -16,3 +16,5 @@ avrtest-tiny_log
 avrtest-xmega
 avrtest-xmega_log
 gen-flag-tables
+
+.svnignore
