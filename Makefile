@@ -191,6 +191,7 @@ clean-avr: clean-exit clean-fileio
 
 clean-mingw32:
 	rm -f $(wildcard *.exe *-mingw32.[iso])
+	rm -rf $(wildcard avrtest_*_mingw32*)
 
 clean: clean-host clean-avr
 
