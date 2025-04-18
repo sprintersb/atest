@@ -4,6 +4,10 @@
 
 *.exe
 
+*.zip
+*.md5
+avrtest_*_ming32/
+
 avrtest
 avrtest_log
 avrtest-tiny
