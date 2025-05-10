@@ -719,12 +719,11 @@ get_fulp (const avr_float_t *x, const avr_float_t *y)
   int iulp = is_special_ulp (x, y);
   if (iulp >= 0)
     return iulp;
-  float hx = ldexpf (x->mant1, x->exp);
-  float hy = ldexpf (y->mant1, y->exp);
+  float sx = ldexpf (x->mant1, x->exp) * (x->sign_bit ? -1 : 1);
+  float sy = ldexpf (y->mant1, y->exp) * (y->sign_bit ? -1 : 1);
   float ulp = ldexpf (1, y->exp);
 
-  float z = (hx - hy) / ulp;
-  return fabsf (z);
+  return (sx - sy) / ulp;
 }
 
 
@@ -1038,12 +1037,11 @@ get_dulp (const avr_float_t *x, const avr_float_t *y)
   int iulp = is_special_ulp (x, y);
   if (iulp >= 0)
     return iulp;
-  host_double_t hx = ldexp (x->mant1, x->exp);
-  host_double_t hy = ldexp (y->mant1, y->exp);
+  host_double_t sx = ldexp (x->mant1, x->exp) * (x->sign_bit ? -1 : 1);
+  host_double_t sy = ldexp (y->mant1, y->exp) * (y->sign_bit ? -1 : 1);
   host_double_t ulp = ldexp (1, y->exp);
 
-  host_double_t z = (hx - hy) / ulp;
-  return fabs (z);
+  return (sx - sy) / ulp;
 }
 
 
