@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <math.h>
 
 #include "testavr.h"
@@ -727,6 +728,38 @@ get_fulp (const avr_float_t *x, const avr_float_t *y)
 }
 
 
+static void
+sys_misc_strtof (void)
+{
+  char s_float[100], *tail;
+  const uint16_t addr = get_reg_value (24, & layout[LOG_U16_CMD]);
+  const uint16_t pend = get_reg_value (22, & layout[LOG_U16_CMD]);
+
+  read_string (s_float, addr, false, sizeof(s_float) - 1);
+  const float f = strtof (s_float, &tail);
+  const size_t n_chars = tail - s_float;
+
+  log_add (" strtof 0x%04x:\"%s\" -> " PRIF, addr, s_float, f, f);
+  if (*tail)
+    {
+      log_add (", pend+=%d", (int) n_chars);
+      log_add (", *pend=0x%x", *tail);
+      if (isprint (*tail))
+        log_add ("='%c'", *tail);
+    }
+
+  set_reg_float (22, f);
+
+  if (pend)
+    {
+      byte *p = cpu_address (pend, AR_RAM);
+      uint16_t end = addr + n_chars;
+      p[0] = end;
+      p[1] = end / 256;
+    }
+}
+
+
 typedef struct
 {
   float (*fun) (float);
@@ -1205,6 +1238,10 @@ void sys_misc_emul (uint8_t what)
     case AVRTEST_MISC_divs32:
     case AVRTEST_MISC_mods32:
       sys_misc_s32 (what);
+      break;
+
+    case AVRTEST_MISC_strtof:
+      sys_misc_strtof ();
       break;
 
     default:

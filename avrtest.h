@@ -99,6 +99,7 @@ enum
     AVRTEST_MISC_ftok, AVRTEST_MISC_ftohk,
     AVRTEST_MISC_ftour, AVRTEST_MISC_ftouhr,
     AVRTEST_MISC_ftouk, AVRTEST_MISC_ftouhk,
+    AVRTEST_MISC_strtof,
     AVRTEST_MISC_sentinel
   };
 
@@ -561,6 +562,12 @@ AVRTEST_DEF_SYSCALL2 (_21a, 21, unsigned char, 26, unsigned char, 24)
 static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 {
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
+}
+
+AVRTEST_DEF_SYSCALL2_1m (_21_strtof,21, float,22, const char*,24, char**,22)
+static AT_INLINE float avrtest_strtof (const char *_s, char **_p)
+{
+    return avrtest_syscall_21_strtof (AVRTEST_MISC_strtof, _s, _p);
 }
 
 AVRTEST_DEF_SYSCALL2_1m (_21_u32,21, __UINT32_TYPE__,22, __UINT32_TYPE__,22, __UINT32_TYPE__,18)

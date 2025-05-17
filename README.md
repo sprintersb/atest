@@ -992,6 +992,7 @@ Don't forget to append `f` to the function name for the `float` versions.
 `avrtest_cmpf` compares two floating-point values.  It returns -1, 0, +1
 when the values are less, equal or greater, respectively.
 It returns -128 for unordered comparisons.
+`avrtest_strtof` converts an ASCII string to float, just like `strtof`.
 
 AVRtest will terminate with an error when the host IEEE single cannot
 be used for emulation.

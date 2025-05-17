@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support avrtest_strtof().                                      2025-05-17
+
 * Support avrtest_log10f() and avrtest_log10l().                 2025-05-16
 
 * Support -log=FILE for the LOG_XXX commands.                    2025-04-15
