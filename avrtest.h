@@ -77,7 +77,7 @@ enum
     AVRTEST_atan2, AVRTEST_hypot,
     AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
     AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
-    AVRTEST_ulp,
+    AVRTEST_ulp, AVRTEST_prand,
     AVRTEST_EMUL_misc,
     AVRTEST_ldexp = AVRTEST_EMUL_misc,
     AVRTEST_u32to, AVRTEST_s32to,
@@ -682,7 +682,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
-AVRTEST_DEFF(ulp)
+AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
 
 static AT_INLINE float
@@ -723,7 +723,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
-AVRTEST_DEFF(ulp)
+AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
 
 static AT_INLINE __UINT64_TYPE__
@@ -764,7 +764,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
-AVRTEST_DEFF(ulp)
+AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
 
 static AT_INLINE long double
@@ -810,6 +810,7 @@ avrtest_ldexpl (long double _x, int _y)
 #define avrtest_subl   avrtest_subf
 #define avrtest_ulpl   avrtest_ulpf
 #define avrtest_ldexpl avrtest_ldexpf
+#define avrtest_prandl avrtest_prandf
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 

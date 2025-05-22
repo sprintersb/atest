@@ -347,8 +347,8 @@ get_mem_byte (unsigned addr)
 
 ticks_port_t ticks_port;
 
-void
-sys_ticks_cmd (int cfg)
+static uint32_t
+get_next_prand (void)
 {
   // a prime m
   const uint32_t prand_m = 0xfffffffb;
@@ -357,6 +357,14 @@ sys_ticks_cmd (int cfg)
   // a primitive root of (Z/m*Z)^*
   const uint32_t prand_root = 0xcafebabe;
 
+  ticks_port_t *tp = &ticks_port;
+  uint32_t value = tp->pvalue ? tp->pvalue : 1;
+  return tp->pvalue = ((uint64_t) value * prand_root) % prand_m;
+}
+
+void
+sys_ticks_cmd (int cfg)
+{
   cfg &= 0xff;
   ticks_port_t *tp = &ticks_port;
 
@@ -413,9 +421,7 @@ sys_ticks_cmd (int cfg)
       break;
     case TICKS_GET_PRAND_CMD:
       what = "prand";
-      value = tp->pvalue ? tp->pvalue : 1;
-      value = ((uint64_t) value * prand_root) % prand_m;
-      tp->pvalue = value;
+      value = get_next_prand ();
       break;
     case TICKS_GET_RAND_CMD:
       what = "rand";
@@ -727,6 +733,14 @@ get_fulp (const avr_float_t *x, const avr_float_t *y)
   return (sx - sy) / ulp;
 }
 
+static float
+get_fprand (float lo, float hi)
+{
+  uint32_t u = get_next_prand() & 0x7fffffff;
+  float x = lo + (float) u / 0x7fffffff * (hi - lo);
+  return fminf (fmaxf (x, lo), hi);
+}
+
 
 static void
 sys_misc_strtof (void)
@@ -860,6 +874,7 @@ emul_float2 (uint8_t fid)
     case AVRTEST_div: name = "div"; z = x / y; break;
     case AVRTEST_add: name = "add"; z = x + y; break;
     case AVRTEST_sub: name = "sub"; z = x - y; break;
+    case AVRTEST_prand: name = "prand"; z = get_fprand (x, y); break;
     case AVRTEST_ulp: name = "ulp";
       {
         avr_float_t ax = get_reg_avr_float (22);
@@ -1077,6 +1092,18 @@ get_dulp (const avr_float_t *x, const avr_float_t *y)
   return (sx - sy) / ulp;
 }
 
+static host_double_t
+get_dprand (host_double_t lo, host_double_t hi)
+{
+  uint64_t u1 = get_next_prand();
+  uint64_t u2 = get_next_prand();
+  uint64_t mask = UINT64_MAX >> 1;
+  uint64_t u = (u1 | (u2 << 31)) & mask;
+  host_double_t x = lo + (host_double_t) u / mask * (hi - lo);
+  if (x > hi) x = hi;
+  if (x < lo) x = lo;
+  return x;
+}
 
 typedef struct
 {
@@ -1133,6 +1160,7 @@ emul_double2 (uint8_t fid)
     case AVRTEST_div: name = "div"; z = x / y; break;
     case AVRTEST_add: name = "add"; z = x + y; break;
     case AVRTEST_sub: name = "sub"; z = x - y; break;
+    case AVRTEST_prand: name = "prand"; z = get_dprand (x, y); break;
     case AVRTEST_ulp: name = "ulp";
       {
         avr_float_t ax = get_reg_avr_double (18);
