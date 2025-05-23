@@ -1052,6 +1052,17 @@ void sys_emul_double (uint8_t fid)
   log_add ("not supported: %s", NO_DEMUL);
   leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
 }
+static void sys_misc_ltof (void)
+{
+  log_add ("not supported: ltof: %s", NO_DEMUL);
+  leave (LEAVE_FATAL, "ltof failed: %s", NO_DEMUL);
+}
+static void sys_misc_ftol (void)
+{
+  log_add ("not supported: ftol: %s", NO_DEMUL);
+  leave (LEAVE_FATAL, "ftol failed: %s", NO_DEMUL);
+}
+
 #else // double emulation is supported
 
 static host_double_t
@@ -1192,6 +1203,10 @@ emul_double_misc (uint8_t fid)
 
     case AVRTEST_ldexp:
       {
+#if defined NO_DEMUL
+        log_add ("not supported: %s", NO_DEMUL);
+        leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
+#else
         host_double_t x = get_reg_double (18);
         int y = (int16_t) get_reg_value (16, & layout[LOG_S16_CMD]);
         host_double_t z = -1;
@@ -1203,6 +1218,26 @@ emul_double_misc (uint8_t fid)
         const char *name = "ldexp";
         log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
         set_reg_double (18, z);
+#endif /* NO_DEMUL */
+        break;
+      }
+
+    case AVRTEST_cmp:
+      {
+#if defined NO_DEMUL
+        log_add ("not supported: %s", NO_DEMUL);
+        leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
+#else
+        host_double_t x = get_reg_double (18);
+        host_double_t y = get_reg_double (10);
+        int8_t z = 0?0
+          : x < y  ? -1
+          : x > y  ? +1
+          : x == y ? 0
+          : -128;
+        log_add ("cmpl(" PRID ", " PRID ") = %d", x,x, y,y, (signed) z);
+        put_reg_value (24, 1, z);
+#endif /* NO_DEMUL */
         break;
       }
     } // switch
@@ -1217,6 +1252,7 @@ void sys_emul_double (uint8_t fid)
   switch (fid)
     {
     case AVRTEST_ldexp:
+    case AVRTEST_cmp:
       emul_double_misc (fid);
       return;
     }
@@ -1235,6 +1271,26 @@ void sys_emul_double (uint8_t fid)
   log_add ("emulate %sl(" PRID ") = " PRID, func1l[fid].name, x,x, z,z);
 
   set_reg_double (18, z);
+}
+
+static void
+sys_misc_ltof (void)
+{
+  host_double_t d = get_reg_double (18);
+  float f = (float) d;
+  set_reg_float (22, f);
+
+  log_add (" ltof " PRID " = " PRIF, d,d, f,f);
+}
+
+static void
+sys_misc_ftol (void)
+{
+  float f = get_reg_float (22);
+  host_double_t d = (long double) f;
+  set_reg_double (18, d);
+
+  log_add (" ltof " PRIF " = " PRID, f,f, d,d);
 }
 #endif // NO_DEMUL
 
@@ -1271,6 +1327,9 @@ void sys_misc_emul (uint8_t what)
     case AVRTEST_MISC_strtof:
       sys_misc_strtof ();
       break;
+
+    case AVRTEST_MISC_ltof:  sys_misc_ltof ();   break;
+    case AVRTEST_MISC_ftol:  sys_misc_ftol ();   break;
 
     default:
       leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);

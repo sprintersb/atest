@@ -100,6 +100,8 @@ enum
     AVRTEST_MISC_ftour, AVRTEST_MISC_ftouhr,
     AVRTEST_MISC_ftouk, AVRTEST_MISC_ftouhk,
     AVRTEST_MISC_strtof,
+    AVRTEST_MISC_ftol,
+    AVRTEST_MISC_ltof,
     AVRTEST_MISC_sentinel
   };
 
@@ -735,6 +737,13 @@ avrtest_ldexp_d64 (__UINT64_TYPE__ _x, int _y)
 #endif /* Have uint64_t */
 
 #if __SIZEOF_LONG_DOUBLE__ == 8
+
+AVRTEST_DEF_SYSCALL2_1m (_23_cmp,23, __INT8_TYPE__,24, long double,18, long double,10)
+static AT_INLINE __INT8_TYPE__ avrtest_cmpl (long double _x, long double _y)
+{
+  return avrtest_syscall_23_cmp (AVRTEST_cmp, _x, _y);
+}
+
 AVRTEST_DEF_SYSCALL2_1 (_23, 23, long double, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_23_2, 23, long double, 18, long double, 10,
                         unsigned char, 26)
@@ -773,6 +782,17 @@ avrtest_ldexpl (long double _x, int _y)
   return avrtest_syscall_23_2di (_x, _y, AVRTEST_ldexp);
 }
 
+AVRTEST_DEF_SYSCALL1_1m (_21_ftol,21, long double,18, float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_ltof,21, float,22, long double,18)
+static AT_INLINE long double avrtest_ftol (float _x)
+{
+  return avrtest_syscall_21_ftol (AVRTEST_MISC_ftol, _x);
+}
+static AT_INLINE float avrtest_ltof (long double _x)
+{
+  return avrtest_syscall_21_ltof (AVRTEST_MISC_ltof, _x);
+}
+
 #else /* long double = 4 */
 #define avrtest_sinl   avrtest_sinf
 #define avrtest_asinl  avrtest_asinf
@@ -804,6 +824,7 @@ avrtest_ldexpl (long double _x, int _y)
 #define avrtest_fminl  avrtest_fminf
 #define avrtest_fmaxl  avrtest_fmaxf
 #define avrtest_fmodl  avrtest_fmodf
+#define avrtest_cmpl   avrtest_cmpf
 #define avrtest_mull   avrtest_mulf
 #define avrtest_divl   avrtest_divf
 #define avrtest_addl   avrtest_addf
@@ -811,6 +832,9 @@ avrtest_ldexpl (long double _x, int _y)
 #define avrtest_ulpl   avrtest_ulpf
 #define avrtest_ldexpl avrtest_ldexpf
 #define avrtest_prandl avrtest_prandf
+static AT_INLINE long double avrtest_ftol (float x) { return (long double) x; }
+static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }
+
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 

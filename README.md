@@ -996,6 +996,7 @@ It returns –128 for unordered comparisons.
 * `avrtest_prandf` returns an evenly distributed pseudo-random number
 in the specified range.  The pseudo-random source is the same like
 for `avrtest_prand`.
+* `avrtest_ftol` and `avrtest_ltof` convert between float and long double.
 
 AVRtest will terminate with an error when the host IEEE single cannot
 be used for emulation.

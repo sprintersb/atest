@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support avrtest_cmpl(), avrtest_ftol(), avrtest_ltof().        2025-05-23
+
 * Support avrtest_prandf/l() to get pseudo-random                2025-05-17
   floating-point numbers.
 
