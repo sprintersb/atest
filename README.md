@@ -41,7 +41,7 @@ https://sourceforge.net/projects/winavr/files/AVRtest
   - [Streams for the Host](#file-io--special-streams-for-the-hosts-stdin-stdout-stderr)
 * [Performance Measurement](#performance-measurement)
 * [Timing Data and Random Values](#timing-data-and-random-values)
-* [32-Bit Integer Emulation](#32-bit-integer-emulation)
+* [32-Bit and 64-Bit Integer Emulation](#32-bit-and-64-bit-integer-emulation)
 * [IEEE single Emulation](#ieee-single-emulation)
 * [IEEE double Emulation](#ieee-double-emulation)
 * [Assembler Support in avrtest.h](#assembler-support-in-avrtesth)
@@ -957,10 +957,13 @@ The values returned by `avrtest_prand()` do not depend on the host machine.
 They only depend on the number of calls since the last reset.
 
 
-32-Bit Integer Emulation
-========================
+32-Bit and 64-Bit Integer Emulation
+===================================
 
 AVRtest supports syscalls like `avrtest_<op>s32` and `avrtest_<op>u32`
+with obvious semantics for `<op>` in: `mul`, `div`, `mod`.
+
+AVRtest supports syscalls like `avrtest_<op>s64` and `avrtest_<op>u64`
 with obvious semantics for `<op>` in: `mul`, `div`, `mod`.
 
 

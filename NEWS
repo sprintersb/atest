@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support mul, div and mod for int64_t and uint64_t.             2025-05-24
+
 * Support avrtest_cmpl(), avrtest_ftol(), avrtest_ltof().        2025-05-23
 
 * Support avrtest_prandf/l() to get pseudo-random                2025-05-17

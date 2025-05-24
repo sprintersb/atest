@@ -90,6 +90,8 @@ enum
     AVRTEST_MISC_flmap,
     AVRTEST_MISC_mulu32, AVRTEST_MISC_divu32, AVRTEST_MISC_modu32,
     AVRTEST_MISC_muls32, AVRTEST_MISC_divs32, AVRTEST_MISC_mods32,
+    AVRTEST_MISC_mulu64, AVRTEST_MISC_divu64, AVRTEST_MISC_modu64,
+    AVRTEST_MISC_muls64, AVRTEST_MISC_divs64, AVRTEST_MISC_mods64,
     AVRTEST_MISC_nofxtof,
     AVRTEST_MISC_rtof, AVRTEST_MISC_hrtof,
     AVRTEST_MISC_ktof, AVRTEST_MISC_hktof,
@@ -587,6 +589,24 @@ avrtest_##OP##s32 (__INT32_TYPE__ _x, __INT32_TYPE__ _y)                \
 }
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
 #undef AVRTEST_DEFF
+
+#ifndef __AVR_TINY__
+AVRTEST_DEF_SYSCALL2_1m (_21_u64,21, __UINT64_TYPE__,18, __UINT64_TYPE__,18, __UINT64_TYPE__,10)
+AVRTEST_DEF_SYSCALL2_1m (_21_s64,21, __INT64_TYPE__,18, __INT64_TYPE__,18, __INT64_TYPE__,10)
+#define AVRTEST_DEFF(OP)                                                \
+static AT_INLINE __UINT64_TYPE__                                        \
+avrtest_##OP##u64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ _y)              \
+{                                                                       \
+    return avrtest_syscall_21_u64 (AVRTEST_MISC_##OP##u64, _x, _y);     \
+}                                                                       \
+static AT_INLINE __INT64_TYPE__                                         \
+avrtest_##OP##s64 (__INT64_TYPE__ _x, __INT64_TYPE__ _y)                \
+{                                                                       \
+    return avrtest_syscall_21_s64 (AVRTEST_MISC_##OP##s64, _x, _y);     \
+}
+AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
+#undef AVRTEST_DEFF
+#endif /* AVR TINY */
 
 #ifdef _AVRGCC_STDFIX_H
 AVRTEST_DEF_SYSCALL1_1m (_21_ktof,21,  float,22, _Accum,22)

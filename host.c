@@ -272,14 +272,14 @@ get_reg_value (int regno, const layout_t *lay)
 }
 
 
-/* Read a value as unsigned long long from R18.  Bytesize (1..8) and
+/* Read a value as unsigned long long from REGNO.  Bytesize (1..8) and
    signedness are determined by respective layout[].  If the value is signed
    a cast to signed will do the conversion.  */
 
 static unsigned long long
-get_r18_value (const layout_t *lay)
+get_reg_value64 (int regno, const layout_t *lay)
 {
-  byte *p = cpu_address (18, AR_REG);
+  byte *p = cpu_address (regno, AR_REG);
   unsigned long long val = 0;
 
   if (lay->signed_p && (0x80 & p[lay->size - 1]))
@@ -514,6 +514,87 @@ sys_misc_s32 (uint8_t what)
            (unsigned) (uint32_t) b, (signed) c, (unsigned) (uint32_t) c);
 }
 
+
+static void
+sys_misc_u64 (uint8_t what)
+{
+  uint64_t a = (uint64_t) get_reg_value64 (18, & layout[LOG_U64_CMD]);
+  uint64_t b = (uint64_t) get_reg_value64 (10, & layout[LOG_U64_CMD]);
+  uint64_t c = 0;
+  const char *op = "???";
+  const char *name = "???";
+
+  switch (what)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown misc 64-bit arith function %u\n", what);
+
+    case AVRTEST_MISC_mulu64: op = "*"; name = "mul";
+      c = a * b;
+      break;
+
+    case AVRTEST_MISC_divu64: op = "/"; name = "div";
+      c =  b == 0 ? UINT64_MAX : a / b;
+      break;
+
+    case AVRTEST_MISC_modu64: op = "%"; name = "mod";
+      c = b == 0 ? a : a % b;
+      break;
+    }
+
+  put_reg_value (18, 8, c);
+
+  log_add (" arith %su64: %llu=0x%llx %s %llu=0x%llx = %llu=0x%llx", name,
+           (unsigned long long) a, (unsigned long long) a, op,
+           (unsigned long long) b, (unsigned long long) b,
+           (unsigned long long) c, (unsigned long long) c);
+}
+
+
+static void
+sys_misc_s64 (uint8_t what)
+{
+  int64_t a = (int64_t) get_reg_value64 (18, & layout[LOG_S64_CMD]);
+  int64_t b = (int64_t) get_reg_value64 (10, & layout[LOG_S64_CMD]);
+  int64_t c = 0;
+  bool sign;
+  const char *op = "???";
+  const char *name = "???";
+
+  switch (what)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown misc 64-bit arith function %u\n", what);
+
+    case AVRTEST_MISC_muls64: op = "*"; name = "mul";
+      c = a * b;
+      break;
+
+    case AVRTEST_MISC_divs64: op = "/"; name = "div";
+      sign = (a < 0) ^ (b < 0);
+      c = 0?0
+        : b == 0                    ? sign ? 1LL : -1LL
+        : a == INT64_MIN && b == -1 ? INT64_MIN
+        : a / b;
+      break;
+
+    case AVRTEST_MISC_mods64: op = "%"; name = "mod";
+      c = 0?0
+        : b == 0                    ? a
+        : a == INT64_MIN && b == -1 ? 0
+        : a % b;
+      break;
+    }
+
+  put_reg_value (18, 8, c);
+
+  log_add (" arith %ss64: %lld=0x%llx %s %lld=0x%llx = %lld=0x%llx", name,
+           (long long) a, (unsigned long long) a, op,
+           (long long) b, (unsigned long long) b,
+           (long long) c, (unsigned long long) c);
+}
+
+
 void
 sys_log_dump (int what)
 {
@@ -545,7 +626,7 @@ sys_log_dump (int what)
     case LOG_U64_CMD:
     case LOG_X64_CMD:
       log_add ("log %d-byte value", lay->size);
-      LOGPRINT (fmt, get_r18_value (lay));
+      LOGPRINT (fmt, get_reg_value64 (18, lay));
       break;
 
     case LOG_SET_FMT_ONCE_CMD:
@@ -585,7 +666,7 @@ sys_log_dump (int what)
     case LOG_D64_CMD:
       {
         log_add ("log double");
-        avr_float_t af = decode_avr_double (get_r18_value (lay));
+        avr_float_t af = decode_avr_double (get_reg_value64 (18, lay));
         LOGPRINT (fmt, af.x);
       }
       break;
@@ -1322,6 +1403,18 @@ void sys_misc_emul (uint8_t what)
     case AVRTEST_MISC_divs32:
     case AVRTEST_MISC_mods32:
       sys_misc_s32 (what);
+      break;
+
+    case AVRTEST_MISC_mulu64:
+    case AVRTEST_MISC_divu64:
+    case AVRTEST_MISC_modu64:
+      sys_misc_u64 (what);
+      break;
+
+    case AVRTEST_MISC_muls64:
+    case AVRTEST_MISC_divs64:
+    case AVRTEST_MISC_mods64:
+      sys_misc_s64 (what);
       break;
 
     case AVRTEST_MISC_strtof:
