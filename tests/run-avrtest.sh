@@ -107,7 +107,7 @@ while getopts $OPTS opt ; do
 done
 shift $((OPTIND - 1))
 
-test_list=${*:-"arith/*.c sreg/*.c"}
+test_list=${*:-"arith/*.c compile/*.c sreg/*.c"}
 
 CPPFLAGS="-Wundef -I.."
 # -Wno-array-bounds: Ditch wrong warnings due to avr-gcc PR105523.
