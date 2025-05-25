@@ -458,6 +458,22 @@ __extension__ enum
                           "r" (r26), "r" (r##R2), "r" (r##R3));         \
     return res##R0;                                                     \
   }
+/* Same, but with memory clobber for strtof's char**.  */
+#define AVRTEST_DEF_SYSCALL2_1M(S, N, T0, R0, T2, R2, T3, R3)           \
+  static AT_INLINE                                                      \
+  T0 avrtest_syscall ## S (unsigned char _v1_, T2 _v2_, T3 _v3_)        \
+  {                                                                     \
+    register T0 res##R0 __asm (#R0);                                    \
+    register unsigned char r26 __asm("26") = _v1_;                      \
+    register T2 r##R2 __asm (#R2) = _v2_;                               \
+    register T3 r##R3 __asm (#R3) = _v3_;                               \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"                        \
+                        : "=r" (res##R0)                                \
+                        : "n" (N), "n" (SYSCo_ ## N),                   \
+                          "r" (r26), "r" (r##R2), "r" (r##R3)           \
+                        : "memory");                                    \
+    return res##R0;                                                     \
+  }
 
 
 #define AVRTEST_DEF_SYSCALL2_R20(S, N, T2)                  \
@@ -568,7 +584,7 @@ static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
 }
 
-AVRTEST_DEF_SYSCALL2_1m (_21_strtof,21, float,22, const char*,24, char**,22)
+AVRTEST_DEF_SYSCALL2_1M (_21_strtof,21, float,22, const char*,24, char**,22)
 static AT_INLINE float avrtest_strtof (const char *_s, char **_p)
 {
     return avrtest_syscall_21_strtof (AVRTEST_MISC_strtof, _s, _p);

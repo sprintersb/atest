@@ -834,7 +834,7 @@ sys_misc_strtof (void)
   const float f = strtof (s_float, &tail);
   const size_t n_chars = tail - s_float;
 
-  log_add (" strtof 0x%04x:\"%s\" -> " PRIF, addr, s_float, f, f);
+  log_add (" strtof 0x%04x, 0x%04x:\"%s\" -> " PRIF, addr, pend, s_float, f, f);
   if (*tail)
     {
       log_add (", pend+=%d", (int) n_chars);
@@ -851,6 +851,7 @@ sys_misc_strtof (void)
       uint16_t end = addr + n_chars;
       p[0] = end;
       p[1] = end / 256;
+      log_add (", *0x%x=0x%x", pend, end);
     }
 }
 
