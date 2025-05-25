@@ -774,6 +774,22 @@ static void sys_misc_fxtof (uint8_t fid)
   log_add ("not supported: %s", NO_FEMUL);
   leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
 }
+static void emul_float_misc (uint8_t fid)
+{
+  const char *name = "???";
+  switch (fid)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown IEEE single misc function %u\n", fid);
+    case AVRTEST_ldexp: name = "ldexp"; break;
+    case AVRTEST_frexp: name = "frexp"; break;
+    case AVRTEST_modf:  name = "modf"; break;
+    case AVRTEST_cmp:   name = "cmp"; break;
+    }
+  log_add ("not supported: %sf: %s", name, NO_DEMUL);
+  leave (LEAVE_FATAL, "%sf failed: %s", name, NO_DEMUL);
+}
+
 #else // float emulation is supported
 
 static float
@@ -884,7 +900,7 @@ static const func1f_t func1f[] =
 #define _(X) [AVRTEST_##X - AVRTEST_EMUL_2args] = { X ## f, #X },
 static const func2f_t func2f[] =
   {
-    _(pow)  _(atan2) _(hypot)
+    _(pow)  _(atan2) _(hypot) _(fdim)
     _(fmin) _(fmax)  _(fmod)
   };
 #undef _
@@ -905,6 +921,38 @@ emul_float_misc (uint8_t fid)
         const char *name = "ldexp";
         log_add ("emulate %sf(" PRIF ", %d) = " PRIF "", name, x,x, y, z,z);
         set_reg_float (22, z);
+        break;
+      }
+
+    case AVRTEST_frexp:
+      {
+        float x = get_reg_float (22);
+        uint16_t pex = (uint16_t) get_reg_value (20, & layout[LOG_U16_CMD]);
+        int ex;
+        float z = frexpf (x, &ex);
+        int16_t ex16 = (int16_t) ex;
+        const char *name = "frexp";
+        log_add ("emulate %sf(" PRIF ", 0x%04x) = " PRIF, name, x,x, pex, z,z);
+        set_reg_float (22, z);
+        byte *b = cpu_address (pex, AR_RAM);
+        b[0] = ex;
+        b[1] = (uint16_t) ex16 / 256;
+        log_add (", *0x%04x = %d", pex, (int) ex16);
+        break;
+      }
+
+    case AVRTEST_modf:
+      {
+        float x = get_reg_float (22);
+        uint16_t py = (uint16_t) get_reg_value (20, & layout[LOG_U16_CMD]);
+        float y;
+        float z = modff (x, &y);
+        const char *name = "modf";
+        log_add ("emulate %sf(" PRIF ", 0x%04x) = " PRIF, name, x,x, py, z,z);
+        set_reg_float (22, z);
+        byte *b = cpu_address (py, AR_RAM);
+        memcpy (b, &y, 4);
+        log_add (", *0x%04x = " PRIF, py, y,y);
         break;
       }
 
@@ -1144,6 +1192,21 @@ static void sys_misc_ftol (void)
   log_add ("not supported: ftol: %s", NO_DEMUL);
   leave (LEAVE_FATAL, "ftol failed: %s", NO_DEMUL);
 }
+static void emul_double_misc (uint8_t fid)
+{
+  const char *name = "???";
+  switch (fid)
+    {
+    default:
+      leave (LEAVE_USAGE, "unknown IEEE double misc function %u\n", fid);
+    case AVRTEST_ldexp: name = "ldexp"; break;
+    case AVRTEST_frexp: name = "frexp"; break;
+    case AVRTEST_modf:  name = "modf"; break;
+    case AVRTEST_cmp:   name = "cmp"; break;
+    }
+  log_add ("not supported: %sl: %s", name, NO_DEMUL);
+  leave (LEAVE_FATAL, "%sl failed: %s", name, NO_DEMUL);
+}
 
 #else // double emulation is supported
 
@@ -1234,7 +1297,7 @@ static const func1l_t func1l[] =
 #endif
 static const func2l_t func2l[] =
   {
-    _(pow)  _(atan2) _(hypot)
+    _(pow)  _(atan2) _(hypot) _(fdim)
     _(fmin) _(fmax)  _(fmod)
   };
 #undef _
@@ -1285,10 +1348,6 @@ emul_double_misc (uint8_t fid)
 
     case AVRTEST_ldexp:
       {
-#if defined NO_DEMUL
-        log_add ("not supported: %s", NO_DEMUL);
-        leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
-#else
         host_double_t x = get_reg_double (18);
         int y = (int16_t) get_reg_value (16, & layout[LOG_S16_CMD]);
         host_double_t z = -1;
@@ -1300,16 +1359,51 @@ emul_double_misc (uint8_t fid)
         const char *name = "ldexp";
         log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
         set_reg_double (18, z);
-#endif /* NO_DEMUL */
+        break;
+      }
+
+    case AVRTEST_frexp:
+      {
+        host_double_t x = get_reg_double (18);
+        uint16_t pex = (uint16_t) get_reg_value (16, & layout[LOG_U16_CMD]);
+        int ex;
+#if defined HOST_DOUBLE
+        host_double_t z = frexp (x, &ex);
+#elif defined HOST_LONG_DOUBLE
+        host_double_t z = frexpl (x, &ex);
+#endif
+        int16_t ex16 = (int16_t) ex;
+        const char *name = "frexp";
+        log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, pex, z,z);
+        set_reg_double (18, z);
+        byte *b = cpu_address (pex, AR_RAM);
+        b[0] = ex;
+        b[1] = (uint16_t) ex16 / 256;
+        log_add (", *0x%04x = %d", pex, (int) ex16);
+        break;
+      }
+
+    case AVRTEST_modf:
+      {
+        host_double_t x = get_reg_double (18);
+        uint16_t py = (uint16_t) get_reg_value (16, & layout[LOG_U16_CMD]);
+        host_double_t y;
+#if defined HOST_DOUBLE
+        host_double_t z = modf (x, &y);
+#elif defined HOST_LONG_DOUBLE
+        host_double_t z = modfl (x, &y);
+#endif
+        const char *name = "modf";
+        log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, py, z,z);
+        set_reg_double (18, z);
+        byte *b = cpu_address (py, AR_RAM);
+        memcpy (b, &y, 8);
+        log_add (", *0x%04x = " PRID, py, y,y);
         break;
       }
 
     case AVRTEST_cmp:
       {
-#if defined NO_DEMUL
-        log_add ("not supported: %s", NO_DEMUL);
-        leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
-#else
         host_double_t x = get_reg_double (18);
         host_double_t y = get_reg_double (10);
         int8_t z = 0?0
@@ -1319,7 +1413,6 @@ emul_double_misc (uint8_t fid)
           : -128;
         log_add ("cmpl(" PRID ", " PRID ") = %d", x,x, y,y, (signed) z);
         put_reg_value (24, 1, z);
-#endif /* NO_DEMUL */
         break;
       }
     } // switch
@@ -1334,6 +1427,8 @@ void sys_emul_double (uint8_t fid)
   switch (fid)
     {
     case AVRTEST_ldexp:
+    case AVRTEST_frexp:
+    case AVRTEST_modf:
     case AVRTEST_cmp:
       emul_double_misc (fid);
       return;

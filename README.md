@@ -983,10 +983,10 @@ Supported functions with one float argument are:
 
 Supported functions with two float arguments are:
     mul, div, add, sub, ulp, prand,
-    pow, atan2, hypot, fmin, fmax, fmod.
+    pow, atan2, hypot, fdim, fmin, fmax, fmod.
 
 Some more functions are:
-    ldexp, cmp, uto, sto.
+    frexp, ldexp, modf, cmp, uto, sto.
 
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.

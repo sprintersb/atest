@@ -74,12 +74,13 @@ enum
     AVRTEST_log2, AVRTEST_log10, AVRTEST_fabs,
     AVRTEST_EMUL_2args,
     AVRTEST_pow = AVRTEST_EMUL_2args,
-    AVRTEST_atan2, AVRTEST_hypot,
+    AVRTEST_atan2, AVRTEST_hypot, AVRTEST_fdim,
     AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
     AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
     AVRTEST_ulp, AVRTEST_prand,
     AVRTEST_EMUL_misc,
     AVRTEST_ldexp = AVRTEST_EMUL_misc,
+    AVRTEST_frexp, AVRTEST_modf,
     AVRTEST_u32to, AVRTEST_s32to,
     AVRTEST_cmp,
     AVRTEST_EMUL_sentinel
@@ -695,7 +696,9 @@ static AT_INLINE __INT8_TYPE__ avrtest_cmpf (float _x, float _y)
 /* Emulating IEEE single functions */
 AVRTEST_DEF_SYSCALL2_1 (_22, 22, float, 22, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_22_2, 22, float, 22, float, 18, unsigned char, 26)
-AVRTEST_DEF_SYSCALL3_1 (_22_2fi, 22, float, 22, int, 20, unsigned char, 26)
+AVRTEST_DEF_SYSCALL2_1m(_22_2fi,22,  float,22, float,22, int,20)
+AVRTEST_DEF_SYSCALL2_1M(_22_2fpi,22, float,22, float,22, int*,20)
+AVRTEST_DEF_SYSCALL2_1M(_22_2fpf,22, float,22, float,22, float*,20)
 
 #define AVRTEST_DEFF(ID)                          \
   static AT_INLINE float                          \
@@ -717,7 +720,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
   {                                                     \
     return avrtest_syscall_22_2 (_x, _y, AVRTEST_##ID); \
   }
-AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
+AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
@@ -726,7 +729,17 @@ AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 static AT_INLINE float
 avrtest_ldexpf (float _x, int _y)
 {
-  return avrtest_syscall_22_2fi (_x, _y, AVRTEST_ldexp);
+  return avrtest_syscall_22_2fi (AVRTEST_ldexp, _x, _y);
+}
+static AT_INLINE float
+avrtest_frexpf (float _x, int *_y)
+{
+  return avrtest_syscall_22_2fpi (AVRTEST_frexp, _x, _y);
+}
+static AT_INLINE float
+avrtest_modff (float _x, float *_y)
+{
+  return avrtest_syscall_22_2fpf (AVRTEST_modf, _x, _y);
 }
 
 /* Emulating IEEE double functions */
@@ -735,8 +748,9 @@ avrtest_ldexpf (float _x, int _y)
 AVRTEST_DEF_SYSCALL2_1 (_23_u64, 23, __UINT64_TYPE__, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_23_u64_2, 23, __UINT64_TYPE__, 18,
                         __UINT64_TYPE__, 10, unsigned char, 26)
-AVRTEST_DEF_SYSCALL3_1 (_23_u64_2di, 23, __UINT64_TYPE__, 18, int, 16,
-                        unsigned char, 26)
+AVRTEST_DEF_SYSCALL2_1m (_23_u64_2di,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18, int,16)
+AVRTEST_DEF_SYSCALL2_1M (_23_u64_2dpi,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18, int*,16)
+AVRTEST_DEF_SYSCALL2_1M (_23_u64_2dpd,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18, __UINT64_TYPE__*,16)
 
 #define AVRTEST_DEFF(ID)                                \
   static AT_INLINE __UINT64_TYPE__                      \
@@ -758,7 +772,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
   {                                                                     \
     return avrtest_syscall_23_u64_2 (_x, _y, AVRTEST_##ID);             \
   }
-AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
+AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
@@ -767,7 +781,17 @@ AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 static AT_INLINE __UINT64_TYPE__
 avrtest_ldexp_d64 (__UINT64_TYPE__ _x, int _y)
 {
-  return avrtest_syscall_23_u64_2di (_x, _y, AVRTEST_ldexp);
+  return avrtest_syscall_23_u64_2di (AVRTEST_ldexp, _x, _y);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_frexp_d64 (__UINT64_TYPE__ _x, int *_y)
+{
+  return avrtest_syscall_23_u64_2dpi (AVRTEST_frexp, _x, _y);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_modf_d64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ *_y)
+{
+  return avrtest_syscall_23_u64_2dpd (AVRTEST_modf, _x, _y);
 }
 
 #endif /* Have uint64_t */
@@ -783,8 +807,9 @@ static AT_INLINE __INT8_TYPE__ avrtest_cmpl (long double _x, long double _y)
 AVRTEST_DEF_SYSCALL2_1 (_23, 23, long double, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL3_1 (_23_2, 23, long double, 18, long double, 10,
                         unsigned char, 26)
-AVRTEST_DEF_SYSCALL3_1 (_23_2di, 23, long double, 18, int, 16,
-                        unsigned char, 26)
+AVRTEST_DEF_SYSCALL2_1m(_23_2di, 23, long double,18, long double,18, int,16)
+AVRTEST_DEF_SYSCALL2_1M(_23_2lpi,23, long double,18, long double,18, int*,16)
+AVRTEST_DEF_SYSCALL2_1M(_23_2lpl,23, long double,18, long double,18, long double*,16)
 
 #define AVRTEST_DEFF(ID)                                \
   static AT_INLINE long double                          \
@@ -806,7 +831,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
   {                                                     \
     return avrtest_syscall_23_2 (_x, _y, AVRTEST_##ID); \
   }
-AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot)
+AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
@@ -815,7 +840,17 @@ AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 static AT_INLINE long double
 avrtest_ldexpl (long double _x, int _y)
 {
-  return avrtest_syscall_23_2di (_x, _y, AVRTEST_ldexp);
+  return avrtest_syscall_23_2di (AVRTEST_ldexp, _x, _y);
+}
+static AT_INLINE long double
+avrtest_frexpl (long double _x, int *_y)
+{
+  return avrtest_syscall_23_2lpi (AVRTEST_frexp, _x, _y);
+}
+static AT_INLINE long double
+avrtest_modfl (long double _x, long double *_y)
+{
+  return avrtest_syscall_23_2lpl (AVRTEST_modf, _x, _y);
 }
 
 AVRTEST_DEF_SYSCALL1_1m (_21_ftol,21, long double,18, float,22)
@@ -857,6 +892,7 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_powl   avrtest_powf
 #define avrtest_atan2l avrtest_atan2f
 #define avrtest_hypotl avrtest_hypotf
+#define avrtest_fdiml  avrtest_fdimf
 #define avrtest_fminl  avrtest_fminf
 #define avrtest_fmaxl  avrtest_fmaxf
 #define avrtest_fmodl  avrtest_fmodf
@@ -866,8 +902,10 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_addl   avrtest_addf
 #define avrtest_subl   avrtest_subf
 #define avrtest_ulpl   avrtest_ulpf
+#define avrtest_frexpl avrtest_frexpf
 #define avrtest_ldexpl avrtest_ldexpf
 #define avrtest_prandl avrtest_prandf
+static AT_INLINE long double avrtest_modfl (long double x, long double *y) { return avrtest_modff (x, (float*) y); }
 static AT_INLINE long double avrtest_ftol (float x) { return (long double) x; }
 static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }
 
