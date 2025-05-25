@@ -60,9 +60,28 @@ typedef struct
 extern const layout_t layout[];
 
 extern unsigned get_reg_value (int regno, const layout_t*);
-extern char* read_string (char*, unsigned, bool, size_t);
+extern uint8_t get_reg_u8 (int regno);
+extern uint16_t get_reg_u16 (int regno);
+extern uint32_t get_reg_u32 (int regno);
+extern uint64_t get_reg_u64 (int regno);
+extern int8_t get_reg_s8 (int regno);
+extern int16_t get_reg_s16 (int regno);
+extern int32_t get_reg_s32 (int regno);
+extern int64_t get_reg_s64 (int regno);
+extern uint8_t get_mem_u8 (int);
+extern uint16_t get_mem_u16 (int);
+extern uint32_t get_mem_u32 (int);
+extern uint64_t get_mem_u64 (int);
+extern int8_t get_mem_s8 (int);
+extern int16_t get_mem_s16 (int);
+extern int32_t get_mem_s32 (int);
+extern int64_t get_mem_s64 (int);
+extern char* read_string (char *dest, unsigned addr, bool flash_p, size_t limi);
+extern void set_reg_value (int regno, int n_regs, uint64_t val);
 extern avr_float_t decode_avr_float (unsigned);
 extern avr_float_t decode_avr_double (uint64_t);
+extern float get_reg_float (int regno);
+extern void set_reg_float (int regno, float f);
 
 typedef struct
 {

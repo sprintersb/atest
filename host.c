@@ -271,6 +271,16 @@ get_reg_value (int regno, const layout_t *lay)
   return val;
 }
 
+uint8_t get_reg_u8 (int r) { return get_reg_value (r, &layout[LOG_U8_CMD]); }
+uint16_t get_reg_u16 (int r) { return get_reg_value (r, &layout[LOG_U16_CMD]); }
+uint32_t get_reg_u32 (int r) { return get_reg_value (r, &layout[LOG_U32_CMD]); }
+uint64_t get_reg_u64 (int r) { return get_reg_value (r, &layout[LOG_U64_CMD]); }
+
+int8_t get_reg_s8 (int r) { return get_reg_value (r, &layout[LOG_S8_CMD]); }
+int16_t get_reg_s16 (int r) { return get_reg_value (r, &layout[LOG_S16_CMD]); }
+int32_t get_reg_s32 (int r) { return get_reg_value (r, &layout[LOG_S32_CMD]); }
+int64_t get_reg_s64 (int r) { return get_reg_value (r, &layout[LOG_S64_CMD]); }
+
 
 /* Read a value as unsigned long long from REGNO.  Bytesize (1..8) and
    signedness are determined by respective layout[].  If the value is signed
@@ -294,8 +304,8 @@ get_reg_value64 (int regno, const layout_t *lay)
 
 /* Write value VAL to register REGNO.  */
 
-static void
-put_reg_value (int regno, int n_regs, uint64_t val)
+void
+set_reg_value (int regno, int n_regs, uint64_t val)
 {
   byte *p = cpu_address (regno, AR_REG);
   for (int i = 0; i < n_regs; ++i)
@@ -344,6 +354,17 @@ get_mem_byte (unsigned addr)
 {
   return get_mem_value (addr, & lay_1);
 }
+
+uint8_t get_mem_u8 (int r) { return get_mem_value (r, &layout[LOG_U8_CMD]); }
+uint16_t get_mem_u16 (int r) { return get_mem_value (r, &layout[LOG_U16_CMD]); }
+uint32_t get_mem_u32 (int r) { return get_mem_value (r, &layout[LOG_U32_CMD]); }
+uint64_t get_mem_u64 (int r) { return get_mem_value (r, &layout[LOG_U64_CMD]); }
+
+int8_t get_mem_s8 (int r) { return get_mem_value (r, &layout[LOG_S8_CMD]); }
+int16_t get_mem_s16 (int r) { return get_mem_value (r, &layout[LOG_S16_CMD]); }
+int32_t get_mem_s32 (int r) { return get_mem_value (r, &layout[LOG_S32_CMD]); }
+int64_t get_mem_s64 (int r) { return get_mem_value (r, &layout[LOG_S64_CMD]); }
+
 
 ticks_port_t ticks_port;
 
@@ -433,15 +454,15 @@ sys_ticks_cmd (int cfg)
 
   log_add ("ticks get %s: R22<-(%08x) = %u", what, value, value);
 
-  put_reg_value (22, 4, value);
+  set_reg_value (22, 4, value);
 }
 
 
 static void
 sys_misc_u32 (uint8_t what)
 {
-  uint32_t a = (uint32_t) get_reg_value (22, & layout[LOG_U32_CMD]);
-  uint32_t b = (uint32_t) get_reg_value (18, & layout[LOG_U32_CMD]);
+  uint32_t a = (uint32_t) get_reg_u32 (22);
+  uint32_t b = (uint32_t) get_reg_u32 (18);
   uint32_t c = 0;
   const char *op = "???";
   const char *name = "???";
@@ -464,7 +485,7 @@ sys_misc_u32 (uint8_t what)
       break;
     }
 
-  put_reg_value (22, 4, c);
+  set_reg_value (22, 4, c);
 
   log_add (" arith %su32: %u=0x%x %s %u=0x%x = %u=0x%x", name,
            (unsigned) a, (unsigned) a, op, (unsigned) b, (unsigned) b,
@@ -475,8 +496,8 @@ sys_misc_u32 (uint8_t what)
 static void
 sys_misc_s32 (uint8_t what)
 {
-  int32_t a = (int32_t) get_reg_value (22, & layout[LOG_S32_CMD]);
-  int32_t b = (int32_t) get_reg_value (18, & layout[LOG_S32_CMD]);
+  int32_t a = (int32_t) get_reg_s32 (22);
+  int32_t b = (int32_t) get_reg_s32 (18);
   int32_t c = 0;
   bool sign;
   const char *op = "???";
@@ -507,7 +528,7 @@ sys_misc_s32 (uint8_t what)
       break;
     }
 
-  put_reg_value (22, 4, c);
+  set_reg_value (22, 4, c);
 
   log_add (" arith %ss32: %d=0x%x %s %d=0x%x = %d=0x%x", name,
            (signed) a, (unsigned) (uint32_t) a, op, (signed) b,
@@ -542,7 +563,7 @@ sys_misc_u64 (uint8_t what)
       break;
     }
 
-  put_reg_value (18, 8, c);
+  set_reg_value (18, 8, c);
 
   log_add (" arith %su64: %llu=0x%llx %s %llu=0x%llx = %llu=0x%llx", name,
            (unsigned long long) a, (unsigned long long) a, op,
@@ -586,7 +607,7 @@ sys_misc_s64 (uint8_t what)
       break;
     }
 
-  put_reg_value (18, 8, c);
+  set_reg_value (18, 8, c);
 
   log_add (" arith %ss64: %lld=0x%llx %s %lld=0x%llx = %lld=0x%llx", name,
            (long long) a, (unsigned long long) a, op,
@@ -713,8 +734,7 @@ sys_log_dump (int what)
         // mant = 0x1.[IEEE_mant_bits] | 3 extra f7 bits
         mant &= (UINT64_C(1) << 52) - 1;
         str_append (txt, "} = 0x%u.%013" PRIx64 "|%u, expo = %d }",
-                    msb, mant, lsn,
-                    get_mem_value (addr + 1 + n_mant, & layout[LOG_S16_CMD]));
+                    msb, mant, lsn, get_mem_s16 (addr + 1 + n_mant));
         LOGPRINT (fmt, txt);
       }
       break;
@@ -792,7 +812,7 @@ static void emul_float_misc (uint8_t fid)
 
 #else // float emulation is supported
 
-static float
+float
 get_reg_float (int regno)
 {
   float f;
@@ -800,7 +820,7 @@ get_reg_float (int regno)
   return f;
 }
 
-static void
+void
 set_reg_float (int regno, float f)
 {
   memcpy (cpu_address (regno, AR_REG), &f, sizeof (float));
@@ -843,8 +863,8 @@ static void
 sys_misc_strtof (void)
 {
   char s_float[100], *tail;
-  const uint16_t addr = get_reg_value (24, & layout[LOG_U16_CMD]);
-  const uint16_t pend = get_reg_value (22, & layout[LOG_U16_CMD]);
+  const uint16_t addr = get_reg_u16 (24);
+  const uint16_t pend = get_reg_u16 (22);
 
   read_string (s_float, addr, false, sizeof(s_float) - 1);
   const float f = strtof (s_float, &tail);
@@ -916,7 +936,7 @@ emul_float_misc (uint8_t fid)
     case AVRTEST_ldexp:
       {
         float x = get_reg_float (22);
-        int y = (int16_t) get_reg_value (20, & layout[LOG_S16_CMD]);
+        int y = (int) get_reg_s16 (20);
         float z = ldexpf (x, y);
         const char *name = "ldexp";
         log_add ("emulate %sf(" PRIF ", %d) = " PRIF "", name, x,x, y, z,z);
@@ -927,7 +947,7 @@ emul_float_misc (uint8_t fid)
     case AVRTEST_frexp:
       {
         float x = get_reg_float (22);
-        uint16_t pex = (uint16_t) get_reg_value (20, & layout[LOG_U16_CMD]);
+        uint16_t pex = get_reg_u16 (20);
         int ex;
         float z = frexpf (x, &ex);
         int16_t ex16 = (int16_t) ex;
@@ -944,7 +964,7 @@ emul_float_misc (uint8_t fid)
     case AVRTEST_modf:
       {
         float x = get_reg_float (22);
-        uint16_t py = (uint16_t) get_reg_value (20, & layout[LOG_U16_CMD]);
+        uint16_t py = get_reg_u16 (20);
         float y;
         float z = modff (x, &y);
         const char *name = "modf";
@@ -958,7 +978,7 @@ emul_float_misc (uint8_t fid)
 
     case AVRTEST_u32to:
       {
-        uint32_t u32 = (uint32_t) get_reg_value (22, & layout[LOG_U32_CMD]);
+        uint32_t u32 = get_reg_u32 (22);
         float z = (float) u32;
         log_add ("utof(%u=0x%x) = " PRIF, (unsigned) u32, (unsigned) u32, z,z);
         set_reg_float (22, z);
@@ -967,7 +987,7 @@ emul_float_misc (uint8_t fid)
 
     case AVRTEST_s32to:
       {
-        int32_t s32 = (int32_t) get_reg_value (22, & layout[LOG_S32_CMD]);
+        int32_t s32 = get_reg_s32 (22);
         float z = (float) s32;
         log_add ("stof(%d=0x%x) = " PRIF, (signed) s32, (signed) s32, z,z);
         set_reg_float (22, z);
@@ -984,7 +1004,7 @@ emul_float_misc (uint8_t fid)
           : x == y ? 0
           : -128;
         log_add ("cmpf(" PRIF ", " PRIF ") = %d", x,x, y,y, (signed) z);
-        put_reg_value (24, 1, z);
+        set_reg_value (24, 1, z);
         break;
       }
     } // switch
@@ -1133,7 +1153,7 @@ sys_misc_fxtof (uint8_t fid)
 
       unsigned val = v64 & mask;
 
-      put_reg_value (regno, size, v64);
+      set_reg_value (regno, size, v64);
 
       log_add (" fto%s(%.*f) = 0x%0*x", name, ndigs, f, 2 * size, val);
     }
@@ -1349,7 +1369,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_ldexp:
       {
         host_double_t x = get_reg_double (18);
-        int y = (int16_t) get_reg_value (16, & layout[LOG_S16_CMD]);
+        int y = get_reg_s16 (16);
         host_double_t z = -1;
 #if defined HOST_DOUBLE
         z = ldexp (x, y);
@@ -1365,7 +1385,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_frexp:
       {
         host_double_t x = get_reg_double (18);
-        uint16_t pex = (uint16_t) get_reg_value (16, & layout[LOG_U16_CMD]);
+        uint16_t pex = get_reg_u16 (16);
         int ex;
 #if defined HOST_DOUBLE
         host_double_t z = frexp (x, &ex);
@@ -1386,7 +1406,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_modf:
       {
         host_double_t x = get_reg_double (18);
-        uint16_t py = (uint16_t) get_reg_value (16, & layout[LOG_U16_CMD]);
+        uint16_t py = get_reg_u16 (16);
         host_double_t y;
 #if defined HOST_DOUBLE
         host_double_t z = modf (x, &y);
@@ -1412,7 +1432,7 @@ emul_double_misc (uint8_t fid)
           : x == y ? 0
           : -128;
         log_add ("cmpl(" PRID ", " PRID ") = %d", x,x, y,y, (signed) z);
-        put_reg_value (24, 1, z);
+        set_reg_value (24, 1, z);
         break;
       }
     } // switch
