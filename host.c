@@ -315,6 +315,17 @@ set_reg_value (int regno, int n_regs, uint64_t val)
     }
 }
 
+static void
+set_mem_value (int addr, int n_regs, uint64_t val)
+{
+  byte *p = cpu_address (addr, AR_RAM);
+  for (int i = 0; i < n_regs; ++i)
+    {
+      *p++ = val & 0xff;
+      val >>= 8;
+    }
+}
+
 /* Read a value as unsigned from ADDR.  Bytesize (1..4) and signedness
    are determined by respective layout[].  If the value is signed, then
    a cast to signed will do the conversion.  */
@@ -801,13 +812,14 @@ static void emul_float_misc (uint8_t fid)
     {
     default:
       leave (LEAVE_USAGE, "unknown IEEE single misc function %u\n", fid);
+    case AVRTEST_strto: name = "strto"; break;
     case AVRTEST_ldexp: name = "ldexp"; break;
     case AVRTEST_frexp: name = "frexp"; break;
     case AVRTEST_modf:  name = "modf"; break;
     case AVRTEST_cmp:   name = "cmp"; break;
     }
-  log_add ("not supported: %sf: %s", name, NO_DEMUL);
-  leave (LEAVE_FATAL, "%sf failed: %s", name, NO_DEMUL);
+  log_add ("not supported: %s: %s", name, NO_DEMUL);
+  leave (LEAVE_FATAL, "%s failed: %s", name, NO_DEMUL);
 }
 
 #else // float emulation is supported
@@ -856,39 +868,6 @@ get_fprand (float lo, float hi)
   uint32_t u = get_next_prand() & 0x7fffffff;
   float x = lo + (float) u / 0x7fffffff * (hi - lo);
   return fminf (fmaxf (x, lo), hi);
-}
-
-
-static void
-sys_misc_strtof (void)
-{
-  char s_float[100], *tail;
-  const uint16_t addr = get_reg_u16 (24);
-  const uint16_t pend = get_reg_u16 (22);
-
-  read_string (s_float, addr, false, sizeof(s_float) - 1);
-  const float f = strtof (s_float, &tail);
-  const size_t n_chars = tail - s_float;
-
-  log_add (" strtof 0x%04x, 0x%04x:\"%s\" -> " PRIF, addr, pend, s_float, f, f);
-  if (*tail)
-    {
-      log_add (", pend+=%d", (int) n_chars);
-      log_add (", *pend=0x%x", *tail);
-      if (isprint (*tail))
-        log_add ("='%c'", *tail);
-    }
-
-  set_reg_float (22, f);
-
-  if (pend)
-    {
-      byte *p = cpu_address (pend, AR_RAM);
-      uint16_t end = addr + n_chars;
-      p[0] = end;
-      p[1] = end / 256;
-      log_add (", *0x%x=0x%x", pend, end);
-    }
 }
 
 
@@ -954,9 +933,7 @@ emul_float_misc (uint8_t fid)
         const char *name = "frexp";
         log_add ("emulate %sf(" PRIF ", 0x%04x) = " PRIF, name, x,x, pex, z,z);
         set_reg_float (22, z);
-        byte *b = cpu_address (pex, AR_RAM);
-        b[0] = ex;
-        b[1] = (uint16_t) ex16 / 256;
+        set_mem_value (pex, 2, ex);
         log_add (", *0x%04x = %d", pex, (int) ex16);
         break;
       }
@@ -975,6 +952,36 @@ emul_float_misc (uint8_t fid)
         log_add (", *0x%04x = " PRIF, py, y,y);
         break;
       }
+
+    case AVRTEST_strto:
+      {
+        char s_float[100], *tail;
+        const uint16_t addr = get_reg_u16 (24);
+        const uint16_t pend = get_reg_u16 (22);
+
+        read_string (s_float, addr, false, sizeof(s_float) - 1);
+        const float f = strtof (s_float, &tail);
+        const size_t n_chars = tail - s_float;
+        const char *name = "strto";
+        log_add (" %sf 0x%04x, 0x%04x:\"%s\" -> " PRIF, name, addr, pend,
+                 s_float, f, f);
+        if (*tail)
+          {
+            log_add (", pend+=%d", (int) n_chars);
+            log_add (", *pend=0x%x", *tail);
+            if (isprint (*tail))
+              log_add ("='%c'", *tail);
+          }
+        set_reg_float (22, f);
+
+        if (pend)
+          {
+            uint16_t end = addr + n_chars;
+            set_mem_value (pend, 2, end);
+            log_add (", *0x%x=0x%x", pend, end);
+          }
+        break;
+      } // strtof
 
     case AVRTEST_u32to:
       {
@@ -1396,9 +1403,7 @@ emul_double_misc (uint8_t fid)
         const char *name = "frexp";
         log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, pex, z,z);
         set_reg_double (18, z);
-        byte *b = cpu_address (pex, AR_RAM);
-        b[0] = ex;
-        b[1] = (uint16_t) ex16 / 256;
+        set_mem_value (pex, 2, ex16);
         log_add (", *0x%04x = %d", pex, (int) ex16);
         break;
       }
@@ -1531,10 +1536,6 @@ void sys_misc_emul (uint8_t what)
     case AVRTEST_MISC_divs64:
     case AVRTEST_MISC_mods64:
       sys_misc_s64 (what);
-      break;
-
-    case AVRTEST_MISC_strtof:
-      sys_misc_strtof ();
       break;
 
     case AVRTEST_MISC_ltof:  sys_misc_ltof ();   break;

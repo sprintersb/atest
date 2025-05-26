@@ -82,7 +82,7 @@ enum
     AVRTEST_ldexp = AVRTEST_EMUL_misc,
     AVRTEST_frexp, AVRTEST_modf,
     AVRTEST_u32to, AVRTEST_s32to,
-    AVRTEST_cmp,
+    AVRTEST_cmp, AVRTEST_strto,
     AVRTEST_EMUL_sentinel
   };
 
@@ -102,7 +102,6 @@ enum
     AVRTEST_MISC_ftok, AVRTEST_MISC_ftohk,
     AVRTEST_MISC_ftour, AVRTEST_MISC_ftouhr,
     AVRTEST_MISC_ftouk, AVRTEST_MISC_ftouhk,
-    AVRTEST_MISC_strtof,
     AVRTEST_MISC_ftol,
     AVRTEST_MISC_ltof,
     AVRTEST_MISC_sentinel
@@ -585,12 +584,6 @@ static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
 }
 
-AVRTEST_DEF_SYSCALL2_1M (_21_strtof,21, float,22, const char*,24, char**,22)
-static AT_INLINE float avrtest_strtof (const char *_s, char **_p)
-{
-    return avrtest_syscall_21_strtof (AVRTEST_MISC_strtof, _s, _p);
-}
-
 AVRTEST_DEF_SYSCALL2_1m (_21_u32,21, __UINT32_TYPE__,22, __UINT32_TYPE__,22, __UINT32_TYPE__,18)
 AVRTEST_DEF_SYSCALL2_1m (_21_s32,21, __INT32_TYPE__,22, __INT32_TYPE__,22, __INT32_TYPE__,18)
 #define AVRTEST_DEFF(OP)                                                \
@@ -699,6 +692,7 @@ AVRTEST_DEF_SYSCALL3_1 (_22_2, 22, float, 22, float, 18, unsigned char, 26)
 AVRTEST_DEF_SYSCALL2_1m(_22_2fi,22,  float,22, float,22, int,20)
 AVRTEST_DEF_SYSCALL2_1M(_22_2fpi,22, float,22, float,22, int*,20)
 AVRTEST_DEF_SYSCALL2_1M(_22_2fpf,22, float,22, float,22, float*,20)
+AVRTEST_DEF_SYSCALL2_1M(_22_strto,22, float,22, const char*,24, char**,22)
 
 #define AVRTEST_DEFF(ID)                          \
   static AT_INLINE float                          \
@@ -726,6 +720,11 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
 
+static AT_INLINE float
+avrtest_strtof (const char *_x, char **_y)
+{
+  return avrtest_syscall_22_strto (AVRTEST_strto, _x, _y);
+}
 static AT_INLINE float
 avrtest_ldexpf (float _x, int _y)
 {
