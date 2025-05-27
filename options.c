@@ -604,12 +604,12 @@ parse_args (int argc, char *argv[])
                 usage ("odd byte address as ENTRY point in '-e %s'", argv[i]);
               if (pc >= MAX_FLASH_SIZE)
                 usage ("ENTRY point is too big in '-e %s'", argv[i]);
-              cpu_PC = (unsigned) pc;
+              cpu.pc = (unsigned) pc;
             }
           else
-            cpu_PC = 0;
-          program.entry_point = cpu_PC;
-          cpu_PC /= 2;
+            cpu.pc = 0;
+          program.entry_point = cpu.pc;
+          cpu.pc /= 2;
           break; // -e
 
         case OPT_flash_pm_offset:
@@ -672,6 +672,9 @@ parse_args (int argc, char *argv[])
           usage ("'-pm OFFSET' is only valid for avrxmega3");
       arch.flash_pm_offset = flash_pm_offset;
     }
+
+  cpu.ram_valid_mask = (is_xmega && arch.has_rampd) ? 0xffffff : 0xffff;
+  cpu.strlen_pc = arch.pc_3bytes ? 6 : 4;
 
   // Set program.stdout from -stdout[=filename] etc.
   set_streams ();

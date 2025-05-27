@@ -373,7 +373,7 @@ perf_start (perfs_t *p, int i, int call_depth)
       minmax_init (& p->tick,  (long) program.n_cycles);
       minmax_init (& p->calls, call_depth);
       minmax_init (& p->sp,    perf.sp);
-      minmax_init (& p->pc,    p->pc_start = cpu_PC);
+      minmax_init (& p->pc,    p->pc_start = cpu.pc);
     }
 
   // (Re)start

@@ -594,7 +594,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
       if (pc < DATA_VADDR)
         {
           program.entry_point = pc;
-          cpu_PC = pc / 2;
+          cpu.pc = pc / 2;
           if (pc >= MAX_FLASH_SIZE)
             leave (LEAVE_ELF, "ELF entry-point 0x%x it too big", pc);
           else if (pc % 2 != 0)

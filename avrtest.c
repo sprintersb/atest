@@ -107,25 +107,22 @@ program_t program;
 
 static NOINLINE NORETURN void bad_PC (unsigned pc);
 
-// Word address of current PC and offset into decoded_flash[].
-unsigned cpu_PC;
-
 // Set the PC to a new absolute value.
 static INLINE void
 set_pc (unsigned pc)
 {
-  cpu_PC = pc;
-  if (cpu_PC > program.max_pc)
-    bad_PC (cpu_PC);
+  cpu.pc = pc;
+  if (cpu.pc > program.max_pc)
+    bad_PC (cpu.pc);
 }
 
 // Add DELTA to PC.  Relative jumps like RJMP wrap around.
 static INLINE void
 add_pc (int delta)
 {
-  cpu_PC = (cpu_PC + (unsigned) delta) & program.pc_mask;
-  if (cpu_PC > program.max_pc)
-    bad_PC (cpu_PC);
+  cpu.pc = (cpu.pc + (unsigned) delta) & program.pc_mask;
+  if (cpu.pc > program.max_pc)
+    bad_PC (cpu.pc);
 }
 
 #if defined ISA_XMEGA || defined ISA_TINY
@@ -138,13 +135,24 @@ static byte cpu_reg[0x20];
 // and actual SRAM
 static byte cpu_data[MAX_RAM_SIZE];
 static byte cpu_eeprom[MAX_EEPROM_SIZE];
-// For accesses into `cpu_data'.
-static unsigned ram_valid_mask;
 
 // flash
 static byte cpu_flash[MAX_FLASH_SIZE];
 static decoded_t decoded_flash[MAX_FLASH_SIZE/2];
 
+// For TLS.
+static byte* fun_cpu_reg (void)  { return cpu_reg; }
+static byte* fun_cpu_data (void) { return cpu_data; }
+
+cpu_t cpu =
+  {
+    .pc = 0,
+    .f_reg = fun_cpu_reg,
+    .f_data = fun_cpu_data,
+    .flash = cpu_flash,
+    .eeprom = cpu_eeprom,
+    .decoded_flash = decoded_flash,
+  };
 
 // ---------------------------------------------------------------------------
 // Exit stati as used with leave()
@@ -230,7 +238,7 @@ leave (int n, const char *reason, ...)
             printf (" entry point: %06x\n", program.entry_point);
           printf ("exit address: %06x\n"
                   "total cycles: %" PRIu64 "\n"
-                  "total instr.: %" PRIu64 "\n\n", cpu_PC * 2,
+                  "total instr.: %" PRIu64 "\n\n", cpu.pc * 2,
                   program.n_cycles, program.n_insns);
         }
 
@@ -461,7 +469,6 @@ data_write_word (int address, int value)
 
 const int addr_SREG = SREG;
 const int addr_SPL = SPL;
-byte* const pSP = cpu_data + SPL;
 
 const sfr_t named_sfr[] =
   {
@@ -593,11 +600,16 @@ push_PC (void)
   // register area
   if (sp < 0x40 + IOBASE)
     leave (LEAVE_CODE, "stack pointer overflow (SP = 0x%04x)", sp);
-  data_write_byte (sp--, cpu_PC);
-  data_write_byte (sp--, cpu_PC >> 8);
+  data_write_byte (sp--, cpu.pc);
+  data_write_byte (sp--, cpu.pc >> 8);
   if (arch.pc_3bytes)
-    data_write_byte (sp--, cpu_PC >> 16);
+    data_write_byte (sp--, cpu.pc >> 16);
   data_write_word (SPL, sp);
+}
+
+void push_pc ()
+{
+  push_PC ();
 }
 
 static NOINLINE NORETURN void
@@ -621,6 +633,18 @@ pop_PC (void)
   set_pc (pc);
 }
 
+
+unsigned peek_return_PC (void)
+{
+  unsigned pc = 0;
+  int sp = data_read_word (SPL);
+  if (arch.pc_3bytes)
+    pc = data_read_byte (++sp) << 16;
+
+  pc |= data_read_byte (++sp) << 8;
+  pc |= data_read_byte (++sp);
+  return pc;
+}
 
 // perform the addition and set the appropriate flags
 static INLINE void
@@ -704,7 +728,7 @@ static INLINE int
 add_address (int addr, int adjust)
 {
   return is_xmega
-    ? (addr + adjust) & ram_valid_mask
+    ? (addr + adjust) & cpu.ram_valid_mask
     : (addr + adjust) & 0xffff;
 }
 
@@ -796,7 +820,7 @@ skip_instruction_on_condition (bool condition, int words_to_skip)
 {
   if (condition)
     {
-      set_pc (cpu_PC + words_to_skip);
+      set_pc (cpu.pc + words_to_skip);
       add_program_cycles (words_to_skip);
     }
 }
@@ -841,8 +865,8 @@ do_multiply (int rd, int rr, bool signed1, bool signed2, int shift)
 // handle illegal opcodes
 static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
 {
-  cpu_PC -= size;
-  byte *f = cpu_flash + 2 * cpu_PC;
+  cpu.pc -= size;
+  byte *f = cpu_flash + 2 * cpu.pc;
   unsigned code = f[0] + (f[1] << 8);
 
   log_append (".word 0x%04x", code);
@@ -866,10 +890,10 @@ maybe_cycles_call_start (void)
   if (ticks_port.call.state == 1)
     {
       ticks_port.call.state = 2;
-      ticks_port.call.pc_ret = cpu_PC;
+      ticks_port.call.pc_ret = cpu.pc;
       ticks_port.call.sp_ret = data_read_word_raw (SPL);
       ticks_port.call.n_cycles_before_call = program.n_cycles;
-      log_append ("*** cycles.call...0x%x *** ", 2 * cpu_PC);
+      log_append ("*** cycles.call...0x%0*x *** ", cpu.strlen_pc, 2 * cpu.pc);
     }
 }
 
@@ -877,7 +901,7 @@ static INLINE void
 maybe_cycles_call_end (void)
 {
   if (ticks_port.call.state == 2
-      && cpu_PC == ticks_port.call.pc_ret
+      && cpu.pc == ticks_port.call.pc_ret
       && ticks_port.call.sp_ret == data_read_word_raw (SPL))
     {
       ticks_port.call.state = 3;
@@ -1847,8 +1871,8 @@ static void sys_misc (uint8_t what)
 
   if (what == AVRTEST_MISC_flmap)
     {
-      unsigned pc = 2 * cpu_PC - 4;
-      unsigned pc_len = arch.flash_addr_mask > 0xffff ? 6 : 4;
+      unsigned pc = 2 * cpu.pc - 4;
+      unsigned pc_len = cpu.strlen_pc;
 
       // Devices like AVR128* and AVR64* see a 32k portion of their flash
       // memory in the RAM address space.  Which 32k segment is visible can
@@ -1875,7 +1899,7 @@ static void sys_misc (uint8_t what)
 
 static OP_FUNC_TYPE func_BAD_PC (int rd, int rr)
 {
-  bad_PC (cpu_PC);
+  bad_PC (cpu.pc);
 }
 
 static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
@@ -2002,19 +2026,25 @@ const opcode_t opcodes[] =
 static INLINE void
 do_step (void)
 {
+  uint64_t max_insns = program.max_insns;
+
   // fetch decoded instruction
-  decoded_t d = decoded_flash[cpu_PC];
+  decoded_t d = decoded_flash[cpu.pc];
   byte id = d.id;
 
   // execute instruction
   const opcode_t *insn = &opcodes[id];
   log_add_instr (&d);
-  set_pc (cpu_PC + insn->size);
+  set_pc (cpu.pc + insn->size);
   add_program_cycles (insn->cycles);
   int op1 = d.op1;
   int op2 = d.op2;
   insn->func (op1, op2);
   log_dump_line (&d);
+
+  if (max_insns && program.n_insns >= max_insns)
+    leave (LEAVE_TIMEOUT, "instruction count limit reached");
+  program.n_insns++;
 }
 
 static INLINE void
@@ -2023,18 +2053,8 @@ execute (void)
   for (int i = 0; i < 32; ++i)
     cpu_reg[i] = 0xcc;
 
-  ram_valid_mask = (is_xmega && arch.has_rampd) ? 0xffffff : 0xffff;
-
-  uint64_t max_insns = program.max_insns;
-
   for (;;)
-    {
-      do_step();
-
-      if (max_insns && program.n_insns >= max_insns)
-        leave (LEAVE_TIMEOUT, "instruction count limit reached");
-      program.n_insns++;
-    }
+    do_step();
 }
 
 // main: as simple as it gets

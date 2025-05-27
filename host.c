@@ -472,8 +472,8 @@ sys_ticks_cmd (int cfg)
 static void
 sys_misc_u32 (uint8_t what)
 {
-  uint32_t a = (uint32_t) get_reg_u32 (22);
-  uint32_t b = (uint32_t) get_reg_u32 (18);
+  uint32_t a = get_reg_u32 (22);
+  uint32_t b = get_reg_u32 (18);
   uint32_t c = 0;
   const char *op = "???";
   const char *name = "???";
@@ -507,8 +507,8 @@ sys_misc_u32 (uint8_t what)
 static void
 sys_misc_s32 (uint8_t what)
 {
-  int32_t a = (int32_t) get_reg_s32 (22);
-  int32_t b = (int32_t) get_reg_s32 (18);
+  int32_t a = get_reg_s32 (22);
+  int32_t b = get_reg_s32 (18);
   int32_t c = 0;
   bool sign;
   const char *op = "???";

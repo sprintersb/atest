@@ -550,12 +550,12 @@ graph_finish_string_table (void)
     }
 
   // Add artificial node and edge representing the program entry.
-  symbol_t *entry = func_sym[cpu_PC];
-  graph.entry_point = graph_add_symbol ("Entry Point", cpu_PC, false);
+  symbol_t *entry = func_sym[cpu.pc];
+  graph.entry_point = graph_add_symbol ("Entry Point", cpu.pc, false);
   graph.entry_point->type = T_ENTRY;
   if (!entry)
-    entry = graph_add_symbol (NULL, cpu_PC, false);
-  func_sym[cpu_PC] = entry;
+    entry = graph_add_symbol (NULL, cpu.pc, false);
+  func_sym[cpu.pc] = entry;
 
   lpush (&ystack, graph.entry_edge = get_edge (graph.entry_point, entry));
   yend = ystack;
@@ -739,7 +739,7 @@ update_call_stack (symbol_t *sym, int delta, bool is_longjmp)
         {
           // Jumping to / calling a location that has no symbol:
           // Cook up a node that has the target address as label.
-          func_sym[cpu_PC] = sym = graph_add_symbol (NULL, cpu_PC, false);
+          func_sym[cpu.pc] = sym = graph_add_symbol (NULL, cpu.pc, false);
           sym->is_reserved = true;
         }
 
@@ -880,7 +880,7 @@ log_transition (list_t *yold, list_t *ynew, int is_proep, const char *s_pe)
       log_append (" %s \n", s_pe);
     }
   else if (old && new
-           && (old != new || old == func_sym[cpu_PC]))
+           && (old != new || old == func_sym[cpu.pc]))
     {
       const char *s_lj = func_sym[old_PC] && func_sym[old_PC]->is_hidden
         ? "longjmp? <-- " : "";
@@ -942,7 +942,7 @@ graph_update_call_depth (const decoded_t *deco)
 
   bool maybe_longjmp = ID_RET == id && ID_PUSH == graph.old_id;
   bool jump_indirect = ID_IJMP == id || ID_EIJMP == id;
-  symbol_t *fun = func_sym[cpu_PC];
+  symbol_t *fun = func_sym[cpu.pc];
   symbol_t *cur = ystack->sym;
 
   // Pretty-print __prologue_saves__ and __epilogue_restores__ when logging,
@@ -955,16 +955,16 @@ graph_update_call_depth (const decoded_t *deco)
       && (id == ID_RJMP || id == ID_JMP))
     {
       if (graph.prologue_saves
-          && (unsigned) (cpu_PC - graph.prologue_saves->pc) <= 18)
+          && (unsigned) (cpu.pc - graph.prologue_saves->pc) <= 18)
         pro_ep = graph.prologue_saves;
 
       if (graph.epilogue_restores
-          && (unsigned) (cpu_PC - graph.epilogue_restores->pc) <= 18)
+          && (unsigned) (cpu.pc - graph.epilogue_restores->pc) <= 18)
         pro_ep = graph.epilogue_restores;
 
       if ((is_proep = NULL != pro_ep))
         {
-          int n_regs = cpu_PC - pro_ep->pc;
+          int n_regs = cpu.pc - pro_ep->pc;
           sprintf (s_pe, "%s + 0x%x (%d regs)", pro_ep->name,
                    2 * n_regs, 18 - n_regs);
         }

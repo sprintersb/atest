@@ -207,7 +207,7 @@ int get_nonglitch_SP (void)
   static int nonglitch_SP;
 
   if (!maybe_SP_glitch)
-    nonglitch_SP = pSP[0] | (pSP[1] << 8);
+    nonglitch_SP = cpu.f_data()[addr_SPL] | (cpu.f_data()[1 + addr_SPL] << 8);
 
   return nonglitch_SP;
 }
@@ -295,7 +295,7 @@ log_add_instr (const decoded_t *d)
 {
   alog.id = d->id;
   old_old_PC = old_PC;
-  old_PC = cpu_PC;
+  old_PC = cpu.pc;
 
   // We are called by do_step() for each instruction.  Decrement our
   // SP "atomicy" device.
@@ -321,20 +321,19 @@ log_add_instr (const decoded_t *d)
   unsigned sysmask = 0xf | (1 << 5) | (1 << 10) | (1 << 11);
   bool maybe_used = (alog.maybe_log
                      || (alog.id == ID_SYSCALL && (sysmask & (1u << d->op1))));
-  int pc_strlen = arch.flash_addr_mask > 0xffff ? 6 : 4;
 
   if ((log_unused = !maybe_used || !need.logging))
     return;
 
   if (alog.id == ID_UNDEF)
     {
-      log_append ("%0*x: ", pc_strlen, cpu_PC * 2);
+      log_append ("%0*x: ", cpu.strlen_pc, cpu.pc * 2);
       return;
     }
 
   strcpy (mnemo_, mnemo);
   log_patch_mnemo (d, mnemo_ + strlen (mnemo));
-  log_append ("%0*x: %-7s ", pc_strlen, cpu_PC * 2, mnemo_);
+  log_append ("%0*x: %-7s ", cpu.strlen_pc, cpu.pc * 2, mnemo_);
 }
 
 
@@ -433,7 +432,7 @@ static const char*
 pc_string (void)
 {
   static char str[20];
-  sprintf (str, arch.pc_3bytes ? "%06x" : "%04x", cpu_PC * 2);
+  sprintf (str, "%0*x", cpu.strlen_pc, cpu.pc * 2);
   return str;
 }
 

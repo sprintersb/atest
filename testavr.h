@@ -113,7 +113,29 @@ typedef struct
 
 extern program_t program;
 
-extern unsigned cpu_PC;
+typedef struct
+{
+  // Word address of current PC and offset into decoded_flash[].
+  unsigned pc;
+
+  // Only use the following elements when the indirection doesn't hurt.
+  byte *(*f_reg)(void);
+  byte *(*f_data)(void);
+  byte *flash;
+  byte *eeprom;
+  decoded_t *decoded_flash;
+
+  // For accesses into `cpu_data'.
+  unsigned ram_valid_mask;
+
+  // For printing pc.
+  int strlen_pc;
+} cpu_t;
+
+extern cpu_t cpu;
+
+extern void push_pc (void);
+
 extern const int io_base;
 extern const bool is_xmega;
 extern const bool is_tiny;
@@ -179,10 +201,10 @@ ATTR_PRINTF(1,2)
 extern void qprintf (const char *fmt, ...);
 extern byte* cpu_address (int, int);
 extern void* get_mem (unsigned, size_t, const char*);
+extern unsigned peek_return_PC (void);
 
 extern const int addr_SREG;
 extern const int addr_SPL;
-extern byte* const pSP;
 
 typedef struct
 {
