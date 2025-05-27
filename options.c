@@ -354,10 +354,15 @@ static FILE* get_stdout (void) { return stdout; }
 static FILE* get_stderr (void) { return stderr; }
 static FILE* get_stdin  (void) { return stdin; }
 
+// Required for TLS, as &program... is not constant any more.
+static FILE** program_stdout (void) { return &program.f_stdout; }
+static FILE** program_stderr (void) { return &program.f_stderr; }
+static FILE** program_stdin  (void) { return &program.f_stdin; }
+
 typedef struct file_t
 {
   FILE *(*std_stream)(void);      // get_stdout()
-  FILE ** pstream;                // &program.f_stdout
+  FILE **(*pstream)(void);        // ??? &program.f_stdout
 
   int *pdo_opt;                   // &options.do_stdout
   int *pdo_opt_filename;          // &options.do_stdout_filename
@@ -368,7 +373,7 @@ typedef struct file_t
 } file_t;
 
 #define MK_FILE(S, ACTION) {                                              \
-  get_##S, &program.f_##S,                                                \
+  get_##S, program_##S,                                                \
   &options.do_##S, &options.do_##S##_filename, &options.s_##S##_filename, \
   "-" #S, ACTION                                                          \
 }
@@ -434,7 +439,7 @@ maybe_open_file (file_t *f)
   if (verb)
     printf ("\n");
 
-  *f->pstream = stream;
+  *(f->pstream()) = stream;
 }
 
 
@@ -445,8 +450,8 @@ close_streams (void)
   for (size_t i = 0; i < ARRAY_SIZE (files); ++i)
     {
       file_t *f = & files[i];
-      if (*f->pstream && *f->pstream != f->std_stream ())
-        fclose (*f->pstream);
+      if (*(f->pstream()) && *(f->pstream()) != f->std_stream ())
+        fclose (*(f->pstream()));
     }
 
   if (program.log_stream
