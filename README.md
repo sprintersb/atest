@@ -1043,7 +1043,9 @@ with the same functionality, but they interpret `uint64_t` as IEEE double.
 The _d64 versions are available irrespective of the layout of `long double`.
 
 Supported functions are the same like for IEEE single but with `l`
-instead of `f` at the end of the syscall name.
+instead of `f` at the end of the syscall name;
+with the one exception of `avrtest_strtold` that an ASCII string to
+long double, just like `strtold`.
 
 AVRtest will terminate with an error when the host IEEE double cannot
 be used for emulation.  The functions are not available for Reduced Tiny.

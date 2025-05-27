@@ -1226,13 +1226,14 @@ static void emul_double_misc (uint8_t fid)
     {
     default:
       leave (LEAVE_USAGE, "unknown IEEE double misc function %u\n", fid);
-    case AVRTEST_ldexp: name = "ldexp"; break;
-    case AVRTEST_frexp: name = "frexp"; break;
-    case AVRTEST_modf:  name = "modf"; break;
-    case AVRTEST_cmp:   name = "cmp"; break;
+    case AVRTEST_strto: name = "strtold"; break;
+    case AVRTEST_ldexp: name = "ldexpl"; break;
+    case AVRTEST_frexp: name = "frexpl"; break;
+    case AVRTEST_modf:  name = "modfl"; break;
+    case AVRTEST_cmp:   name = "cmpl"; break;
     }
-  log_add ("not supported: %sl: %s", name, NO_DEMUL);
-  leave (LEAVE_FATAL, "%sl failed: %s", name, NO_DEMUL);
+  log_add ("not supported: %s: %s", name, NO_DEMUL);
+  leave (LEAVE_FATAL, "%s failed: %s", name, NO_DEMUL);
 }
 
 #else // double emulation is supported
@@ -1427,6 +1428,40 @@ emul_double_misc (uint8_t fid)
         break;
       }
 
+    case AVRTEST_strto:
+      {
+        char s_float[100], *tail;
+        const uint16_t addr = get_reg_u16 (24);
+        const uint16_t pend = get_reg_u16 (22);
+
+        read_string (s_float, addr, false, sizeof(s_float) - 1);
+#if defined HOST_DOUBLE
+        const host_double_t f = strtod (s_float, &tail);
+#elif defined HOST_LONG_DOUBLE
+        const host_double_t f = strtold (s_float, &tail);
+#endif
+        const size_t n_chars = tail - s_float;
+        const char *name = "strto";
+        log_add (" %sld 0x%04x, 0x%04x:\"%s\" -> " PRID, name, addr, pend,
+                 s_float, f, f);
+        if (*tail)
+          {
+            log_add (", pend+=%d", (int) n_chars);
+            log_add (", *pend=0x%x", *tail);
+            if (isprint (*tail))
+              log_add ("='%c'", *tail);
+          }
+        set_reg_double (18, f);
+
+        if (pend)
+          {
+            uint16_t end = addr + n_chars;
+            set_mem_value (pend, 2, end);
+            log_add (", *0x%x=0x%x", pend, end);
+          }
+        break;
+      } // strtold
+
     case AVRTEST_cmp:
       {
         host_double_t x = get_reg_double (18);
@@ -1451,6 +1486,7 @@ void sys_emul_double (uint8_t fid)
 
   switch (fid)
     {
+    case AVRTEST_strto:
     case AVRTEST_ldexp:
     case AVRTEST_frexp:
     case AVRTEST_modf:

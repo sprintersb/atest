@@ -809,6 +809,7 @@ AVRTEST_DEF_SYSCALL3_1 (_23_2, 23, long double, 18, long double, 10,
 AVRTEST_DEF_SYSCALL2_1m(_23_2di, 23, long double,18, long double,18, int,16)
 AVRTEST_DEF_SYSCALL2_1M(_23_2lpi,23, long double,18, long double,18, int*,16)
 AVRTEST_DEF_SYSCALL2_1M(_23_2lpl,23, long double,18, long double,18, long double*,16)
+AVRTEST_DEF_SYSCALL2_1M(_23_strto,23, long double,18, const char*,24, char**,22)
 
 #define AVRTEST_DEFF(ID)                                \
   static AT_INLINE long double                          \
@@ -850,6 +851,11 @@ static AT_INLINE long double
 avrtest_modfl (long double _x, long double *_y)
 {
   return avrtest_syscall_23_2lpl (AVRTEST_modf, _x, _y);
+}
+static AT_INLINE long double
+avrtest_strtold (char *_x, char** _y)
+{
+  return avrtest_syscall_23_strto (AVRTEST_strto, _x, _y);
 }
 
 AVRTEST_DEF_SYSCALL1_1m (_21_ftol,21, long double,18, float,22)
@@ -904,6 +910,7 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_frexpl avrtest_frexpf
 #define avrtest_ldexpl avrtest_ldexpf
 #define avrtest_prandl avrtest_prandf
+#define avrtest_strtold avrtest_strtof
 static AT_INLINE long double avrtest_modfl (long double x, long double *y) { return avrtest_modff (x, (float*) y); }
 static AT_INLINE long double avrtest_ftol (float x) { return (long double) x; }
 static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }
