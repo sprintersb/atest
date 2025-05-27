@@ -1979,7 +1979,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 0: case 1: case 2: case 3:  // Logging control
     case 5: case 6:                  // Performance metering
     case 9: case 10: case 11:        // Logging push / pop
-      do_syscall (sysno, get_word_reg_raw (24));
+      log_do_syscall (sysno, get_word_reg_raw (24));
       break;
     }
 }

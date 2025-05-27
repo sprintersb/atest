@@ -515,7 +515,7 @@ sys_log_pushpop (int sysno, int what)
 
 
 void
-do_syscall (int sysno, int val)
+log_do_syscall (int sysno, int val)
 {
   switch (sysno)
     {

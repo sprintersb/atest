@@ -221,7 +221,7 @@ extern bool log_unused;
 #define log_add_data_mov(...)  (void) 0
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
-#define do_syscall(...)        (void) 0
+#define log_do_syscall(...)    (void) 0
 #define log_set_func_symbol(...)      (void) 0
 #define log_set_string_table(...)     (void) 0
 #define log_finish_string_table(...)  (void) 0
@@ -239,7 +239,7 @@ extern void log_add_data_mov (const char *format, int addr, int value);
 extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (const decoded_t*);
-extern void do_syscall (int x, int val);
+extern void log_do_syscall (int x, int val);
 extern void log_set_func_symbol (int, size_t, bool);
 extern void log_set_string_table (char*, size_t, int);
 extern void log_finish_string_table (void);
