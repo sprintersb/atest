@@ -818,8 +818,8 @@ static void emul_float_misc (uint8_t fid)
     case AVRTEST_modf:  name = "modf"; break;
     case AVRTEST_cmp:   name = "cmp"; break;
     }
-  log_add ("not supported: %s: %s", name, NO_DEMUL);
-  leave (LEAVE_FATAL, "%s failed: %s", name, NO_DEMUL);
+  log_add ("not supported: %sf: %s", name, NO_FEMUL);
+  leave (LEAVE_FATAL, "%sf failed: %s", name, NO_FEMUL);
 }
 
 #else // float emulation is supported
