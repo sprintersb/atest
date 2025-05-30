@@ -97,6 +97,134 @@ const unsigned invalid_opcode = AVRTEST_INVALID_OPCODE;
 
 
 // ----------------------------------------------------------------------------
+// Symbol table
+
+void no_elf_string_table (char *stab, size_t size, int n_entries) {}
+void no_elf_function_symbol (int addr, size_t offset, bool is_func) {}
+void no_elf_object_symbol (int addr, size_t offset) {}
+void no_elf_string_table_finish (void) {}
+void no_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_fun) {}
+
+#if defined(AVRTEST_LOG)
+
+string_table_t string_table;
+
+/* Add a symbol; called by ELF loader.
+
+   ADDR  is the value of the symbol.
+   STOFF is the offset into the string table string_table.data[].
+   According to ELF, STOFF is non-null as the first char in
+   the string table is always '\0'.
+   IS_FUNC is 1 if the symbol table type is STT_FUNC, 0 otherwise.  */
+
+static void
+avrtest_set_func_symbol (int addr, size_t stoff, bool is_func)
+{
+  string_table_t *s = & string_table;
+
+  if (!s->data)
+    leave (LEAVE_FATAL, "symbol table is NULL");
+
+  const char *name = s->data + stoff;
+
+  if (is_func
+      && (addr % 2 != 0
+          || addr >= MAX_FLASH_SIZE))
+    leave (LEAVE_SYMBOL, "'%s': bad symbol at 0x%x", name, addr);
+
+  // ??? Some newer Binutils GAS version introduce an arificial
+  // label after "RCALL .+0" that contains non-printable character
+  // like "L0^A".  According to Binutils documentation "Local Labels" at
+  // https://sourceware.org/binutils/docs-2.40/as/Symbol-Names.html
+  // such a label would result from "L0$".  Ignore them.
+  bool nonprint = name[0] && name[1] && name[2] && name[2] < 0x20;
+
+  if (addr % 2 != 0
+      // Something weird, maybe orphan etc.
+      || addr >= MAX_FLASH_SIZE
+      // Ignore internal labels
+      || name[0] == '.'
+      || nonprint)
+    {
+      s->n_bad++;
+      return;
+    }
+
+  sim.graph.elf_symbol (name, stoff, addr / 2, is_func);
+
+  s->n_funcs += is_func;
+  s->n_vec += !is_func && str_prefix ("__vector_", name);
+  s->n_strings ++;
+}
+
+static void
+avrtest_set_data_symbol (int addr, size_t stoff)
+{
+  string_table_t *s = & string_table;
+
+  if (!s->data)
+    leave (LEAVE_FATAL, "symbol table is NULL");
+
+  s->n_objects += 1;
+}
+
+
+static void
+avrtest_set_string_table (char *data, size_t size, int n_entries)
+{
+  string_table_t *s = & string_table;
+
+  s->data = data;
+  s->size = size;
+  s->n_entries = n_entries;
+
+  sim.graph.set_string_table (data, size, n_entries);
+}
+
+
+static void
+avrtest_finish_string_table (void)
+{
+  string_table_t *s = & string_table;
+
+  if (options.do_verbose)
+    printf (">>> strtab[%zu] %d entries, %d usable, %d functions, %d other, "
+            "%d bad, %d unused vectors\n", s->size, s->n_entries,
+            s->n_strings, s->n_funcs, s->n_strings - s->n_funcs, s->n_bad,
+            s->n_vec);
+
+  sim.graph.finish_string_table ();
+}
+
+static void CONSTRUCTOR
+init_elf_symbol_handlers (void)
+{
+  sim.set_elf_string_table = avrtest_set_string_table;
+  sim.set_elf_function_symbol = avrtest_set_func_symbol;
+  sim.set_elf_object_symbol = avrtest_set_data_symbol;
+  sim.finish_elf_string_table = avrtest_finish_string_table;
+}
+
+#endif /* LOG */
+
+sim_t sim =
+  {
+    no_elf_string_table,
+    no_elf_function_symbol,
+    no_elf_object_symbol,
+    no_elf_string_table_finish,
+    .graph =
+    {
+      no_elf_string_table,
+      no_elf_symbol,
+      no_elf_string_table_finish
+    },
+    .function_list = NULL,
+    .object_list = NULL
+  };
+
+
+// ----------------------------------------------------------------------------
 // holds simulator state and program information.
 
 program_t program;
@@ -497,20 +625,6 @@ byte* cpu_address (int address, int where)
   leave (LEAVE_FATAL, "code must be unreachable");
 }
 
-void set_elf_string_table (char *stab, size_t size, int n_entries)
-{
-  log_set_string_table (stab, size, n_entries);
-}
-
-void finish_elf_string_table (void)
-{
-  log_finish_string_table ();
-}
-
-void set_elf_function_symbol (int addr, size_t offset, bool is_func)
-{
-  log_set_func_symbol (addr, offset, is_func);
-}
 
 // Memory allocation that never fails (never returns NULL).
 

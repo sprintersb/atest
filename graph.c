@@ -487,7 +487,7 @@ rate_symbol (const char *s)
    PC is the word location, and IS_FUNC is set iff the symbol
    type is STT_FUNC.  */
 
-void
+static void
 graph_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func)
 {
   symbol_t *sym = func_sym[pc];
@@ -516,7 +516,7 @@ graph_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func)
 
 /* Called from ELF reader as it is traversing the symbol table.  */
 
-void
+static void
 graph_set_string_table (char *stab, size_t size, int n_entries)
 {
   string_table.have = get_mem (size, sizeof (bool), "string_table.have");
@@ -534,7 +534,7 @@ graph_set_string_table (char *stab, size_t size, int n_entries)
 
 /* Called from ELF reader when it has finished traversing the symbol table. */
 
-void
+static void
 graph_finish_string_table (void)
 {
   // remap inlined functions to their original
@@ -592,6 +592,14 @@ graph_finish_string_table (void)
 
   if (DEBUG_TREE)
     printf ("BASE = %s\n", graph.base->name);
+}
+
+static void CONSTRUCTOR
+graph_set_hooks (void)
+{
+  sim.graph.set_string_table = graph_set_string_table;
+  sim.graph.elf_symbol = graph_elf_symbol;
+  sim.graph.finish_string_table = graph_finish_string_table;
 }
 
 

@@ -246,9 +246,6 @@ extern bool log_unused;
 #define log_add_flag_read(...) (void) 0
 #define log_dump_line(...)     (void) 0
 #define log_do_syscall(...)    (void) 0
-#define log_set_func_symbol(...)      (void) 0
-#define log_set_string_table(...)     (void) 0
-#define log_finish_string_table(...)  (void) 0
 #define log_maybe_change_SP(...)  (void) 0
 
 #else
@@ -264,9 +261,6 @@ extern void log_add_flag_read (int mask, int value);
 extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (const decoded_t*);
 extern void log_do_syscall (int x, int val);
-extern void log_set_func_symbol (int, size_t, bool);
-extern void log_set_string_table (char*, size_t, int);
-extern void log_finish_string_table (void);
 extern void log_maybe_change_SP (int);
 
 typedef struct
@@ -276,6 +270,56 @@ typedef struct
   bool graph, graph_cost;
   bool call_depth;
 } need_t;
+
+
+// Some data shared by logging modules logging.c, perf.c, graph.c.
+// Objects hosted by logging.c.
+extern need_t need;
+
+extern int get_nonglitch_SP (void);
+
+#endif  // AVRTEST_LOG
+
+void no_elf_string_table (char *stab, size_t size, int n_entries);
+void no_elf_function_symbol (int addr, size_t offset, bool is_func);
+void no_elf_object_symbol (int addr, size_t offset);
+void no_elf_string_table_finish (void);
+void no_elf_symbol (const char *name, size_t stoff, unsigned pc, bool is_func);
+
+typedef struct function_t
+{
+  const char *name;
+  unsigned pc;
+  struct function_t *next;
+} function_t;
+
+typedef struct object_t
+{
+  const char *name;
+  unsigned addr;
+  struct object_t *next;
+} object_t;
+
+typedef struct
+{
+  void (*set_elf_string_table) (char *stab, size_t size, int n_entries);
+  void (*set_elf_function_symbol) (int addr, size_t offset, bool is_func);
+  void (*set_elf_object_symbol) (int addr, size_t offset);
+  void (*finish_elf_string_table) (void);
+
+  struct
+  {
+    void (*set_string_table) (char*, size_t, int);
+    void (*elf_symbol) (const char*, size_t, unsigned, bool);
+    void (*finish_string_table) (void);
+  } graph;
+
+  function_t *function_list;
+  object_t *object_list;
+} sim_t;
+
+extern sim_t sim;
+
 
 typedef struct
 {
@@ -287,25 +331,17 @@ typedef struct
   // Number of ...
   int n_strings;    // ... usable items and indices (inclusive) in strings[]
   int n_funcs;      // ... that have STT_FUNC as symbol table type
+  int n_objects;    // ... that have STT_OBJECT as symbol table type
   int n_bad;        // ... that are of no use for us, e.g. orphans
   int n_vec;        // ... unused vectors slots
   bool *have;
 } string_table_t;
 
-// Some data shared by logging modules logging.c, perf.c, graph.c.
-// Objects hosted by logging.c.
-extern need_t need;
 extern string_table_t string_table;
 
-extern int get_nonglitch_SP (void);
-
-#endif  // AVRTEST_LOG
 
 extern void load_to_flash (const char*, byte[], byte[], byte[]);
 extern void decode_flash (decoded_t[], const byte[]);
-extern void set_elf_string_table (char*, size_t, int);
-extern void finish_elf_string_table (void);
-extern void set_elf_function_symbol (int, size_t, bool);
 extern void put_argv (int, byte*);
 
 #include <string.h>

@@ -312,7 +312,7 @@ load_symbol_table (FILE *f, const Elf32_Ehdr *ehdr, const Elf32_Shdr *shdr,
   char *strtab = load_string_table (f, &shdr[sh_link], &sh_size,
                                     "ELF string table");
 
-  set_elf_string_table (strtab, (size_t) sh_size, (unsigned) n_syms);
+  sim.set_elf_string_table (strtab, (size_t) sh_size, (unsigned) n_syms);
 
   // Iterate all symbols
   for (size_t n = 0; n < n_syms; n++)
@@ -336,13 +336,18 @@ load_symbol_table (FILE *f, const Elf32_Ehdr *ehdr, const Elf32_Shdr *shdr,
       if (type == STT_FUNC || (flags & SHF_EXEC))
         {
           int value = get_elf32_word (&sym->st_value);
-          set_elf_function_symbol (value, name, type == STT_FUNC);
+          sim.set_elf_function_symbol (value, name, type == STT_FUNC);
+        }
+      else if (type == STT_OBJECT)
+        {
+          int value = get_elf32_word (&sym->st_value);
+          sim.set_elf_object_symbol (value, name);
         }
     }
 
   free (symtab);
 
-  finish_elf_string_table();
+  sim.finish_elf_string_table();
 }
 
 
@@ -790,8 +795,8 @@ load_to_flash (const char *filename, byte *flash, byte *ram, byte *eeprom)
   if (is_avrtest_log && !have_strtab)
     {
       static char stab[1];
-      set_elf_string_table (stab, 1, 0);
-      finish_elf_string_table();
+      sim.set_elf_string_table (stab, 1, 0);
+      sim.finish_elf_string_table();
     }
 }
 

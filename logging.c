@@ -76,8 +76,6 @@ unsigned old_PC, old_old_PC;
 need_t need;
 static int maybe_SP_glitch;
 
-string_table_t string_table;
-
 static alog_t alog;
 
 void
@@ -210,83 +208,6 @@ int get_nonglitch_SP (void)
     nonglitch_SP = cpu.f_data()[addr_SPL] | (cpu.f_data()[1 + addr_SPL] << 8);
 
   return nonglitch_SP;
-}
-
-
-/* Add a symbol; called by ELF loader.
-
-   ADDR  is the value of the symbol.
-   STOFF is the offset into the string table string_table.data[].
-   According to ELF, STOFF is non-null as the first char in
-   the string table is always '\0'.
-   IS_FUNC is 1 if the symbol table type is STT_FUNC, 0 otherwise.  */
-
-void
-log_set_func_symbol (int addr, size_t stoff, bool is_func)
-{
-  string_table_t *stab = & string_table;
-
-  if (!stab->data)
-    leave (LEAVE_FATAL, "symbol table is NULL");
-
-  const char *name = stab->data + stoff;
-
-  if (is_func
-      && (addr % 2 != 0
-          || addr >= MAX_FLASH_SIZE))
-    leave (LEAVE_SYMBOL, "'%s': bad symbol at 0x%x", name, addr);
-
-  // ??? Some newer Binutils GAS version introduce an arificial
-  // label after "RCALL .+0" that contains non-printable character
-  // like "L0^A".  According to Binutils documentation "Local Labels" at
-  // https://sourceware.org/binutils/docs-2.40/as/Symbol-Names.html
-  // such a label would result from "L0$".  Ignore them.
-  bool nonprint = name[0] && name[1] && name[2] && name[2] < 0x20;
-
-  if (addr % 2 != 0
-      // Something weird, maybe orphan etc.
-      || addr >= MAX_FLASH_SIZE
-      // Ignore internal labels
-      || name[0] == '.'
-      || nonprint)
-    {
-      stab->n_bad++;
-      return;
-    }
-
-  graph_elf_symbol (name, stoff, addr / 2, is_func);
-
-  stab->n_funcs += is_func;
-  stab->n_vec += !is_func && str_prefix ("__vector_", name);
-  stab->n_strings ++;
-}
-
-
-void
-log_set_string_table (char *stab, size_t size, int n_entries)
-{
-  string_table_t *s = & string_table;
-
-  s->data = stab;
-  s->size = size;
-  s->n_entries = n_entries;
-
-  graph_set_string_table (stab, size, n_entries);
-}
-
-
-void
-log_finish_string_table (void)
-{
-  string_table_t *s = & string_table;
-
-  if (options.do_verbose)
-    printf (">>> strtab[%zu] %d entries, %d usable, %d functions, %d other, "
-            "%d bad, %d unused vectors\n", s->size, s->n_entries,
-            s->n_strings, s->n_funcs, s->n_strings - s->n_funcs, s->n_bad,
-            s->n_vec);
-
-  graph_finish_string_table ();
 }
 
 

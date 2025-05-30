@@ -26,9 +26,6 @@
 
 #include <stdbool.h>
 
-extern void graph_elf_symbol (const char*, size_t, unsigned, bool);
-extern void graph_set_string_table (char*, size_t, int);
-extern void graph_finish_string_table (void);
 extern int graph_update_call_depth (const decoded_t*);
 extern void graph_write_dot (void);
 
