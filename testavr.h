@@ -149,10 +149,11 @@ extern bool have_syscall[32];
 #define INLINE inline __attribute__((__always_inline__))
 #define NOINLINE __attribute__((__noinline__))
 #define NORETURN __attribute__((__noreturn__))
+#define UNUSED   __attribute__((__unused__))
 #define CONSTRUCTOR __attribute__((__used__,__constructor__))
 
 #if defined (__i386__) || defined (__i868__)
-#define FASTCALL __attribute__((fastcall))
+#define FASTCALL __attribute__((__fastcall__))
 #else
 #define FASTCALL /* empty */
 #endif

@@ -78,6 +78,7 @@ extern int32_t get_mem_s32 (int);
 extern int64_t get_mem_s64 (int);
 extern char* read_string (char *dest, unsigned addr, bool flash_p, size_t limi);
 extern void set_reg_value (int regno, int n_regs, uint64_t val);
+extern void set_mem_value (int addr, int n_regs, uint64_t val);
 extern avr_float_t decode_avr_float (unsigned);
 extern avr_float_t decode_avr_double (uint64_t);
 extern float get_reg_float (int regno);

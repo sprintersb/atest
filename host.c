@@ -315,7 +315,7 @@ set_reg_value (int regno, int n_regs, uint64_t val)
     }
 }
 
-static void
+void
 set_mem_value (int addr, int n_regs, uint64_t val)
 {
   byte *p = cpu_address (addr, AR_RAM);
@@ -753,7 +753,7 @@ sys_log_dump (int what)
 }
 
 
-static int
+static UNUSED int
 is_special_ulp (const avr_float_t *x, const avr_float_t *y)
 {
   if (x->fclass == FT_NAN && y->fclass == FT_NAN)
@@ -804,22 +804,6 @@ static void sys_misc_fxtof (uint8_t fid)
 {
   log_add ("not supported: %s", NO_FEMUL);
   leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
-}
-static void emul_float_misc (uint8_t fid)
-{
-  const char *name = "???";
-  switch (fid)
-    {
-    default:
-      leave (LEAVE_USAGE, "unknown IEEE single misc function %u\n", fid);
-    case AVRTEST_strto: name = "strto"; break;
-    case AVRTEST_ldexp: name = "ldexp"; break;
-    case AVRTEST_frexp: name = "frexp"; break;
-    case AVRTEST_modf:  name = "modf"; break;
-    case AVRTEST_cmp:   name = "cmp"; break;
-    }
-  log_add ("not supported: %sf: %s", name, NO_FEMUL);
-  leave (LEAVE_FATAL, "%sf failed: %s", name, NO_FEMUL);
 }
 
 #else // float emulation is supported
@@ -1218,22 +1202,6 @@ static void sys_misc_ftol (void)
 {
   log_add ("not supported: ftol: %s", NO_DEMUL);
   leave (LEAVE_FATAL, "ftol failed: %s", NO_DEMUL);
-}
-static void emul_double_misc (uint8_t fid)
-{
-  const char *name = "???";
-  switch (fid)
-    {
-    default:
-      leave (LEAVE_USAGE, "unknown IEEE double misc function %u\n", fid);
-    case AVRTEST_strto: name = "strtold"; break;
-    case AVRTEST_ldexp: name = "ldexpl"; break;
-    case AVRTEST_frexp: name = "frexpl"; break;
-    case AVRTEST_modf:  name = "modfl"; break;
-    case AVRTEST_cmp:   name = "cmpl"; break;
-    }
-  log_add ("not supported: %s: %s", name, NO_DEMUL);
-  leave (LEAVE_FATAL, "%s failed: %s", name, NO_DEMUL);
 }
 
 #else // double emulation is supported
