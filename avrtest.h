@@ -80,7 +80,7 @@ enum
     AVRTEST_ulp, AVRTEST_prand,
     AVRTEST_EMUL_misc,
     AVRTEST_ldexp = AVRTEST_EMUL_misc,
-    AVRTEST_frexp, AVRTEST_modf,
+    AVRTEST_frexp, AVRTEST_modf, AVRTEST_powi,
     AVRTEST_u32to, AVRTEST_s32to,
     AVRTEST_cmp, AVRTEST_strto,
     AVRTEST_EMUL_sentinel
@@ -731,6 +731,11 @@ avrtest_ldexpf (float _x, int _y)
   return avrtest_syscall_22_2fi (AVRTEST_ldexp, _x, _y);
 }
 static AT_INLINE float
+avrtest_powif (float _x, int _y)
+{
+  return avrtest_syscall_22_2fi (AVRTEST_powi, _x, _y);
+}
+static AT_INLINE float
 avrtest_frexpf (float _x, int *_y)
 {
   return avrtest_syscall_22_2fpi (AVRTEST_frexp, _x, _y);
@@ -781,6 +786,11 @@ static AT_INLINE __UINT64_TYPE__
 avrtest_ldexp_d64 (__UINT64_TYPE__ _x, int _y)
 {
   return avrtest_syscall_23_u64_2di (AVRTEST_ldexp, _x, _y);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_powi_d64 (__UINT64_TYPE__ _x, int _y)
+{
+  return avrtest_syscall_23_u64_2di (AVRTEST_powi, _x, _y);
 }
 static AT_INLINE __UINT64_TYPE__
 avrtest_frexp_d64 (__UINT64_TYPE__ _x, int *_y)
@@ -841,6 +851,11 @@ static AT_INLINE long double
 avrtest_ldexpl (long double _x, int _y)
 {
   return avrtest_syscall_23_2di (AVRTEST_ldexp, _x, _y);
+}
+static AT_INLINE long double
+avrtest_powil (long double _x, int _y)
+{
+  return avrtest_syscall_23_2di (AVRTEST_powi, _x, _y);
 }
 static AT_INLINE long double
 avrtest_frexpl (long double _x, int *_y)
@@ -909,6 +924,7 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_ulpl   avrtest_ulpf
 #define avrtest_frexpl avrtest_frexpf
 #define avrtest_ldexpl avrtest_ldexpf
+#define avrtest_powil  avrtest_powif
 #define avrtest_prandl avrtest_prandf
 #define avrtest_strtold avrtest_strtof
 static AT_INLINE long double avrtest_modfl (long double x, long double *y) { return avrtest_modff (x, (float*) y); }

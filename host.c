@@ -907,6 +907,17 @@ emul_float_misc (uint8_t fid)
         break;
       }
 
+    case AVRTEST_powi:
+      {
+        float x = get_reg_float (22);
+        int y = (int) get_reg_s16 (20);
+        float z = __builtin_powif (x, y);
+        const char *name = "powi";
+        log_add ("emulate %sf(" PRIF ", %d) = " PRIF "", name, x,x, y, z,z);
+        set_reg_float (22, z);
+        break;
+      }
+
     case AVRTEST_frexp:
       {
         float x = get_reg_float (22);
@@ -1358,6 +1369,22 @@ emul_double_misc (uint8_t fid)
         break;
       }
 
+    case AVRTEST_powi:
+      {
+        host_double_t x = get_reg_double (18);
+        int y = get_reg_s16 (16);
+        host_double_t z = -1;
+#if defined HOST_DOUBLE
+        z = __builtin_powi (x, y);
+#elif defined HOST_LONG_DOUBLE
+        z = __builtin_powil (x, y);
+#endif
+        const char *name = "powi";
+        log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
+        set_reg_double (18, z);
+        break;
+      }
+
     case AVRTEST_frexp:
       {
         host_double_t x = get_reg_double (18);
@@ -1458,6 +1485,7 @@ void sys_emul_double (uint8_t fid)
     case AVRTEST_ldexp:
     case AVRTEST_frexp:
     case AVRTEST_modf:
+    case AVRTEST_powi:
     case AVRTEST_cmp:
       emul_double_misc (fid);
       return;

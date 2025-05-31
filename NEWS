@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support avrtest_powif/l.                                       2025-05-31
+
 * Support avrtest_strtold.                                       2025-05-27
 
 * Support avrtest_frexpf/l, avrtest_fdimf/l, avrtest_modff/l.    2025-05-25

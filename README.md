@@ -986,7 +986,7 @@ Supported functions with two float arguments are:
     pow, atan2, hypot, fdim, fmin, fmax, fmod.
 
 Some more functions are:
-    frexp, ldexp, modf, cmp, uto, sto.
+    frexp, ldexp, modf, powi, cmp, uto, sto, strto.
 
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.
@@ -1000,6 +1000,7 @@ It returns –128 for unordered comparisons.
 in the specified range.  The pseudo-random source is the same like
 for `avrtest_prand`.
 * `avrtest_ftol` and `avrtest_ltof` convert between float and long double.
+* `avrtest_powif` implements `__builtin_powif`.
 
 AVRtest will terminate with an error when the host IEEE single cannot
 be used for emulation.
