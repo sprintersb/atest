@@ -52,6 +52,10 @@
 # In order to use a compiler other than avr-gcc, use
 #
 #     CC=my-compiler ./run-avrtest.sh ...
+#
+# In order to pass additional arguments to the avrtest executable, use
+#
+#     AARGS='...' ./run-avrtest.sh ...
 
 
 set -e
@@ -239,10 +243,10 @@ Simulate_avrtest ()
     esac
 
     msg=$(${AVRTEST_HOME}/${avrtest}${suff} \
-			 -q -no-stdin $1 $o_sim -m 60000000000 2>&1)
+			 -q -no-stdin $1 $o_sim -m 60000000000 $AARGS 2>&1)
     RETVAL=$?
     #echo "MSG = $msg"
-    #echo " - $AVRTEST_HOME/$avrtest$suff -q $1 $o_sim -m 60000000000"
+    #echo " - $AVRTEST_HOME/$avrtest$suff -q $1 $o_sim -m 60000000000 $AARGS"
     [ $RETVAL -eq 0 ]
 }
 
