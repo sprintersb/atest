@@ -11,6 +11,9 @@ and easy-to-use simulator to run the
 [GCC](https://gcc.gnu.org) testsuite for avr-gcc and parts of the
 [AVR-LibC](https://github.com/avrdudes/avr-libc) testsuite.
 
+AVRtest is an AVR core smulator.  It does not simulate
+internal peripherals like timers, I/O ports or interrupts.
+
 Pre-built binaries for Windows are available at
 https://sourceforge.net/projects/winavr/files/AVRtest
 
@@ -82,8 +85,7 @@ instructions are 1-word instructions that can access SRAM in the
 range 0x40...0xbf.
 
 In the remainder, avrtest is explained.  avrtest-xmega and avrtext-tiny
-work similar.  AVRtest does not simulate internal peripherals like timers,
-I/O ports, interrupts, etc.
+work similar.
 
 
 Special Features
@@ -913,9 +915,9 @@ which only adds costs of instructions that are at a call depth of at
 least 1 (relative to the starting point).  This includes costs of
 CALL and RET that start / finish the function.
 
-Make sure that the function of interest is not inlined or optimized away,
-e.g. by making inputs and outputs volatile and attributing the function
-with __attribute__((noinline,noclone)).  The additional overhead caused by
+> :bulb: Make sure that the function of interest is not inlined or optimized
+away, e.g. by making inputs and outputs volatile and attributing the function
+with `__attribute__((__noipa__))`.  The additional overhead caused by
 the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
