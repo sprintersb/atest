@@ -164,13 +164,21 @@ endif
 
 all-mingw32: $(EXE_W)
 
+cc_cmd = echo "\#include <avr/io.h>" \
+	| $(CC_FOR_AVR) -xc - -fsyntax-only -Werror
+HasMcu = $(shell ($(cc_cmd) -mmcu=$1 2>&1) > /dev/null && echo 1)
+
 # Cross-compile AVR exit-*.o and fileio-*.o objects.
 
 exit-%.o: dejagnuboards/exit.c avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*
+	$(if $(call HasMcu,$*),\
+	  $(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*,\
+	  @echo "$* not supported by $(CC_FOR_AVR)")
 
 fileio-%.o: dejagnuboards/fileio.c fileio.h avrtest.h Makefile
-	$(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*
+	$(if $(call HasMcu,$*),\
+	  $(CC_FOR_AVR) $(CFLAGS_FOR_AVR) -std=gnu99 -I. -c $< -o $@ -mmcu=$*,\
+	  @echo "$* not supported by $(CC_FOR_AVR)")
 
 .PHONY: all all-host all-avr exe exit all-mingw32 all-avrtest upload-mingw32
 .PHONY: clean clean-host clean-exit clean-fileio clean-avr clean-mingw32
