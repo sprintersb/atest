@@ -166,7 +166,7 @@ all-mingw32: $(EXE_W)
 
 cc_cmd = echo "\#include <avr/io.h>" \
 	| $(CC_FOR_AVR) -xc - -fsyntax-only -Werror
-HasMcu = $(shell ($(cc_cmd) -mmcu=$1 2>&1) > /dev/null && echo 1)
+HasMcu = $(shell $(cc_cmd) -mmcu=$1 > /dev/null 2>&1 && echo 1)
 
 # Cross-compile AVR exit-*.o and fileio-*.o objects.
 
