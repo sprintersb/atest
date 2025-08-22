@@ -379,6 +379,17 @@ __extension__ enum
                         "r" (r##R1), "r" (r##R2));          \
   }
 
+#define AVRTEST_DEF_SYSCALL2_ext(S, N, T1, R1, T2, R2)      \
+  __extension__ static AT_INLINE                            \
+  void avrtest_syscall ## S (T1 _v1_, T2 _v2_)              \
+  {                                                         \
+    __extension__ register T1 r##R1 __asm (#R1) = _v1_;     \
+    register T2 r##R2 __asm (#R2) = _v2_;                   \
+    __asm __volatile__ (".long %1 ;; SYSCALL %0"            \
+                        :: "n" (N), "n" (SYSCo_ ## N),      \
+                        "r" (r##R1), "r" (r##R2));          \
+  }
+
 #define AVRTEST_DEF_SYSCALL1_0(S, N, T0, R0)                \
   static AT_INLINE                                          \
   T0 avrtest_syscall ## S (void)                            \
@@ -543,8 +554,8 @@ AVRTEST_DEF_SYSCALL2 (_7_u32, 7, __UINT32_TYPE__, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_s32, 7,  __INT32_TYPE__, 20, unsigned char, 24)
 
 #ifdef __UINT24_MAX__
-AVRTEST_DEF_SYSCALL2 (_7_u24, 7, __uint24, 20, unsigned char, 24)
-AVRTEST_DEF_SYSCALL2 (_7_s24, 7, __int24,  20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2_ext (_7_u24, 7, __uint24, 20, unsigned char, 24)
+AVRTEST_DEF_SYSCALL2_ext (_7_s24, 7, __int24,  20, unsigned char, 24)
 #else
 AVRTEST_DEF_SYSCALL2 (_7_u24, 7, __UINT32_TYPE__, 20, unsigned char, 24)
 AVRTEST_DEF_SYSCALL2 (_7_s24, 7,  __INT32_TYPE__, 20, unsigned char, 24)
