@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 # Copyright (c) 2007, Dmitry Xmelkov
 # All rights reserved.
@@ -304,7 +304,7 @@ done
 echo "-------"
 echo "Done.  Number of operated files: $n_files"
 
-if [ $(expr $n_emake + $n_ehost + $n_esimul) -gt 0 ] ; then
+if [ $(($n_emake + $n_ehost + $n_esimul)) -gt 0 ] ; then
     [ $n_emake -gt 0 ]   && echo "*** Compile/link errors: $n_emake"
     [ $n_esimul -gt 0 ]  && echo "*** Simulate errors:     $n_esimul"
     exit 1
