@@ -370,6 +370,8 @@ The following exit stati will be returned with `-q`:
   - 20 – Out of memory.
   - 21 – Wrong avrtest usage: Unknown options, etc.
   - 22 – Program file could not be found / read.
+  - 23 – IEEE single emulation failed (e.g. on a big-endian host).
+  - 24 – IEEE double emulation failed.
   - 42 – Fatal error in avrtest.
 
 Without `-q`, the exit status will be 1 (`EXIT_FAILURE`) for the cases &ge; 20

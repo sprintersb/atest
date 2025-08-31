@@ -313,6 +313,8 @@ static const exit_status_t exit_status[] =
     [LEAVE_MEMORY]  = { "ABORTED", "memory",      EXIT_FAILURE, 20 },
     [LEAVE_USAGE]   = { "ABORTED", "usage",       EXIT_FAILURE, 21 },
     [LEAVE_FOPEN]   = { "ABORTED", "file open",   EXIT_FAILURE, 22 },
+    [LEAVE_IEEE32]  = { "ABORTED", "IEEE single", EXIT_FAILURE, 23 },
+    [LEAVE_IEEE64]  = { "ABORTED", "IEEE double", EXIT_FAILURE, 24 },
     [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 

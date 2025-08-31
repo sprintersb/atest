@@ -797,13 +797,13 @@ is_special_ulp (const avr_float_t *x, const avr_float_t *y)
 void sys_emul_float (uint8_t fid)
 {
   log_add ("not supported: %s", NO_FEMUL);
-  leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
+  leave (LEAVE_IEEE32, "IEEE single emulation failed: %s", NO_FEMUL);
 }
 
 static void sys_misc_fxtof (uint8_t fid)
 {
   log_add ("not supported: %s", NO_FEMUL);
-  leave (LEAVE_FATAL, "IEEE single emulation failed: %s", NO_FEMUL);
+  leave (LEAVE_IEEE32, "IEEE single emulation failed: %s", NO_FEMUL);
 }
 
 #else // float emulation is supported
@@ -1202,17 +1202,17 @@ typedef long double host_double_t;
 void sys_emul_double (uint8_t fid)
 {
   log_add ("not supported: %s", NO_DEMUL);
-  leave (LEAVE_FATAL, "IEEE double emulation failed: %s", NO_DEMUL);
+  leave (LEAVE_IEEE64, "IEEE double emulation failed: %s", NO_DEMUL);
 }
 static void sys_misc_ltof (void)
 {
   log_add ("not supported: ltof: %s", NO_DEMUL);
-  leave (LEAVE_FATAL, "ltof failed: %s", NO_DEMUL);
+  leave (LEAVE_IEEE64, "ltof failed: %s", NO_DEMUL);
 }
 static void sys_misc_ftol (void)
 {
   log_add ("not supported: ftol: %s", NO_DEMUL);
-  leave (LEAVE_FATAL, "ftol failed: %s", NO_DEMUL);
+  leave (LEAVE_IEEE64, "ftol failed: %s", NO_DEMUL);
 }
 
 #else // double emulation is supported

@@ -179,6 +179,8 @@ enum
     LEAVE_USAGE,
     LEAVE_MEMORY,
     LEAVE_FOPEN,
+    LEAVE_IEEE32,
+    LEAVE_IEEE64,
     LEAVE_FATAL
   };
 
