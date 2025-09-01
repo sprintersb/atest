@@ -1212,6 +1212,7 @@ typedef long double host_double_t;
 #if !defined NO_DEMUL                                   \
   && defined __FLOAT_WORD_ORDER__                       \
   && defined __ORDER_LITTLE_ENDIAN__                    \
+  && __FLOAT_WORD_ORDER__ != __ORDER_BIG_ENDIAN__       \
   && __FLOAT_WORD_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #define NO_DEMUL "host IEEE double is not little endian"
 #endif
@@ -1236,17 +1237,38 @@ static void sys_misc_ftol (void)
 
 #else // double emulation is supported
 
+static INLINE host_double_t
+swap_double (host_double_t d)
+{
+#if __FLOAT_WORD_ORDER__ == __ORDER_BIG_ENDIAN__
+  host_double_t s = d;
+  const uint8_t *ps = (const uint8_t*) &s;
+  uint8_t *pd = (uint8_t*) &d;
+  pd[0] = ps[7];
+  pd[1] = ps[6];
+  pd[2] = ps[5];
+  pd[3] = ps[4];
+  pd[4] = ps[3];
+  pd[5] = ps[2];
+  pd[6] = ps[1];
+  pd[7] = ps[0];
+#endif
+
+  return d;
+}
+
 static host_double_t
 get_reg_double (int regno)
 {
   host_double_t d;
   memcpy (&d, cpu_address (regno, AR_REG), sizeof (host_double_t));
-  return d;
+  return swap_double (d);
 }
 
 static void
 set_reg_double (int regno, host_double_t d)
 {
+  d = swap_double (d);
   memcpy (cpu_address (regno, AR_REG), &d, sizeof (host_double_t));
 }
 
