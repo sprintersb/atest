@@ -787,6 +787,7 @@ is_special_ulp (const avr_float_t *x, const avr_float_t *y)
 #if !defined NO_FEMUL                                   \
   && defined __FLOAT_WORD_ORDER__                       \
   && defined __ORDER_LITTLE_ENDIAN__                    \
+  && __FLOAT_WORD_ORDER__ != __ORDER_BIG_ENDIAN__       \
   && __FLOAT_WORD_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #define NO_FEMUL "host IEEE single is not little endian"
 #endif
@@ -808,17 +809,35 @@ static void sys_misc_fxtof (uint8_t fid)
 
 #else // float emulation is supported
 
+static INLINE float
+swap_float (float f)
+{
+#if __FLOAT_WORD_ORDER__ == __ORDER_BIG_ENDIAN__
+  float s;
+  uint8_t *ps = (uint8_t*) &s;
+  const uint8_t *pf = (const uint8_t*) &f;
+  ps[0] = pf[3];
+  ps[3] = pf[0];
+  ps[1] = pf[2];
+  ps[2] = pf[1];
+  return s;
+#else
+  return f;
+#endif
+}
+
 float
 get_reg_float (int regno)
 {
   float f;
   memcpy (&f, cpu_address (regno, AR_REG), sizeof (float));
-  return f;
+  return swap_float (f);
 }
 
 void
 set_reg_float (int regno, float f)
 {
+  f = swap_float (f);
   memcpy (cpu_address (regno, AR_REG), &f, sizeof (float));
 }
 
