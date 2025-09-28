@@ -1005,6 +1005,8 @@ in the specified range.  The pseudo-random source is the same like
 for `avrtest_prand`.
 * `avrtest_ftol` and `avrtest_ltof` convert between float and long double.
 * `avrtest_powif` implements `__builtin_powif`.
+* `avrtest_ulpf` returns the relative error of the 1st argument with
+respect to the 2nd argument in ULPs (Unit in the Last Place).
 
 AVRtest will terminate with an error when the host IEEE single cannot
 be used for emulation.

@@ -971,14 +971,16 @@ Don't forget to append 'f' to the function name for the float versions.
 
 avrtest_utof and avrtest_stof convert uint32_t resp. int32_t to float.
 avrtest_cmpf compares two floating-point values.  It returns -1, 0, +1
-when the values are less, equal or greater, respectively.
-It returns -128 for unordered comparisons.
+  when the values are less, equal or greater, respectively.
+  It returns -128 for unordered comparisons.
 avrtest_strtof converts an ASCII string to float, just like strtof.
 avrtest_prandf returns an evenly distributed pseudo-random number
-in the specified range.  The pseudo-random source is the same like
-for avrtest_prand.
+  in the specified range.  The pseudo-random source is the same like
+  for avrtest_prand.
 avrtest_ftol and avrtest_ltof convert between float and long double.
 avrtest_powif implements __builtin_powif.
+avrtest_ulpf returns the relative error of the 1st argument with
+  respect to the 2nd argument in ULPs (Unit in the Last Place).
 
 AVRtest will terminate with an error if the host IEEE single cannot
 be used for emulation.
