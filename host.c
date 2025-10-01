@@ -858,9 +858,12 @@ get_fulp (const avr_float_t *x, const avr_float_t *y)
   int iulp = is_special_ulp (x, y);
   if (iulp >= 0)
     return iulp;
-  float sx = ldexpf (x->mant1, x->exp) * (x->sign_bit ? -1 : 1);
-  float sy = ldexpf (y->mant1, y->exp) * (y->sign_bit ? -1 : 1);
-  float ulp = ldexpf (1, y->exp);
+  const int DIG_MANT = 23;
+  int x_exp = x->exp - DIG_MANT;
+  int y_exp = y->exp - DIG_MANT;
+  float sx = ldexpf (x->mant1, x_exp) * (x->sign_bit ? -1 : 1);
+  float sy = ldexpf (y->mant1, y_exp) * (y->sign_bit ? -1 : 1);
+  float ulp = ldexpf (1, y_exp);
 
   return (sx - sy) / ulp;
 }
@@ -1289,9 +1292,12 @@ get_dulp (const avr_float_t *x, const avr_float_t *y)
   int iulp = is_special_ulp (x, y);
   if (iulp >= 0)
     return iulp;
-  host_double_t sx = ldexp (x->mant1, x->exp) * (x->sign_bit ? -1 : 1);
-  host_double_t sy = ldexp (y->mant1, y->exp) * (y->sign_bit ? -1 : 1);
-  host_double_t ulp = ldexp (1, y->exp);
+  const int DIG_MANT = 52;
+  int x_exp = x->exp - DIG_MANT;
+  int y_exp = y->exp - DIG_MANT;
+  host_double_t sx = ldexp (x->mant1, x_exp) * (x->sign_bit ? -1 : 1);
+  host_double_t sy = ldexp (y->mant1, y_exp) * (y->sign_bit ? -1 : 1);
+  host_double_t ulp = ldexp (1, y_exp - DIG_MANT);
 
   return (sx - sy) / ulp;
 }
