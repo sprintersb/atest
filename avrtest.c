@@ -88,6 +88,8 @@ const int io_base = IOBASE;
 
 bool have_syscall[32];
 
+const char s_SREG[] = "CZNVSHTI";
+
 // ----------------------------------------------------------------------------
 
 #define IN_AVRTEST

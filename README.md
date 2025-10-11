@@ -279,7 +279,7 @@ will print a help screen with available options:
   usage: avrtest [-d] [-e ENTRY] [-m MAXCOUNT] [-mmcu=ARCH] [-s SIZE]
                  [-no-log] [-no-stdin] [-no-stdout] [-no-stderr]
                  [-log=FILE] [-stdin=FILE] [-stdout=FILE] [-stderr=FILE]
-                 [-q] [-flush] [-runtime] [-v]
+                 [-q] [-flush] [-regs] [-runtime] [-v]
                  [-graph[=FILE]] [-sbox=FOLDER]
                  program [-args [...]]
          avrtest --help
@@ -299,6 +299,7 @@ Options:
                 requested.  Pass exit status from the program.
   -v            Verbose mode.  Print the loaded ELF program headers
                 and the used streams.
+  -regs         Show register contents in the instruction log.
   -runtime      Print avrtest execution time.
   -no-log       Disable instruction logging in avrtest_log.  Logging
                 can still be turned on with LOG_ON etc., see README.

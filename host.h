@@ -116,6 +116,7 @@ extern void sys_log_dump (int);
 extern void sys_misc_emul (uint8_t);
 extern void sys_emul_double (uint8_t);
 extern void sys_emul_float (uint8_t);
+extern void log_regs (void);
 
 extern dword host_fileio (byte, dword);
 #endif // HOST_H

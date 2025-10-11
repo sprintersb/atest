@@ -48,7 +48,7 @@ typedef struct
 {
   // Buffer filled by log_append() and flushed to stdout after the
   // instruction has been executed (provided logging is on).
-  char data[256];
+  char data[1000];
   // Write position in .data[].
   char *pos;
   // LOG_SET(N): Log the next f(N) instructions
@@ -69,14 +69,18 @@ typedef struct
   bool perf_only;
 } alog_t;
 
-const char s_SREG[] = "CZNVSHTI";
-
 
 unsigned old_PC, old_old_PC;
 need_t need;
 static int maybe_SP_glitch;
 
 static alog_t alog;
+
+int
+log_position (void)
+{
+  return (int) (alog.pos - alog.data);
+}
 
 void
 log_append (const char *fmt, ...)

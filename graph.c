@@ -31,6 +31,7 @@
 #include "testavr.h"
 #include "options.h"
 #include "graph.h"
+#include "host.h"
 
 #ifndef AVRTEST_LOG
 #error no function herein is needed without AVRTEST_LOG
@@ -875,6 +876,8 @@ log_transition (list_t *yold, list_t *ynew, int is_proep, const char *s_pe)
   int d_old = yold ? yold->depth : 0;
   int d_new = ynew ? ynew->depth : 0;
   int d = d_new - d_old;
+  bool reglog = options.do_regs;
+  const int pos = log_position ();
 
   if (is_proep)
     {
@@ -893,7 +896,12 @@ log_transition (list_t *yold, list_t *ynew, int is_proep, const char *s_pe)
       const char *s_lj = func_sym[old_PC] && func_sym[old_PC]->is_hidden
         ? "longjmp? <-- " : "";
 
-      if (d == 0)  log_append ("\n+++[%d] ", d_old);
+      if (d == 0)
+        {
+          if (is_proep != 2 && !strcmp (old->name, new->name))
+            return;
+          log_append ("\n+++[%d] ", d_old);
+        }
       if (d < 0)   log_append ("\n+++[%d<-%d] ", d_new, d_old);
       if (d > 0)   log_append ("\n+++[%d->%d] ", d_old, d_new);
 
@@ -904,10 +912,14 @@ log_transition (list_t *yold, list_t *ynew, int is_proep, const char *s_pe)
     }
   else if (old != new)
     {
+      reglog = false;
       if (!old)
         old = new, d_old = d_new;
       log_append ("\n+++[%d] %s \n", d_old, old->name);
     }
+
+  if (reglog && pos != log_position ())
+    log_regs ();
 }
 
 

@@ -65,6 +65,9 @@ AVRTEST_OPT (q, 0, quiet)
 // Whether to report information about avrtest's run time
 AVRTEST_OPT (runtime, 0, runtime)
 
+// Whether to log GPRs at each transition.
+AVRTEST_OPT (regs, 0, regs)
+
 // Whether STDIN_PORT is active
 AVRTEST_OPT (stdin,  1, stdin)
 AVRTEST_OPT (stdin=, 0, stdin_filename)

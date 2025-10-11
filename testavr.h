@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <inttypes.h>
 
@@ -249,6 +250,7 @@ extern bool log_unused;
 #define log_dump_line(...)     (void) 0
 #define log_do_syscall(...)    (void) 0
 #define log_maybe_change_SP(...)  (void) 0
+#define log_position()         0
 
 #else
 
@@ -264,6 +266,7 @@ extern void log_add_reg_mov (const char *format, int regno, int value);
 extern void log_dump_line (const decoded_t*);
 extern void log_do_syscall (int x, int val);
 extern void log_maybe_change_SP (int);
+extern int log_position (void);
 
 typedef struct
 {
@@ -281,6 +284,8 @@ extern need_t need;
 extern int get_nonglitch_SP (void);
 
 #endif  // AVRTEST_LOG
+
+extern const char s_SREG[8];
 
 void no_elf_string_table (char *stab, size_t size, int n_entries);
 void no_elf_function_symbol (int addr, size_t offset, bool is_func);

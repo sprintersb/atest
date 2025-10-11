@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Add new option -regs to print GPRs in instruction logs.        2025-10-11
+
 * Support avrtest_powif/l.                                       2025-05-31
 
 * Support avrtest_strtold.                                       2025-05-27

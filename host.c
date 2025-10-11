@@ -377,6 +377,40 @@ int32_t get_mem_s32 (int r) { return get_mem_value (r, &layout[LOG_S32_CMD]); }
 int64_t get_mem_s64 (int r) { return get_mem_value (r, &layout[LOG_S64_CMD]); }
 
 
+void log_regs (void)
+{
+  int regno = 0;
+
+  log_add ("~~~    ");
+  for (int r = 0; r < 10; ++r)
+    log_add (" r0%d", r);
+  log_add ("\n");
+
+  for (int line = 0; line < 4; ++line)
+    {
+      log_add ("~~~ r%d0", line);
+      for (int i = 0; i < 10 && regno < 32; ++i, ++regno)
+        {
+          if (regno >= 32)
+            __builtin_exit(77);
+          uint8_t r = get_reg_u8 (regno);
+          log_add ("  %02x", r);
+          if (regno == 31)
+            {
+              const uint16_t sp = (cpu.f_data()[addr_SPL]
+                                   | (cpu.f_data()[1 + addr_SPL] << 8));
+              const uint8_t sreg = cpu.f_data()[addr_SREG];
+              log_add ("  SP=%04x", sp);
+              log_add ("  SREG=%02x=", sreg);
+              for (int s = 7; s >= 0; --s)
+                log_add ("%c", sreg & (1 << s) ? s_SREG[s] : '-');
+            }
+        }
+      log_add ("\n");
+    }
+}
+
+
 ticks_port_t ticks_port;
 
 static uint32_t
