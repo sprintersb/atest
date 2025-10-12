@@ -536,6 +536,10 @@ Logging Values to the Host Computer
 The log destination can be set with `-log=FILE`, where FILE
 is `stdout` (default), `stderr` or a `*.log` or `*.txt` file name.
 
+The values of all the Genral Purpose Registers can be printed with:
+
+    LOG_REGS;           print the values of all GPRs
+
 In order to get values out of the running program, the following
 low-overhead, low-intrusive commands might be useful:
 
@@ -1086,6 +1090,7 @@ Assembler Support in `avrtest.h`
     LOG_PUSH_OFF        ;; Same as "avrtest_syscall 9"
     LOG_PUSH_ON         ;; Same as "avrtest_syscall 10"
     LOG_POP             ;; Same as "avrtest_syscall 11"
+    LOG_REGS            ;; Same as "avrtest_syscall 20"
     AVRTEST_ABORT       ;; Same as "avrtest_syscall 31"
     AVRTEST_EXIT        ;; Same as "avrtest_syscall 30", exit value = R25:R24.
     AVRTEST_PUTCHAR     ;; Same as "avrtest_syscall 29", char = R24

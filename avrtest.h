@@ -300,6 +300,8 @@ enum
 #define PERF_TAG_PF_(F,X,N,S,C) \
   do { PERF_TAG_PFMT(F); avrtest_syscall##S (X, LOG_TAG_CMD (N,C)); } while (0)
 
+#define LOG_REGS      avrtest_syscall_20 ()
+
 /* Instruction logging control */
 
 #define LOG_POP       avrtest_syscall_11 ()
@@ -513,6 +515,7 @@ AVRTEST_DEF_SYSCALL1 (_29, 29, char, 24)
 AVRTEST_DEF_SYSCALL1 (_30, 30, __INT16_TYPE__, 24) /* exit */
 AVRTEST_DEF_SYSCALL0 (_31, 31) /* abort */
 AVRTEST_DEF_SYSCALL0 (_25, 25) /* abort_2nd_hit */
+AVRTEST_DEF_SYSCALL0 (_20, 20) /* log_regs */
 
 AVRTEST_DEF_SYSCALL0 (_0, 0) /* LOG_OFF  */
 AVRTEST_DEF_SYSCALL0 (_1, 1) /* LOG_ON   */
@@ -1084,6 +1087,7 @@ avrtest_reset_all (void)
 #define LOG_PUSH_OFF   avrtest_syscall 9
 #define LOG_PUSH_ON    avrtest_syscall 10
 #define LOG_POP        avrtest_syscall 11
+#define LOG_REGS       avrtest_syscall 20
 
 #define AVRTEST_ABORT  avrtest_syscall 31
 #define AVRTEST_EXIT   avrtest_syscall 30

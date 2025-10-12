@@ -353,13 +353,6 @@ sys_log_config (int cmd, int val)
     }
 }
 
-static const char*
-pc_string (void)
-{
-  static char str[20];
-  sprintf (str, "%0*x", cpu.strlen_pc, cpu.pc * 2);
-  return str;
-}
 
 typedef struct
 {
@@ -404,7 +397,7 @@ sys_log_pushpop (int sysno, int what)
           log_append (" (stack #%u overflow)", (unsigned) n_slots);
           if (! options.do_log)
             qprintf ("*** syscall #%d 0x%s: log push (stack #%u overflow)\n",
-                     sysno, pc_string(), (unsigned) n_slots);
+                     sysno, pc_string (0), (unsigned) n_slots);
         }
     }
   else if (what == -1)
@@ -430,7 +423,7 @@ sys_log_pushpop (int sysno, int what)
           log_append ("(stack underflow)");
           if (! options.do_log)
             qprintf ("*** syscall #%d 0x%s: log pop (stack underflow)\n",
-                     sysno, pc_string());
+                     sysno, pc_string (0));
         }
     }
   else

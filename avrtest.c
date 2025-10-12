@@ -2069,6 +2069,7 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
        SYSCALL 23:     emulate IEEE double functions. Signature depends on R26.
        SYSCALL 22:     emulate IEEE single functions. Signature depends on R26.
        SYSCALL 21:     Misc tasks collected in one syscall.
+       SYSCALL 20:     Log GPRs, SP and SREG.
        SYSCALL 8:      sys_log_dump(): Log 64-bit values.
        SYSCALL 7:      sys_log_dump(): Log values.
        SYSCALL 4:      sys_ticks_cmd(): Cycles, insn. rand, prand.
@@ -2104,6 +2105,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
 
     // Supported by all AVRtest flavours and implemented...
     // ...in host.c
+    case 20: sys_log_regs ();  break;
     case 22: sys_emul_float  (cpu_reg[26]); break;
     case 23: sys_emul_double (cpu_reg[26]); break;
     case 26: sys_fileio();     break;

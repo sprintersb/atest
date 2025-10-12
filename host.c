@@ -379,22 +379,23 @@ int64_t get_mem_s64 (int r) { return get_mem_value (r, &layout[LOG_S64_CMD]); }
 
 void log_regs (void)
 {
-  int regno = 0;
+  int regno = 10 * is_tiny;
 
   log_add ("~~~    ");
   for (int r = 0; r < 10; ++r)
     log_add (" r0%d", r);
   log_add ("\n");
 
-  for (int line = 0; line < 4; ++line)
+  for (int line = is_tiny; regno < 32; ++line)
     {
       log_add ("~~~ r%d0", line);
       for (int i = 0; i < 10 && regno < 32; ++i, ++regno)
         {
-          if (regno >= 32)
-            __builtin_exit(77);
           uint8_t r = get_reg_u8 (regno);
-          log_add ("  %02x", r);
+          if (is_tiny && regno < 16)
+            log_add ("%s", "    ");
+          else
+            log_add ("  %02x", r);
           if (regno == 31)
             {
               const uint16_t sp = (cpu.f_data()[addr_SPL]
@@ -408,6 +409,55 @@ void log_regs (void)
         }
       log_add ("\n");
     }
+}
+
+
+void sys_log_regs (void)
+{
+  static unsigned long n_calls = 0;
+  int regno = 10 * is_tiny;
+
+  ++n_calls;
+  log_add ("log_regs");
+
+  LOGPRINT ("0x%s: GPRs #%lu#\n", pc_string (-4), n_calls);
+  LOGPRINT ("%s", "~~~    ");
+  for (int r = 0; r < 10; ++r)
+    LOGPRINT (" r0%d", r);
+  LOGPRINT ("%s", "\n");
+
+  for (int line = is_tiny; regno < 32; ++line)
+    {
+      LOGPRINT ("~~~ r%d0", line);
+      for (int i = 0; i < 10 && regno < 32; ++i, ++regno)
+        {
+          uint8_t r = get_reg_u8 (regno);
+          if (is_tiny && regno < 16)
+            LOGPRINT ("%s", "    ");
+          else
+            LOGPRINT ("  %02x", r);
+          if (regno == 31)
+            {
+              const uint16_t sp = (cpu.f_data()[addr_SPL]
+                                   | (cpu.f_data()[1 + addr_SPL] << 8));
+              const uint8_t sreg = cpu.f_data()[addr_SREG];
+              LOGPRINT ("  SP=%04x", sp);
+              LOGPRINT ("  SREG=%02x=", sreg);
+              for (int s = 7; s >= 0; --s)
+                LOGPRINT ("%c", sreg & (1 << s) ? s_SREG[s] : '-');
+            }
+        }
+      LOGPRINT ("%s", "\n");
+    }
+}
+
+
+const char*
+pc_string (int boff)
+{
+  static char str[20];
+  sprintf (str, "%0*x", cpu.strlen_pc, cpu.pc * 2 + boff);
+  return str;
 }
 
 
