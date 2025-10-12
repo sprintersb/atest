@@ -891,7 +891,7 @@ log_transition (list_t *yold, list_t *ynew, int is_proep, const char *s_pe)
       log_append (" %s \n", s_pe);
     }
   else if (old && new
-           && (old != new || old == func_sym[cpu.pc]))
+           && (old != new || old == func_sym[cpu.pc] || d))
     {
       const char *s_lj = func_sym[old_PC] && func_sym[old_PC]->is_hidden
         ? "longjmp? <-- " : "";
