@@ -828,7 +828,7 @@ sys_log_dump (int what)
         mant >>= 4;
         // mant = 0x1.[IEEE_mant_bits] | 3 extra f7 bits
         mant &= (UINT64_C(1) << 52) - 1;
-        str_append (txt, "} = 0x%u.%013" PRIx64 "|%u, expo = %d }",
+        str_append (txt, "} = 0x%u.%013" PRIx64 "|%x, expo = %d }",
                     msb, mant, lsn, get_mem_s16 (addr + 1 + n_mant));
         LOGPRINT (fmt, txt);
       }
