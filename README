@@ -510,7 +510,7 @@ Logging Values to the Host Computer
 The log destination can be set with -log=FILE, where FILE
 is stdout (default), stderr or a *.log or *.txt file name.
 
-The values of all the Genral Purpose Registers can be printed with:
+The values of all the General Purpose Registers can be printed with:
 
     LOG_REGS;           print the values of all GPRs
 
