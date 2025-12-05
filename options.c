@@ -387,6 +387,21 @@ static file_t files[3] =
   };
 
 
+static bool is_txt_filename (const char *filename)
+{
+  static const char *const suff[] =
+    {
+      ".txt", ".out", ".log", ".ppm", ".pgm", ".pbm", ".pnm"
+    };
+
+  for (size_t i = 0; i < ARRAY_SIZE (suff); ++i)
+    if (str_suffix (suff[i], filename))
+      return true;
+
+  return false;
+}
+
+
 // Set program.{stdout|stderr|stdin} according to -[no-]stdout[=FILE].
 static void
 maybe_open_file (file_t *f)
@@ -402,10 +417,9 @@ maybe_open_file (file_t *f)
       if (verb)
         printf ("=%s", *f->pfilename);
 
-      bool is_txt =  str_suffix (".txt",  *f->pfilename);
       bool is_data = str_suffix (".data", *f->pfilename);
 
-      if (!is_txt && !is_data)
+      if (!is_txt_filename (*f->pfilename))
         {
           if (verb)
             printf (" ignored: illegal file name (not *.txt or *.data)"
@@ -488,7 +502,7 @@ set_streams (void)
           if (options.do_verbose)
             printf (">>> -log=stderr\n");
         }
-      else if (str_suffix (".txt", fname) || str_suffix (".log", fname))
+      else if (is_txt_filename (fname))
         {
           program.log_stream = fopen (fname, "w");
           if (options.do_verbose)
@@ -500,7 +514,7 @@ set_streams (void)
             }
         }
       else if (options.do_verbose)
-        printf (">>> -log=%s ignored: illegal file name (not *.log or *.txt\n",
+        printf (">>> -log=%s ignored: illegal file name (not *.log or *.txt)\n",
                 fname);
     }
 
