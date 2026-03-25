@@ -153,7 +153,7 @@ extern bool have_syscall[32];
 #define UNUSED   __attribute__((__unused__))
 #define CONSTRUCTOR __attribute__((__used__,__constructor__))
 
-#if defined (__i386__) || defined (__i868__)
+#if defined (__i386__) || defined (__i686__)
 #define FASTCALL __attribute__((__fastcall__))
 #else
 #define FASTCALL /* empty */
