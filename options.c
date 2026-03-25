@@ -315,7 +315,7 @@ get_valid_numberKME (const char *str, const char *opt)
       mul = 1000000;
       pos_end = pos_M;
     }
-  
+
   unsigned long long val = strtoull (str, &end, 0);
   if ((pos_end && end != pos_end)
       || (!pos_end && *end))
@@ -373,7 +373,7 @@ typedef struct file_t
   const char *action;             // "write"
 } file_t;
 
-#define MK_FILE(S, ACTION) {                                              \
+#define MK_FILE(S, ACTION) {                                           \
   get_##S, program_##S,                                                \
   &options.do_##S, &options.do_##S##_filename, &options.s_##S##_filename, \
   "-" #S, ACTION                                                          \
@@ -643,7 +643,7 @@ parse_args (int argc, char *argv[])
               flash_pm_offset = (unsigned) offs;
             }
           else
-              flash_pm_offset = 0;
+            flash_pm_offset = 0;
           break; // -pm
 
         case OPT_sandbox:
@@ -689,7 +689,7 @@ parse_args (int argc, char *argv[])
   if (flash_pm_offset)
     {
       if (!str_eq (arch.name, "avrxmega3"))
-          usage ("'-pm OFFSET' is only valid for avrxmega3");
+        usage ("'-pm OFFSET' is only valid for avrxmega3");
       arch.flash_pm_offset = flash_pm_offset;
     }
 

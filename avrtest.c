@@ -686,7 +686,7 @@ FUT_ADD_SUB_INDEX (unsigned v1, unsigned v2, unsigned res)
 static INLINE void
 add_program_cycles (int64_t cycles)
 {
-    program.n_cycles += (uint64_t) cycles;
+  program.n_cycles += (uint64_t) cycles;
 }
 
 
@@ -814,11 +814,11 @@ store_logical_result (int rd, int result)
 static INLINE byte
 get_ramp (int r_addr)
 {
-    unsigned i = (r_addr - 26) / 2;
-    if (i <= 2)
-        return data_read_byte (i + RAMPX);
-    else
-        return data_read_byte (RAMPD);
+  unsigned i = (r_addr - 26) / 2;
+  if (i <= 2)
+    return data_read_byte (i + RAMPX);
+  else
+    return data_read_byte (RAMPD);
 }
 
 static INLINE void

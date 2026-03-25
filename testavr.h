@@ -387,13 +387,13 @@ str_in (const char *s, const char * const *arr)
 static INLINE int
 exact_log2 (unsigned x)
 {
-    if (x == 0 || (x & (x - 1)))
-        return -1;
+  if (x == 0 || (x & (x - 1)))
+    return -1;
 
-    int n = 0;
-    for (; x != 1; x >>= 1)
-        n = n + 1;
-    return n;
+  int n = 0;
+  for (; x != 1; x >>= 1)
+    n = n + 1;
+  return n;
 }
 
 

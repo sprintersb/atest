@@ -2036,20 +2036,20 @@ host_fileio (byte what, dword r20)
     const char *label;
     int n_bytes;
   } host_hnd[] =
-      {
+    {
 #define HANDLER(n, f)   [AVRTEST_##f] = { host_##f, #f, n }
-        HANDLER (4, fopen),
-        HANDLER (1, fclose),
-        HANDLER (1, fgetc),
-        HANDLER (2, fputc),
-        HANDLER (1, feof),
-        HANDLER (1, clearerr),
-        HANDLER (2, fseek),     // -> 6 bytes
-        HANDLER (1, fflush),
-        HANDLER (2, fread),     // -> 7 bytes
-        HANDLER (2, fwrite),    // -> 7 bytes
+      HANDLER (4, fopen),
+      HANDLER (1, fclose),
+      HANDLER (1, fgetc),
+      HANDLER (2, fputc),
+      HANDLER (1, feof),
+      HANDLER (1, clearerr),
+      HANDLER (2, fseek),     // -> 6 bytes
+      HANDLER (1, fflush),
+      HANDLER (2, fread),     // -> 7 bytes
+      HANDLER (2, fwrite),    // -> 7 bytes
 #undef HANDLER
-      };
+    };
 
   if (what >= sizeof (host_hnd) / sizeof (*host_hnd))
     leave (LEAVE_HOSTIO,
