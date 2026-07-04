@@ -58,7 +58,7 @@ typedef struct
   char string [LEN_PERF_TAG_STRING];
   // A custom printf format string to display the tag.
   // !!! Be careful with this!  Non-matching %-codes in the
-  // !!! format string migh crash avrtest!
+  // !!! format string might crash avrtest!
   char fmt[LEN_PERF_TAG_FMT];
 } perf_tag_t;
 

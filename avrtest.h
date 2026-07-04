@@ -312,7 +312,7 @@ enum
 #define LOG_ON        avrtest_syscall_1 ()
 #define LOG_OFF       avrtest_syscall_0 ()
 
-/* Controling perf-meters */
+/* Controlling perf-meters */
 #define PERF_STOP(n)        avrtest_syscall_5 (PERF_CMD_((n), STOP))
 #define PERF_START(n)       avrtest_syscall_5 (PERF_CMD_((n), START))
 #define PERF_DUMP(n)        avrtest_syscall_5 (PERF_CMD_((n), DUMP))
@@ -527,7 +527,7 @@ AVRTEST_DEF_SYSCALL0 (_11, 11) /* LOG_POP */
 /* LOG_SET (N) */
 AVRTEST_DEF_SYSCALL1 (_3, 3, unsigned, 24)
 
-/* Cycle count, instruction cound, (pseudo) random number */
+/* Cycle count, instruction count, (pseudo) random number */
 AVRTEST_DEF_SYSCALL1   (_4_r, 4, unsigned char, 24)
 AVRTEST_DEF_SYSCALL1_1 (_4_g, 4, __UINT32_TYPE__, 22, unsigned char, 24)
 

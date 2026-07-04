@@ -185,7 +185,7 @@ http://lists.gnu.org/archive/html/avr-gcc-list/2009-09/msg00016.html
 
 * The .dejagnurc file sets the "avrlibc_include_dir" variable that points
   to a directory where the compiler can find stdio.h and similar headers
-  from AVR-LibC.  Adjust this path to point to the "incude/avr" subdir
+  from AVR-LibC.  Adjust this path to point to the "include/avr" subdir
   of a valid AVR-LibC installation.  You can also adjust that path in
   the *-sim.exp file.
 
@@ -376,7 +376,7 @@ as an AVR running at around 90 MHz.
 
 AVRtest is a single-core application.  The speed values are under
 the assumption that the simulator performs no logging or printing.
-The timing will also depend slighly on which instructions are being
+The timing will also depend slightly on which instructions are being
 simulated.
 
 
@@ -633,7 +633,7 @@ these arguments are passed compressed as ARGS.  If they do not fit into 4 bytes,
 then the PARGS variant has to be used where PARGS points to a memory location
 where to find the arguments.
 
-To give an example, fopen whould be called as
+To give an example, fopen would be called as
 
     uint8_t handle = (uint8_t) avrtest_fileio_4 (AVRTEST_fopen, args);
 
@@ -678,7 +678,7 @@ that simulates ATmega128 for example, the link command would read
 
 and then simulate program.elf with avrtest or avrtest_log.
 
-In order to circumvent AVR-LibC stdio.h pecularities and also for
+In order to circumvent AVR-LibC stdio.h peculiarities and also for
 better performance, the fileio module provides functions that use
 handles directly instead of the need for an intermediate FILE*.
 These functions with their obvious semantics are:
@@ -779,7 +779,7 @@ In order to give a specific perf-meter N a more descriptive name there are
 where label L is a C-string residing in RAM or Flash, respectively.
 avrtest_log will cache the label so you can override it after PERF_LABEL.
 
-If you want to find out what value lead to the round with mimimal or maximal
+If you want to find out what value lead to the round with minimal or maximal
 instruction cycles, the next START/STOP round can be tagged with a value:
 
     PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR

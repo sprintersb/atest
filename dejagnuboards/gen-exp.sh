@@ -30,7 +30,7 @@ print_exp()
 
 cat > $1-sim.exp <<EOF
 # Directory where to find the avrtest executable and the exit-*.o modules.
-# "avrtest_dir" can be specified in .dejagnurc or be overriden below.
+# "avrtest_dir" can be specified in .dejagnurc or be overridden below.
 
 # set avrtest_dir "/home/pmarques"
 
@@ -68,9 +68,9 @@ set avrtest_opts "${avrtest_opts}"
 # set extra_cflags ""
 
 # Extra LDFLAGS to add to all compilations.  This serves to arrange
-# the memory layout and sizes so as to reduce the numbber of test
+# the memory layout and sizes so as to reduce the number of tests
 # that are FAILing due to small memory.  The simulator has plenty
-# of memory, and there is no need to stick to AVR harware limitations.
+# of memory, and there is no need to stick to AVR hardware limitations.
 
 set extra_ldflags "${extra_ldflags} ${ld_ram}"
 

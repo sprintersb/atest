@@ -514,7 +514,7 @@ data_write_byte (int address, int value)
 }
 
 // get_reg / put_reg are just placeholders for read/write calls where we can
-// be sure that the adress is < 32
+// be sure that the address is < 32.
 
 static INLINE byte
 get_reg (int regno)

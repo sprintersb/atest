@@ -45,7 +45,7 @@
   avrtest_getchar().
 
 * avrtest.h now works with -mint8.                               2024-06-12
-  Notice that an -mint8 programm must be terminated with
+  Notice that an -mint8 program must be terminated with
   some abort flavour or with avrtest_exit.  Returning from
   main or using [__builtin_]exit will only return an 8-bit
   value, but the library functions are expecting a 16-bit
@@ -249,7 +249,7 @@
 
 * Improve log output:                                      r135  2014-09-20
 
-  - Print flags like 'CZNVSHTI' insted of hex value when accessing SREG.
+  - Print flags like 'CZNVSHTI' instead of hex value when accessing SREG.
   - Print instruction shortcut for CLR, LSL, ROL, TST when applicable.
   - Better log of conditional jumps and instructions dealing with bits.
 

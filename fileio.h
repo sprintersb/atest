@@ -18,7 +18,7 @@
 #undef fflush
 extern int fflush (FILE*);
 
-/* Undo some malicous #defines from avr-libc's stdio.h.  */
+/* Undo some malicious #defines from avr-libc's stdio.h.  */
 #undef feof
 #undef clearerr
 

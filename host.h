@@ -53,7 +53,7 @@ typedef struct
   int size;
   // Default printf format string
   const char *fmt;
-  // Whether the value is signed / loacted in flash (LOG_PSTR etc.)
+  // Whether the value is signed / located in flash (LOG_PSTR etc.)
   bool signed_p, in_rom;
 } layout_t;
 

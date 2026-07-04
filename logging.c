@@ -60,7 +60,7 @@ typedef struct
   // Instruction might turn on logging, thus log it even if logging is
   // (still) off.  Only SYSCALLs can start logging.
   bool log_this;
-  // No log needed for the current instruction; dont' add stuff to .data[]
+  // No log needed for the current instruction; don't add stuff to .data[]
   // in order to speed up matters if logging is (temporarily) off.
   //int unused;
   bool maybe_log;

@@ -28,7 +28,7 @@
 
 typedef struct
 {
-  // Whether any perf-meter is curremtly on;
+  // Whether any perf-meter is currently on;
   bool on;
   // This instruction issued PERF_START and we must log if LOG_PERF is on.
   // However log_add_instr() must run before perf_instruction().

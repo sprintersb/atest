@@ -70,7 +70,7 @@
 
 	Add limited support for NVMCTRL_CTRLB.FLMAP Devices from
 	the AVR64* and AVR128* families see a 32 KiB block of their
-	program memeory in the RAM address space.  avrtest_init_rodata()
+	program memory in the RAM address space.  avrtest_init_rodata()
 	is called from exit.c and copies that block from flash to RAM.
 
 	* avrtest.h (avrtest_misc_flmap): New syscall.
@@ -337,7 +337,7 @@ counter needs wrap-around.  SIZE must be a power of 2.
 
 2019-10-30  Georg-Johann Lay  <avr@gjlay.de>
 
-	Bump copyrigth years.
+	Bump copyright years.
 
 2019-10-19  Georg-Johann Lay  <avr@gjlay.de>
 
@@ -540,7 +540,7 @@ counter needs wrap-around.  SIZE must be a power of 2.
 
 	* graph.c (make_dot_filename): Fix problem with basename length
 	which was 1 character too short.
-	(write_dot_node): Use fabs() aroung value for red color component.
+	(write_dot_node): Use fabs() around value for red color component.
 	Use "%f" print modifier for double.
 
 2016-12-12  Georg-Johann Lay  <avr@gjlay.de>
@@ -674,7 +674,7 @@ counter needs wrap-around.  SIZE must be a power of 2.
 	(-graph*): New options.
 	* load-flash.c (load_symbol_string_table): Call
 	set_elf_string_table, finish_elf_string_table.
-	(load_to_flash): Provide emty string table if the executable does
+	(load_to_flash): Provide empty string table if the executable does
 	not have one.
 	(decode_opcode): Set have_syscall[] on SYSCALL.
 	* logging.c: Factor out performance meters to perf.c.  Factor out
@@ -852,7 +852,7 @@ counter needs wrap-around.  SIZE must be a power of 2.
 	* avrtest.c (func_BREAK): New.
 	* avrtest.h (PERF_START_CALL): New.
 	* logging.h (perfs_t.call_only): New.
-	* loggin.g.c (print_tag): Tidy.
+	* logging.c (print_tag): Tidy.
 	(do_log_port_cmd, perf_start, perf_stop, perf_instructions):
 	Handle PERF_START_CALL.
 

@@ -116,7 +116,7 @@ typedef struct edge
   struct edge *next;
   // unique
   int id;
-  // egde occurs n-fold
+  // edge occurs n-fold
   int n;
   symbol_t *from, *to;
   // number of tail calls
@@ -125,7 +125,7 @@ typedef struct edge
   int n_call;
   // total cycles accounted to this edge
   unsigned n_cycles;
-  // apprearances in sub-trees (-graph-sub)
+  // appearances in sub-trees (-graph-sub)
   unsigned n_sub;
   // appearances in sub-trees of leaf functions (-graph-leaf)
   unsigned n_leaf;

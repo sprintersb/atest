@@ -18,3 +18,4 @@ avrtest-xmega_log
 gen-flag-tables
 
 .svnignore
+codespell-ignore.txt

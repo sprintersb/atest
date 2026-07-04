@@ -117,7 +117,7 @@ SECTIONS
      __dtors_end = . ;
     KEEP(SORT(*)(.ctors))
     KEEP(SORT(*)(.dtors))
-    /* From this point on, we don't bother about wether the insns are
+    /* From this point on, we don't bother about whether the insns are
        below or above the 16 bits boundary.  */
     *(.init0)  /* Start here after reset.  */
     KEEP (*(.init0))
