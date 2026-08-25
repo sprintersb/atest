@@ -38,10 +38,6 @@ https://sourceforge.net/projects/winavr/files/AVRtest
 * [Logging Control](#-no-log-and-logging-control)
 * [Logging to the Host Computer](#logging-values-to-the-host-computer)
 * [Support of FLMAP](#support-of-flmap)
-* [File I/O](#file-io-with-the-file-system-of-the-host-computer)
-  - [Using the fileio.c Module](#file-io--using-the-fileioc-module)
-  - [Caveats, Restrictions and Limitations](#file-io--caveats-restrictions-and-limitations)
-  - [Streams for the Host](#file-io--special-streams-for-the-hosts-stdin-stdout-stderr)
 * [Performance Measurement](#performance-measurement)
 * [Timing Data and Random Values](#timing-data-and-random-values)
 * [32-Bit and 64-Bit Integer Emulation](#32-bit-and-64-bit-integer-emulation)
@@ -49,6 +45,10 @@ https://sourceforge.net/projects/winavr/files/AVRtest
 * [IEEE double Emulation](#ieee-double-emulation)
 * [Assembler Support in avrtest.h](#assembler-support-in-avrtesth)
 * [Compiler Support](#compiler-support)
+* [File I/O](#file-io-with-the-file-system-of-the-host-computer)
+  - [Using the fileio.c Module](#file-io--using-the-fileioc-module)
+  - [Caveats, Restrictions and Limitations](#file-io--caveats-restrictions-and-limitations)
+  - [Streams for the Host](#file-io--special-streams-for-the-hosts-stdin-stdout-stderr)
 
 Introduction
 ============
@@ -620,147 +620,6 @@ you have to trigger a re-write of the 32 KiB segment by means of a call to
 each time, where flmap ranges from 0 to 3.
 
 
-File I/O with the File System of the Host Computer
-===================================================
-
-> :bulb:
-In order to printf to a file on the host there is
-`-stdout=FILE` where FILE is a *.txt or *.data file.
-Similarly, there are `-stderr=FILE` and `-stdin=FILE.`
-No file I/O complications are needed.
-
-AVRtest supports basic file I/O capabilities that enable the target program
-to communicate with the host's file system.  In order to enable this, option
-
-    -sbox SANDBOX
-
-has to be set on the command line.  SANDBOX is the name of a folder of the
-host file system.  SANDBOX will be prepended to the file name passed to
-`fopen()` without any further ado.  AVRtest implements several functionalities
-found in `stdio.h` and provides them by means of a syscall that can be accessed
-by functions from `avrtest.h`:
-
-    unsigned long avrtest_fileio_p (char what, const void *pargs);
-    unsigned long avrtest_fileio_1 (char what, unsigned char args);
-    unsigned long avrtest_fileio_2 (char what, unsigned      args);
-    unsigned long avrtest_fileio_4 (char what, unsigned long args);
-
-WHAT specifies the host operation to perform.  For each supported function,
-there is a macro AVRTEST_F that can be used as WHAT where F specifies the
-function.  For example, AVRTEST_fopen specifies to call the host's fopen().
-In order to specify FILEs, handles are passed around instead or FILE*
-pointers:  If the prototype of the `stdio.h` function specifies a FILE*
-argument, then the AVRtest interface uses a handle instead.  A handle is
-a small 8-bit value.
-
-ARGS resp. PARGS specifies the arguments to pass to the host.  If all of them
--- after replacing FILE* by its respective handle -- fit into 4 bytes, then
-these arguments are passed compressed as ARGS.  If they do not fit into 4 bytes,
-then the PARGS variant has to be used where PARGS points to a memory location
-where to find the arguments.
-
-To give an example, fopen would be called as
-
-    uint8_t handle = (uint8_t) avrtest_fileio_4 (AVRTEST_fopen, args);
-
-where the low-word of ARGS is a const char* that points to the file name
-(which will be appended to SANDBOX as-is), and the high-word is a char
-pointer to the mode to use to open the file.  The return value ships the
-handle associated to the host's FILE* in the low-byte of the return value,
-the other bytes of the return value are unused.  HANDLE would be used in
-subsequent calls like AVRTEST_fclose, that passes the file handle in the
-low-byte of ARGS.
-
-File I/O:  Using the fileio.c Module
--------------------------------------
-
-For convenience, AVRtest comes with a target module that supplies wrappers
-for the available file I/O functions.  The interface of these functions is
-as specified by the C standard, and `fileio.c` then tries to map the FILE*
-pointer to an associated handle that's needed for the respective AVRtest
-syscall.  The following functions from `stdio.h` are implemented:
-
-    fopen, fclose, feof, fflush, clearerr, fread, fwrite.
-
-> :warning:
-However, using `fileio.c` comes with some limitations, and it needs
-special options when linking.  See the next section for details.
-
-If a handle is not found, a default action might be performed.  Suppose for
-example a call to fread.  If `fileio.c` finds a handle associated to the passed
-FILE*, it will call the host's fread with the host's FILE* derived from the
-handle; otherwise it calls the AVR-LibC implementation of fread which uses
-FILE* and operates byte-by-byte.
-
-Most functions like fputc, fgetc, fputs, fprintf, etc. that are not included
-in the above list will work out-of-the-box and without special treatment or
-wrappers from the fileio module.
-
-You can use fileio.c/h as a module in your application, or you can link
-against one of the pre-compiled object files built by make.  For a program
-that simulates ATmega128 for example, the link command would read
-
-    avr-gcc -mmcu=atmega128 fileio-atmega128.o -Wl,-wrap,fclose -Wl,-wrap,feof ...
-
-and then simulate program.elf with avrtest or avrtest_log.
-
-In order to circumvent AVR-LibC `stdio.h` peculiarities and also for
-better performance, the fileio module provides functions that use
-handles directly instead of the need for an intermediate FILE*.
-These functions with their obvious semantics are:
-
-    fileio_handle_t host_fopen (const char *filename, const char *mode);
-    int host_fclose (fileio_handle_t);
-    int host_fflush (fileio_handle_t)
-    int host_feof (fileio_handle_t);
-    int host_fseek (fileio_handle_t, long pos, uint8_t whence);
-    int host_fgetc (fileio_handle_t);
-    int host_fputc (char, fileio_handle_t);
-    void host_clearerr (fileio_handle_t);
-    size_t host_fwrite (const void*, size_t, size_t, fileio_handle_t);
-    size_t host_fread (void*, size_t, size_t, fileio_handle_t);
-
-
-File I/O:  Caveats, Restrictions and Limitations
--------------------------------------------------
-
-> :warning:
-Due to peculiarities of AVR-LibC's `stdio.h` implementation, the
-following rules have to be obeyed when using file I/O via `fileio.c`:
-
-* The linker must be called with `-wrap` for the following symbols:
-
-      feof, fwrite, fread, fclose, cleaerr
-
-  i.e. avr-gcc has to be called with
-
-      avr-gcc ... -Wl,-wrap,feof -Wl,-wrap,fwrite -Wl,-wrap,fread ...
-
-  when linking.  For the documentation of `-wrap`, see
-  http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
-
-* When using AVRtest to run the GCC test suite for AVR, the host interactions
-  that `exit-*.o` supplies via stdout and stderr should be sufficient.
-  The complexity of fileio is not needed for the GCC test suite.
-
-
-File I/O:  Special Streams for the Host's stdin, stdout, stderr
-----------------------------------------------------------------
-
-The fileio module provides
-
-    FILE *host_stdin;
-    FILE *host_stdout;
-    FILE *host_stderr;
-
-that are associated to the host's stdin, stdout and stderr, respectively.
-The respective handles to use with functions like host_fflush() are:
-
-    HANDLE_stdin
-    HANDLE_stdout
-    HANDLE_stderr
-
-
 Performance Measurement
 ========================
 
@@ -1056,8 +915,8 @@ The _d64 versions are available irrespective of the layout of `long double`.
 
 Supported functions are the same like for IEEE single but with `l`
 instead of `f` at the end of the syscall name;
-with the one exception of `avrtest_strtold` that an ASCII string to
-long double, just like `strtold`.
+with the one exception of `avrtest_strtold` that converts an ASCII string
+to long double, just like `strtold`.
 
 AVRtest will terminate with an error when the host IEEE double cannot
 be used for emulation.  The functions are not available for Reduced Tiny.
@@ -1138,3 +997,144 @@ Compiler Support
   is to use `avrtest_exit()` to terminate the program.
   Also notice that with `-mint8` no 64-bit integer types like `long long`
   or `uint64_t` are available.
+
+
+File I/O with the File System of the Host Computer
+===================================================
+
+> :bulb:
+In order to printf to a file on the host there is
+`-stdout=FILE` where FILE is a *.txt or *.data file.
+Similarly, there are `-stderr=FILE` and `-stdin=FILE.`
+No file I/O complications are needed.
+
+AVRtest supports basic file I/O capabilities that enable the target program
+to communicate with the host's file system.  In order to enable this, option
+
+    -sbox SANDBOX
+
+has to be set on the command line.  SANDBOX is the name of a folder of the
+host file system.  SANDBOX will be prepended to the file name passed to
+`fopen()` without any further ado.  AVRtest implements several functionalities
+found in `stdio.h` and provides them by means of a syscall that can be accessed
+by functions from `avrtest.h`:
+
+    unsigned long avrtest_fileio_p (char what, const void *pargs);
+    unsigned long avrtest_fileio_1 (char what, unsigned char args);
+    unsigned long avrtest_fileio_2 (char what, unsigned      args);
+    unsigned long avrtest_fileio_4 (char what, unsigned long args);
+
+WHAT specifies the host operation to perform.  For each supported function,
+there is a macro AVRTEST_F that can be used as WHAT where F specifies the
+function.  For example, AVRTEST_fopen specifies to call the host's fopen().
+In order to specify FILEs, handles are passed around instead or FILE*
+pointers:  If the prototype of the `stdio.h` function specifies a FILE*
+argument, then the AVRtest interface uses a handle instead.  A handle is
+a small 8-bit value.
+
+ARGS resp. PARGS specifies the arguments to pass to the host.  If all of them
+-- after replacing FILE* by its respective handle -- fit into 4 bytes, then
+these arguments are passed compressed as ARGS.  If they do not fit into 4 bytes,
+then the PARGS variant has to be used where PARGS points to a memory location
+where to find the arguments.
+
+To give an example, fopen would be called as
+
+    uint8_t handle = (uint8_t) avrtest_fileio_4 (AVRTEST_fopen, args);
+
+where the low-word of ARGS is a const char* that points to the file name
+(which will be appended to SANDBOX as-is), and the high-word is a char
+pointer to the mode to use to open the file.  The return value ships the
+handle associated to the host's FILE* in the low-byte of the return value,
+the other bytes of the return value are unused.  HANDLE would be used in
+subsequent calls like AVRTEST_fclose, that passes the file handle in the
+low-byte of ARGS.
+
+File I/O:  Using the fileio.c Module
+-------------------------------------
+
+For convenience, AVRtest comes with a target module that supplies wrappers
+for the available file I/O functions.  The interface of these functions is
+as specified by the C standard, and `fileio.c` then tries to map the FILE*
+pointer to an associated handle that's needed for the respective AVRtest
+syscall.  The following functions from `stdio.h` are implemented:
+
+    fopen, fclose, feof, fflush, clearerr, fread, fwrite.
+
+> :warning:
+However, using `fileio.c` comes with some limitations, and it needs
+special options when linking.  See the next section for details.
+
+If a handle is not found, a default action might be performed.  Suppose for
+example a call to fread.  If `fileio.c` finds a handle associated to the passed
+FILE*, it will call the host's fread with the host's FILE* derived from the
+handle; otherwise it calls the AVR-LibC implementation of fread which uses
+FILE* and operates byte-by-byte.
+
+Most functions like fputc, fgetc, fputs, fprintf, etc. that are not included
+in the above list will work out-of-the-box and without special treatment or
+wrappers from the fileio module.
+
+You can use fileio.c/h as a module in your application, or you can link
+against one of the pre-compiled object files built by make.  For a program
+that simulates ATmega128 for example, the link command would read
+
+    avr-gcc -mmcu=atmega128 fileio-atmega128.o -Wl,-wrap,fclose -Wl,-wrap,feof ...
+
+and then simulate program.elf with avrtest or avrtest_log.
+
+In order to circumvent AVR-LibC `stdio.h` peculiarities and also for
+better performance, the fileio module provides functions that use
+handles directly instead of the need for an intermediate FILE*.
+These functions with their obvious semantics are:
+
+    fileio_handle_t host_fopen (const char *filename, const char *mode);
+    int host_fclose (fileio_handle_t);
+    int host_fflush (fileio_handle_t)
+    int host_feof (fileio_handle_t);
+    int host_fseek (fileio_handle_t, long pos, uint8_t whence);
+    int host_fgetc (fileio_handle_t);
+    int host_fputc (char, fileio_handle_t);
+    void host_clearerr (fileio_handle_t);
+    size_t host_fwrite (const void*, size_t, size_t, fileio_handle_t);
+    size_t host_fread (void*, size_t, size_t, fileio_handle_t);
+
+
+File I/O:  Caveats, Restrictions and Limitations
+-------------------------------------------------
+
+> :warning:
+Due to peculiarities of AVR-LibC's `stdio.h` implementation, the
+following rules have to be obeyed when using file I/O via `fileio.c`:
+
+* The linker must be called with `-wrap` for the following symbols:
+
+      feof, fwrite, fread, fclose, cleaerr
+
+  i.e. avr-gcc has to be called with
+
+      avr-gcc ... -Wl,-wrap,feof -Wl,-wrap,fwrite -Wl,-wrap,fread ...
+
+  when linking.  For the documentation of `-wrap`, see
+  http://sourceware.org/binutils/docs-2.32/ld/Options.html#index-_002d_002dwrap_003dsymbol
+
+* When using AVRtest to run the GCC test suite for AVR, the host interactions
+  that `exit-*.o` supplies via stdout and stderr should be sufficient.
+  The complexity of fileio is not needed for the GCC test suite.
+
+
+File I/O:  Special Streams for the Host's stdin, stdout, stderr
+----------------------------------------------------------------
+
+The fileio module provides
+
+    FILE *host_stdin;
+    FILE *host_stdout;
+    FILE *host_stderr;
+
+that are associated to the host's stdin, stdout and stderr, respectively.
+The respective handles to use with functions like host_fflush() are:
+
+    HANDLE_stdin
+    HANDLE_stdout
+    HANDLE_stderr
