@@ -1003,15 +1003,20 @@ static OP_FUNC_TYPE func_ILLEGAL (int ill, int size)
 }
 
 static INLINE void
-maybe_cycles_call_start (void)
+maybe_cycles_call_start (int id)
 {
   if (ticks_port.call.state == 1)
     {
       ticks_port.call.state = 2;
       ticks_port.call.pc_ret = cpu.pc;
       ticks_port.call.sp_ret = data_read_word_raw (SPL);
-      ticks_port.call.n_cycles_before_call = program.n_cycles;
-      log_append ("*** cycles.call...0x%0*x *** ", cpu.strlen_pc, 2 * cpu.pc);
+      // We are called after adding opcodes.n_cycles to program.n_cycles,
+      // but prior to adding arch.pc_3bytes.
+      ticks_port.call.n_cycles_before_call = program.n_cycles
+        + (ticks_port.call.callee_only ? arch.pc_3bytes : -opcodes[id].cycles);
+      log_append ("*** cycles.call%s...0x%0*x *** ",
+                  ticks_port.call.callee_only ? "ee" : "",
+                  cpu.strlen_pc, 2 * cpu.pc);
     }
 }
 
@@ -1025,8 +1030,15 @@ maybe_cycles_call_end (void)
       ticks_port.call.state = 3;
       ticks_port.call.n_cycles_after_ret = program.n_cycles;
       uint32_t cyc = program.n_cycles - ticks_port.call.n_cycles_before_call;
+      if (ticks_port.call.callee_only)
+        {
+          // We are called after adding all RET cycles to program.n_cycles.
+          cyc -= opcodes[ID_RET].cycles + (is_tiny ? 2 : arch.pc_3bytes);
+        }
       ticks_port.call.n_cycles = cyc;
-      log_append (" *** cycles.call=%u", (unsigned) cyc);
+      log_append (" *** cycles.call%s=%u",
+                  ticks_port.call.callee_only ? "ee" : "",
+                  (unsigned) cyc);
     }
 }
 
@@ -1682,7 +1694,7 @@ static OP_FUNC_TYPE func_JMP (int rd, int rr)
 /* 1001 010k kkkk 111k | CALL */
 static OP_FUNC_TYPE func_CALL (int rd, int rr)
 {
-  maybe_cycles_call_start ();
+  maybe_cycles_call_start (ID_CALL);
 
   push_PC();
   set_pc (rr | (rd << 16));
@@ -1807,7 +1819,7 @@ static OP_FUNC_TYPE func_RJMP (int rd, int rr)
 /* 1101 kkkk kkkk kkkk | RCALL */
 static OP_FUNC_TYPE func_RCALL (int rd, int rr)
 {
-  maybe_cycles_call_start ();
+  maybe_cycles_call_start (ID_RCALL);
 
   int delta = (int16_t) rr;
   push_PC();

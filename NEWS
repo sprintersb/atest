@@ -3,6 +3,9 @@
                           avrtest NEWS
                           ============
 
+* Support avrtest_cycles_callee() for more precise measurement   2026-08-30
+  of cycles consumed by a callee.
+
 * Support syscall LOG_REGS to print all GPRs.                    2025-10-11
 
 * Add new option -regs to print GPRs in instruction logs.        2025-10-11

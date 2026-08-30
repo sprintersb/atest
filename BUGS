@@ -1,3 +1,8 @@
+* avrtest_cycles_call() didn't account the full cost of the staring
+  [R]CALL to the cycles returned by the following avrtest_cycles().
+
+  Affected versions: All up to 2026-08-29
+
 * Wrong H flag for instructions SUB, SUBI, SBC, SBCI, CP, CPI, CPC, NEG.
 
   Affected versions: All up to 2025-03-03

@@ -106,6 +106,7 @@ typedef struct
     uint64_t n_cycles_before_call;
     uint64_t n_cycles_after_ret;
     uint32_t n_cycles;
+    bool callee_only;
   } call;
 } ticks_port_t;
 

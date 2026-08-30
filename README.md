@@ -807,18 +807,20 @@ program start:
     avrtest_reset_prand();        Reset the pseudo random number generator
     avrtest_reset_all();          Reset all of them
 
-In order to determine the run time of a function more precisely, there is:
+In order to determine the run time of a function more precisely, there are:
 
     avrtest_cycles_call();        The next avrtest_cycles() will capture the
                                   number of cycles from the first [R]CALL
-                                  after avrtest_cycles_call() up to the
-                                  respective RET.
+                                  after avrtest_cycles_call() up to and
+                                  including the respective RET.
+    avrtest_cycles_callee();      Same, but doesn't include costs of the
+                                  starting [R]CALL and the final RET.
 Example:
 
     avrtest_cycles_call();
     func();
     // Get cycles consumed by func(), including [R]CALL and RET.
-    avrtest_cycles_call();
+    uint32_t cycles = avrtest_cycles();
 
 The simulator does not account cycles to syscalls.
 The values returned by `avrtest_prand()` do not depend on the host machine.

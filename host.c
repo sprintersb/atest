@@ -506,10 +506,12 @@ sys_ticks_cmd (int cfg)
       return;
     }
 
-  if (cfg == TICKS_CYCLES_CALL_CMD)
+  if (cfg == TICKS_CYCLES_CALL_CMD
+      || cfg == TICKS_CYCLES_CALLEE_CMD)
     {
       tp->call.state = 1;
-      log_add ("ticks cycles call");
+      tp->call.callee_only = cfg == TICKS_CYCLES_CALLEE_CMD;
+      log_add ("ticks cycles call%s", tp->call.callee_only ? "ee" : "");
       return;
     }
 
@@ -522,7 +524,7 @@ sys_ticks_cmd (int cfg)
       if (tp->call.state == 3)
         {
           tp->call.state = 0;
-          what = "cycles.call";
+          what = tp->call.callee_only ? "cycles.callee" : "cycles.call";
           value = tp->call.n_cycles;
         }
       else
