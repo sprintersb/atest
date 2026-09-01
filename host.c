@@ -271,16 +271,6 @@ get_reg_value (int regno, const layout_t *lay)
   return val;
 }
 
-uint8_t get_reg_u8 (int r) { return get_reg_value (r, &layout[LOG_U8_CMD]); }
-uint16_t get_reg_u16 (int r) { return get_reg_value (r, &layout[LOG_U16_CMD]); }
-uint32_t get_reg_u32 (int r) { return get_reg_value (r, &layout[LOG_U32_CMD]); }
-uint64_t get_reg_u64 (int r) { return get_reg_value (r, &layout[LOG_U64_CMD]); }
-
-int8_t get_reg_s8 (int r) { return get_reg_value (r, &layout[LOG_S8_CMD]); }
-int16_t get_reg_s16 (int r) { return get_reg_value (r, &layout[LOG_S16_CMD]); }
-int32_t get_reg_s32 (int r) { return get_reg_value (r, &layout[LOG_S32_CMD]); }
-int64_t get_reg_s64 (int r) { return get_reg_value (r, &layout[LOG_S64_CMD]); }
-
 
 /* Read a value as unsigned long long from REGNO.  Bytesize (1..8) and
    signedness are determined by respective layout[].  If the value is signed
@@ -300,6 +290,17 @@ get_reg_value64 (int regno, const layout_t *lay)
 
   return val;
 }
+
+
+uint8_t get_reg_u8 (int r) { return get_reg_value (r, &layout[LOG_U8_CMD]); }
+uint16_t get_reg_u16 (int r) { return get_reg_value (r, &layout[LOG_U16_CMD]); }
+uint32_t get_reg_u32 (int r) { return get_reg_value (r, &layout[LOG_U32_CMD]); }
+uint64_t get_reg_u64 (int r) { return get_reg_value64(r,&layout[LOG_U64_CMD]); }
+
+int8_t get_reg_s8 (int r) { return get_reg_value (r, &layout[LOG_S8_CMD]); }
+int16_t get_reg_s16 (int r) { return get_reg_value (r, &layout[LOG_S16_CMD]); }
+int32_t get_reg_s32 (int r) { return get_reg_value (r, &layout[LOG_S32_CMD]); }
+int64_t get_reg_s64 (int r) { return get_reg_value64(r,&layout[LOG_S64_CMD]); }
 
 
 /* Write value VAL to register REGNO.  */
@@ -1661,6 +1662,278 @@ sys_misc_ftol (void)
 }
 #endif // NO_DEMUL
 
+#if defined(__SIZEOF_INT128__)
+__extension__ typedef unsigned __int128 u128_t;
+
+static uint64_t
+emul_fx64sat (u128_t a, bool sbit, bool sign, int bits)
+{
+  const u128_t mask = (u128_t) 1 << (bits - 1);
+  if (sbit)
+    {
+      const u128_t smax = mask - 1;
+      const u128_t smin = mask;
+      return sign
+        ? a >= smin ? -smin : -a
+        : a >= smax ? +smax : +a;
+    }
+  else
+    {
+      const u128_t umax = 2 * mask - 1;
+      return a >= umax ? umax : a;
+    }
+}
+
+static uint64_t
+emul_fx64mul (u128_t a, u128_t b, int bits, bool sbit, int fbit)
+{
+  bool result_sign = 0;
+  if (sbit)
+    {
+      const u128_t mask = (u128_t) 1 << (bits - 1);
+      const bool sign_a = a & mask;
+      const bool sign_b = b & mask;
+      if (sign_a) a = -(a | -mask);
+      if (sign_b) b = -(b | -mask);
+      result_sign = sign_a ^ sign_b;
+    }
+  u128_t res = a * b;
+  u128_t half_ulp = (u128_t) 1 << (fbit - 1);
+  return emul_fx64sat ((res + half_ulp) >> fbit, sbit, result_sign, bits);
+}
+
+static uint64_t
+emul_fx64div (u128_t a, u128_t b, int bits, bool sbit, int fbit)
+{
+  const u128_t mask = (u128_t) 1 << (bits - 1);
+  bool result_sign = 0;
+  if (sbit)
+    {
+      const bool sign_a = a & mask;
+      const bool sign_b = b & mask;
+      if (sign_a) a = -(a | -mask);
+      if (sign_b) b = -(b | -mask);
+      result_sign = sign_a ^ sign_b;
+    }
+  if (b == 0)
+    return sbit ? mask - 1 : 2 * mask - 1;
+
+  const int prec = 2;
+  u128_t res;
+  if (bits + fbit + prec <= 128)
+    {
+      res = (a << (fbit + prec)) / b + (1u << (prec - 1));
+      res >>= prec;
+    }
+  else
+    res = (a << fbit) / b;
+  return emul_fx64sat (res, sbit, result_sign, bits);
+}
+#else
+#define NO_FX64EMUL "host has no 128-bit integer"
+#endif // NO_FX64EMUL
+
+// Saturate unsigned value A and apply SIGN.
+
+static uint64_t
+emul_fxsat (uint64_t a, bool sbit, bool sign, int bits)
+{
+  const uint64_t mask = (uint64_t) 1 << (bits - 1);
+  if (sbit)
+    {
+      const uint64_t smax = mask - 1;
+      const uint64_t smin = mask;
+      return sign
+        ? a >= smin ? -smin : -a
+        : a >= smax ? +smax : +a;
+    }
+  else
+    {
+      const uint64_t umax = 2 * mask - 1;
+      return a >= umax ? umax : a;
+    }
+}
+
+static uint64_t
+emul_fxmul (uint64_t a, uint64_t b, int bits, bool sbit, int fbit)
+{
+  bool result_sign = 0;
+  if (sbit)
+    {
+      const uint64_t mask = (uint64_t) 1 << (bits - 1);
+      const bool sign_a = a & mask;
+      const bool sign_b = b & mask;
+      if (sign_a) a = -(a | -mask);
+      if (sign_b) b = -(b | -mask);
+      result_sign = sign_a ^ sign_b;
+    }
+  uint64_t res = a * b;
+  uint64_t half_ulp = (uint64_t) 1 << (fbit - 1);
+  return emul_fxsat ((res + half_ulp) >> fbit, sbit, result_sign, bits);
+}
+
+static uint64_t
+emul_fxdiv (uint64_t a, uint64_t b, int bits, bool sbit, int fbit)
+{
+  const uint64_t mask = (uint64_t) 1 << (bits - 1);
+  bool result_sign = 0;
+  if (sbit)
+    {
+      const bool sign_a = a & mask;
+      const bool sign_b = b & mask;
+      if (sign_a) a = -(a | -mask);
+      if (sign_b) b = -(b | -mask);
+      result_sign = sign_a ^ sign_b;
+    }
+  if (b == 0)
+    return sbit ? mask - 1 : 2 * mask - 1;
+
+  const int prec = 2;
+  uint64_t res;
+  if (bits + fbit + prec <= 64)
+    {
+      res = (a << (fbit + prec)) / b + (1u << (prec - 1));
+      res >>= prec;
+    }
+  else
+    res = (a << fbit) / b;
+  return emul_fxsat (res, sbit, result_sign, bits);
+}
+
+static void
+sys_misc_fxop (int what)
+{
+  const char *name = "<unknown>";
+  bool is_div = false;
+  bool is_mul = false;
+  bool sbit = 0;
+  int ibit = 0;
+  int fbit = 0;
+
+#define CASE_FX(OP, K, S, IBIT, FBIT)     \
+  AVRTEST_MISC_##OP##K:                 \
+    is_##OP = true;                     \
+    sbit = S;                           \
+    ibit = IBIT;                        \
+    fbit = FBIT;                        \
+    name = #OP;                         \
+    break
+
+  switch (what)
+    {
+    default:
+      leave (LEAVE_FATAL, "syscall 21 todo: fxop R26=%d", what);
+
+    case AVRTEST_MISC_nofxemul:
+      leave (LEAVE_USAGE, "include <stdfix.h> prior to \"avrtest.h\" before"
+             " using fixed-point arithmetic emulation");
+
+    case CASE_FX (mul, hk,  1, 8, 7);
+    case CASE_FX (mul, uhk, 0, 8, 8);
+    case CASE_FX (mul, k,   1, 16, 15);
+    case CASE_FX (mul, uk,  0, 16, 16);
+    case CASE_FX (mul, hr,  1, 0, 7);
+    case CASE_FX (mul, uhr, 0, 0, 8);
+    case CASE_FX (mul, r,   1, 0, 15);
+    case CASE_FX (mul, ur,  0, 0, 16);
+    case CASE_FX (mul, lr,  1, 0, 31);
+    case CASE_FX (mul, ulr, 0, 0, 32);
+    case CASE_FX (mul, lk,   1, 32, 31);
+    case CASE_FX (mul, ulk,  0, 32, 32);
+    case CASE_FX (mul, llk,  1, 16, 47);
+    case CASE_FX (mul, ullk, 0, 16, 48);
+    case CASE_FX (mul, llr,  1, 0, 63);
+    case CASE_FX (mul, ullr, 0, 0, 64);
+
+    case CASE_FX (div, hk,  1, 8, 7);
+    case CASE_FX (div, uhk, 0, 8, 8);
+    case CASE_FX (div, k,   1, 16, 15);
+    case CASE_FX (div, uk,  0, 16, 16);
+    case CASE_FX (div, hr,  1, 0, 7);
+    case CASE_FX (div, uhr, 0, 0, 8);
+    case CASE_FX (div, r,   1, 0, 15);
+    case CASE_FX (div, ur,  0, 0, 16);
+    case CASE_FX (div, lr,  1, 0, 31);
+    case CASE_FX (div, ulr, 0, 0, 32);
+    case CASE_FX (div, lk,   1, 32, 31);
+    case CASE_FX (div, ulk,  0, 32, 32);
+    case CASE_FX (div, llk,  1, 16, 47);
+    case CASE_FX (div, ullk, 0, 16, 48);
+    case CASE_FX (div, llr,  1, 0, 63);
+    case CASE_FX (div, ullr, 0, 0, 64);
+    }
+#undef CASE_FX
+
+  const int bits = sbit + ibit + fbit;
+
+#ifdef NO_FX64EMUL
+  if (bits > 32)
+    {
+      log_add ("not supported: %s", NO_FX64EMUL);
+      leave (LEAVE_FX64, "%d-bit fixed-point emulation failed: %s",
+             bits, NO_FX64EMUL);
+    }
+#endif // NO_FX64EMUL
+
+  uint64_t op0 = 0;
+  uint64_t op1 = 0;
+  uint64_t res = 0;
+  switch (bits)
+    {
+    default:
+      leave (LEAVE_FATAL, "syscall 21 todo: fxop args for bits=%d", bits);
+    case 8:
+      op0 = get_reg_u8 (24);
+      op1 = get_reg_u8 (22);
+      break;
+    case 16:
+      op0 = get_reg_u16 (24);
+      op1 = get_reg_u16 (22);
+      break;
+    case 32:
+      op0 = get_reg_u32 (22);
+      op1 = get_reg_u32 (18);
+      break;
+    case 64:
+      op0 = get_reg_u64 (18);
+      op1 = get_reg_u64 (10);
+      break;
+    }
+
+  log_add (" emulate fx%s %s%d.%d", name, sbit ? "s" : "", ibit, fbit);
+
+  if (is_mul && bits <= 32)
+    res = emul_fxmul (op0, op1, bits, sbit, fbit);
+  else if (is_div && bits <= 32)
+    res = emul_fxdiv (op0, op1, bits, sbit, fbit);
+#if !defined (NO_FX64EMUL)
+  else if (is_mul && bits == 64)
+    res = emul_fx64mul (op0, op1, bits, sbit, fbit);
+  else if (is_div && bits == 64)
+    res = emul_fx64div (op0, op1, bits, sbit, fbit);
+#endif
+  else
+    leave (LEAVE_FATAL, "syscall 21 todo: fxop for bits=%d", bits);
+
+  switch (bits)
+    {
+    default:
+      leave (LEAVE_FATAL, "syscall 21 todo: fxop result for bits=%d", bits);
+    case 8:
+      set_reg_value (24, 1, res);
+      break;
+    case 16:
+      set_reg_value (24, 2, res);
+      break;
+    case 32:
+      set_reg_value (22, 4, res);
+      break;
+    case 64:
+      set_reg_value (18, 8, res);
+      break;
+    }
+}
+
 
 void sys_misc_emul (uint8_t what)
 {
@@ -1705,6 +1978,26 @@ void sys_misc_emul (uint8_t what)
 
     case AVRTEST_MISC_ltof:  sys_misc_ltof ();   break;
     case AVRTEST_MISC_ftol:  sys_misc_ftol ();   break;
+
+    case AVRTEST_MISC_nofxemul:
+    case AVRTEST_MISC_mulhk:  case AVRTEST_MISC_muluhk:
+    case AVRTEST_MISC_mulk:   case AVRTEST_MISC_muluk:
+    case AVRTEST_MISC_mullk:  case AVRTEST_MISC_mululk:
+    case AVRTEST_MISC_mulllk: case AVRTEST_MISC_mulullk:
+    case AVRTEST_MISC_mulhr:  case AVRTEST_MISC_muluhr:
+    case AVRTEST_MISC_mulr:   case AVRTEST_MISC_mulur:
+    case AVRTEST_MISC_mullr:  case AVRTEST_MISC_mululr:
+    case AVRTEST_MISC_mulllr: case AVRTEST_MISC_mulullr:
+    case AVRTEST_MISC_divhk:  case AVRTEST_MISC_divuhk:
+    case AVRTEST_MISC_divk:   case AVRTEST_MISC_divuk:
+    case AVRTEST_MISC_divlk:  case AVRTEST_MISC_divulk:
+    case AVRTEST_MISC_divllk: case AVRTEST_MISC_divullk:
+    case AVRTEST_MISC_divhr:  case AVRTEST_MISC_divuhr:
+    case AVRTEST_MISC_divr:   case AVRTEST_MISC_divur:
+    case AVRTEST_MISC_divlr:  case AVRTEST_MISC_divulr:
+    case AVRTEST_MISC_divllr: case AVRTEST_MISC_divullr:
+      sys_misc_fxop (what);
+      break;
 
     default:
       leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);

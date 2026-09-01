@@ -317,6 +317,7 @@ static const exit_status_t exit_status[] =
     [LEAVE_FOPEN]   = { "ABORTED", "file open",   EXIT_FAILURE, 22 },
     [LEAVE_IEEE32]  = { "ABORTED", "IEEE single", EXIT_FAILURE, 23 },
     [LEAVE_IEEE64]  = { "ABORTED", "IEEE double", EXIT_FAILURE, 24 },
+    [LEAVE_FX64]    = { "ABORTED", "64-bit fixed-point", EXIT_FAILURE, 25 },
     [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 

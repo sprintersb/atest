@@ -3,6 +3,10 @@
                           avrtest NEWS
                           ============
 
+* Support fixed-point multiplication and division with new       2026-09-01
+  avrtest_mul<fx> and avrtest_div<fx> syscalls, where <fx>
+  denotes the fixed-point suffix.
+
 * Support avrtest_cycles_callee() for more precise measurement   2026-08-30
   of cycles consumed by a callee.
 

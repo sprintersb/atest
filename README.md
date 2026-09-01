@@ -40,9 +40,11 @@ https://sourceforge.net/projects/winavr/files/AVRtest
 * [Support of FLMAP](#support-of-flmap)
 * [Performance Measurement](#performance-measurement)
 * [Timing Data and Random Values](#timing-data-and-random-values)
-* [32-Bit and 64-Bit Integer Emulation](#32-bit-and-64-bit-integer-emulation)
-* [IEEE single Emulation](#ieee-single-emulation)
-* [IEEE double Emulation](#ieee-double-emulation)
+* Arithmetik Emulation
+  * [32-Bit and 64-Bit Integer Emulation](#32-bit-and-64-bit-integer-emulation)
+  * [IEEE single Emulation](#ieee-single-emulation)
+  * [IEEE double Emulation](#ieee-double-emulation)
+  * [Fixed-point Emulation](#fixed-point-emulation)
 * [Assembler Support in avrtest.h](#assembler-support-in-avrtesth)
 * [Compiler Support](#compiler-support)
 * [File I/O](#file-io-with-the-file-system-of-the-host-computer)
@@ -373,6 +375,7 @@ The following exit stati will be returned with `-q`:
   - 22 – Program file could not be found / read.
   - 23 – IEEE single emulation failed (e.g. on a big-endian host).
   - 24 – IEEE double emulation failed.
+  - 25 – 64-bit fixed-point emulation failed.
   - 42 – Fatal error in avrtest.
 
 Without `-q`, the exit status will be 1 (`EXIT_FAILURE`) for the cases &ge; 20
@@ -938,6 +941,30 @@ long double compute_sqrtl (long double)
     return y;
 }
 ```
+
+Fixed-point Emulation
+=====================
+
+AVRtest supports the emulation of fixed-point multiplication and division
+with the `avrtest_mul<fx>` and `avrtest_mul<fx>` syscalls, where
+`<fx>` denotes the fixed-point suffix like `k` for the `accum` type.
+
+Supported are all fixed-point types with suffixes:
+
+* Accum types: `hk`, `k`, `lk`, `llk`, `uhk`, `uk`, `ulk`, `ullk`.
+
+* Fract types: `hr`, `r`, `lr`, `llr`, `uhr`, `ur`, `ulr`, `ullr`.
+
+For the layout of the fixed-point types, see the
+[avr-gcc Wiki](https://gcc.gnu.org/wiki/avr-gcc#Fixed-Point_Support).
+
+* The syscalls require that `<stdfix.h>` is included prior to `avrtest.h`.
+
+* The syscalls return saturated values.  They round the result to the
+  nearest value (except for the 32-bit and 64-bit unsigned fract divisions).
+
+* The 64-bit fixed-point emulations require that the host compiler
+  supports 128-bit integers.  They are not available on Reduced Tiny.
 
 
 Assembler Support in `avrtest.h`

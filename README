@@ -344,6 +344,7 @@ The following exit stati will be returned with -q:
   - 22  Program file could not be found / read.
   - 23  IEEE single emulation failed (e.g. on a big-endian host).
   - 24  IEEE double emulation failed.
+  - 25  64-bit fixed-point emulation failed.
 
   - 42  Fatal error in AVRtest.
 
@@ -916,6 +917,32 @@ long double compute_sqrtl (long double)
     LOG_FMT_LDOUBLE ("%f\n", y);
     return y;
 }
+
+
+=====================
+Fixed-point Emulation
+=====================
+
+AVRtest supports the emulation of fixed-point multiplication and division
+with the avrtest_mul<fx> and avrtest_mul<fx> syscalls, where
+<fx> denotes the fixed-point suffix like k for the accum type.
+
+Supported are all fixed-point types:
+
+* Accum types: hk, k, lk, llk, uhk, uk, ulk, ullk.
+
+* Fract types: hr, r, lr, llr, uhr, ur, ulr, ullr.
+
+For the layout of the fixed-point types, see the avr-gcc Wiki
+at https://gcc.gnu.org/wiki/avr-gcc#Fixed-Point_Support
+
+* The syscalls require that <stdfix.h> is included prior to avrtest.h.
+
+* The syscalls return saturated values.  They round the result to the
+  nearest value (except for the 32-bit and 64-bit unsigned fract divisions).
+
+* The 64-bit fixed-point emulations require that the host compiler
+  supports 128-bit integers.  They are not available on Reduced Tiny.
 
 
 ==============================

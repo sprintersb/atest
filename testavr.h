@@ -182,6 +182,7 @@ enum
     LEAVE_FOPEN,
     LEAVE_IEEE32,
     LEAVE_IEEE64,
+    LEAVE_FX64,
     LEAVE_FATAL
   };
 
