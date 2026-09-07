@@ -8,7 +8,7 @@ of 8-bit microcontrollers distributed under the GNU General Public License.
 
 The main intention of AVRtest is to supply a fast, light-weight
 and easy-to-use simulator to run the
-[GCC](https://gcc.gnu.org) testsuite for avr-gcc and parts of the
+[GCC](https://gcc.gnu.org) testsuite for AVR GCC and parts of the
 [AVR-LibC](https://github.com/avrdudes/avr-libc) testsuite.
 
 AVRtest is an AVR core smulator.  It does not simulate
