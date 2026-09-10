@@ -7,7 +7,7 @@ AVRtest is a free software simulator for the AVR family of 8-bit
 microcontrollers distributed under the GNU General Public License.
 
 The main intention of AVRtest is to supply a fast, easy-to-use simulator
-to run the GCC testsuite for avr-gcc or parts of the AVR-LibC testsuite.
+to run the GCC testsuite for AVR or parts of the AVR-LibC testsuite.
 
 AVRtest is an AVR core smulator.  It does not simulate
 internal peripherals like timers, I/O ports or interrupts.
@@ -595,172 +595,6 @@ you have to trigger a re-write of the 32 KiB segment by means of a call to
 each time, where flmap ranges from 0 to 3.
 
 
-=======================
-Performance Measurement
-=======================
-
-* This feature is only supported by avrtest_log and avrtest-xmega_log.
-
-The simulator supports 7 independently operating performance-meters 1..7:
-
-    PERF_START (N);
-
-starts perf-meter N which will start capturing values of the running program
-like program counter, instruction count, stack pointer, call depth, etc.
-
-    PERF_STOP (N);
-
-will halt the perf-meter.  Upon encountering the next PERF_START(N)
-the meter will be re-enabled and proceed.  The collected values can
-be dumped at any time to the standard output of the host computer by
-
-    PERF_DUMP (N);
-
-or
-
-    PERF_DUMP_ALL;
-
-This will show a summary of the extremal values for the perf-meter(s) and
-reset it completely so that you can use it for a different task afterwards.
-Displayed values are:
-
- - Stack (abs):  Values of the stack pointer (SP).
- - Stack (rel):  Stack usage relative to the starting point.
- - Calls (abs):  The absolute call depth (CALLs increment, RETs decrement).
- - Calls (rel):  Call depth relative to the starting point.
-
-Tracking of the call depth won't work as expected for setjmp / longjmp
-and similar functions that set SP to an unknown call depth.
-
-In order to give a specific perf-meter N a more descriptive name there are
-
-    PERF_LABEL (N, L);
-    PERF_PLABEL (N, L);
-
-where label L is a C-string residing in RAM or Flash, respectively.
-avrtest_log will cache the label so you can override it after PERF_LABEL.
-
-If you want to find out what value lead to the round with minimal or maximal
-instruction cycles, the next START/STOP round can be tagged with a value:
-
-    PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR
-    PERF_TAG_U16 (N, U);        ... with a 16-bit unsigned integer U
-    PERF_TAG_S16 (N, U);        ... with a 16-bit signed integer U
-    PERF_TAG_U32 (N, U);        ... with a 32-bit unsigned integer U
-    PERF_TAG_S32 (N, U);        ... with a 32-bit signed integer U
-    PERF_TAG_FLOAT (N, F);      ... with float F
-
-Just like with LOG_XXX(), S16 and S32 are represented internally as "int",
-U16 and U32 as "unsigned" and float as "double".  The default format strings
-to print the tags are "%s" for string, " %u " for the unsigned versions,
-" %d " for the signed ones and " %.6f " for float.
-
-Custom format strings can be supplied by
-
-    PERF_TAG_FMT_U16 (N, FMT, U);
-    PERF_TAG_PFMT_S32 (N, FMT, U);
-
-etc. with a format string FMT located in RAM resp. Flash.
-
-Example:
-
-
-#include <math.h>
-#include "avrtest.h"
-
-float x, y;
-
-int main (void)
-{
-    PERF_LABEL (1, "resource consumption of sin()");
-
-    for (x = 0.0; x <= 3.14159; x += 0.01)
-    {
-        PERF_TAG_FMT_FLOAT (1, " sin (%.5f) ", x);
-        PERF_START (1);
-        y = sin (x);
-        PERF_STOP (1);
-
-        PERF_TAG_FMT_FLOAT (2, " x=%.5f ", x);
-        PERF_STAT_FLOAT (2, fabs (x * (1 - x*x / 6) - y));
-    }
-
-    PERF_DUMP_ALL;
-    return 0;
-}
-
-
-Compiling as usual, linking against exit-*.o and running
-
-    avrtest_log ... -no-log -q
-
-produces an output like
-
-
---- Dump # 1:
- Timer T1 "resource consumption of sin()" (315 rounds):  027c--029e
-              Instructions        Ticks
-    Total:       411402          541887
-    Mean:          1306            1720
-    Stand.Dev:     75.5            85.6
-    Min:            686            1029
-    Max:           1515            1952
-    Calls (abs) in [   1,   5] was:   1 now:   1
-    Calls (rel) in [   0,   4] was:   0 now:   0
-    Stack (abs) in [04f8,04e5] was:04f8 now:04f8
-    Stack (rel) in [   0,  19] was:   0 now:   0
-
-           Min round Max round    Min tag           /   Max tag
-    Calls       -all-same-                          /
-    Stack       -all-same-                          /
-    Instr.         1       315     sin (0.00000)    /   sin (3.14000)
-    Ticks          1       315     sin (0.00000)    /   sin (3.14000)
-
- Stat  T2 "" (315 Values)
-    Mean:       3.589886e-001     round    tag
-    Stand.Dev:  5.247231e-001
-    Min:        0.000000e+000         1     x=0.00000
-    Max:        2.021442e+000       315     x=3.14000
-
-
-The computation of sin (x) took 1029..1952 cycles (with an average
-of 1720 cycles) for the 315 values it had been computed.
-sin() needs 19 bytes stack space.  The maximal difference between
-sin (x) and the 3rd-order approximation  x - x^3 / 6  is 2.02144
-and occurred for x = 3.14000.
-
-    PERF_STAT_FLOAT (N, F);
-
-in the example makes perf-meter N gather statistics of float value F:
-mean (expected value), standard deviation, minimum, maximum, and the
-START/STOP round for which a minimal / maximal value of F has been seen.
-If rounds have been tagged, the tags for the rounds that yielded a minimal
-and maximal value of F are also displayed.  Besides PERF_STAT_FLOAT there
-is also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
-32-bit integer values.
-
-In the sample code from above, one is interested in the resource consumption
-of the sin function.  In order to supply that function with a value x and to
-store the result y, additional instructions are needed:
-
-    PERF_START (1);
-    y = sin (x);
-    PERF_STOP (1);
-
-If these additional instructions are of no interest, use
-
-    PERF_START_CALL (N);
-
-which only adds costs of instructions that are at a call depth of at
-least 1 (relative to the starting point).  This includes costs of
-CALL and RET that start / finish the function.
-
-Make sure that the function of interest is not inlined or optimized away,
-e.g. by making inputs and outputs volatile and attributing the function
-with __attribute__((__noipa__)).  The additional overhead caused by
-the volatile accesses does not matter as it is ignored by PERF_START_CALL.
-
-
 =============================
 Timing Data and Random Values
 =============================
@@ -992,9 +826,8 @@ Compiler Support
 
 * avr-gcc can be used with avrtest.h.
 
-* To date (2024), clang has bugs so that programs that include avrtest.h
-  cannot be compiled and terminate with an error message (or internal error)
-  for the used inline assembly.
+* To date (2026), Clang has bugs so that programs that use avrtest.h
+  cannot be compiled due to internal compiler errors.
 
 * avrtest.h supports `avr-gcc -mint8` with an 8-bit int type.
   Notice that  -mint8  is not a multilib option and therefore functions
@@ -1005,6 +838,172 @@ Compiler Support
   is to use avrtest_exit() to terminate the program.
   Also notice that with  -mint8  no 64-bit integer types like long long
   or uint64_t are available.
+
+
+=======================
+Performance Measurement
+=======================
+
+* This feature is only supported by avrtest_log and avrtest-xmega_log.
+
+The simulator supports 7 independently operating performance-meters 1..7:
+
+    PERF_START (N);
+
+starts perf-meter N which will start capturing values of the running program
+like program counter, instruction count, stack pointer, call depth, etc.
+
+    PERF_STOP (N);
+
+will halt the perf-meter.  Upon encountering the next PERF_START(N)
+the meter will be re-enabled and proceed.  The collected values can
+be dumped at any time to the standard output of the host computer by
+
+    PERF_DUMP (N);
+
+or
+
+    PERF_DUMP_ALL;
+
+This will show a summary of the extremal values for the perf-meter(s) and
+reset it completely so that you can use it for a different task afterwards.
+Displayed values are:
+
+ - Stack (abs):  Values of the stack pointer (SP).
+ - Stack (rel):  Stack usage relative to the starting point.
+ - Calls (abs):  The absolute call depth (CALLs increment, RETs decrement).
+ - Calls (rel):  Call depth relative to the starting point.
+
+Tracking of the call depth won't work as expected for setjmp / longjmp
+and similar functions that set SP to an unknown call depth.
+
+In order to give a specific perf-meter N a more descriptive name there are
+
+    PERF_LABEL (N, L);
+    PERF_PLABEL (N, L);
+
+where label L is a C-string residing in RAM or Flash, respectively.
+avrtest_log will cache the label so you can override it after PERF_LABEL.
+
+If you want to find out what value lead to the round with minimal or maximal
+instruction cycles, the next START/STOP round can be tagged with a value:
+
+    PERF_TAG_STR (N, STR);      Tag perf-meter N with string STR
+    PERF_TAG_U16 (N, U);        ... with a 16-bit unsigned integer U
+    PERF_TAG_S16 (N, U);        ... with a 16-bit signed integer U
+    PERF_TAG_U32 (N, U);        ... with a 32-bit unsigned integer U
+    PERF_TAG_S32 (N, U);        ... with a 32-bit signed integer U
+    PERF_TAG_FLOAT (N, F);      ... with float F
+
+Just like with LOG_XXX(), S16 and S32 are represented internally as "int",
+U16 and U32 as "unsigned" and float as "double".  The default format strings
+to print the tags are "%s" for string, " %u " for the unsigned versions,
+" %d " for the signed ones and " %.6f " for float.
+
+Custom format strings can be supplied by
+
+    PERF_TAG_FMT_U16 (N, FMT, U);
+    PERF_TAG_PFMT_S32 (N, FMT, U);
+
+etc. with a format string FMT located in RAM resp. Flash.
+
+Example:
+
+
+#include <math.h>
+#include "avrtest.h"
+
+float x, y;
+
+int main (void)
+{
+    PERF_LABEL (1, "resource consumption of sin()");
+
+    for (x = 0.0; x <= 3.14159; x += 0.01)
+    {
+        PERF_TAG_FMT_FLOAT (1, " sin (%.5f) ", x);
+        PERF_START (1);
+        y = sin (x);
+        PERF_STOP (1);
+
+        PERF_TAG_FMT_FLOAT (2, " x=%.5f ", x);
+        PERF_STAT_FLOAT (2, fabs (x * (1 - x*x / 6) - y));
+    }
+
+    PERF_DUMP_ALL;
+    return 0;
+}
+
+
+Compiling as usual, linking against exit-*.o and running
+
+    avrtest_log ... -no-log -q
+
+produces an output like
+
+
+--- Dump # 1:
+ Timer T1 "resource consumption of sin()" (315 rounds):  027c--029e
+              Instructions        Ticks
+    Total:       411402          541887
+    Mean:          1306            1720
+    Stand.Dev:     75.5            85.6
+    Min:            686            1029
+    Max:           1515            1952
+    Calls (abs) in [   1,   5] was:   1 now:   1
+    Calls (rel) in [   0,   4] was:   0 now:   0
+    Stack (abs) in [04f8,04e5] was:04f8 now:04f8
+    Stack (rel) in [   0,  19] was:   0 now:   0
+
+           Min round Max round    Min tag           /   Max tag
+    Calls       -all-same-                          /
+    Stack       -all-same-                          /
+    Instr.         1       315     sin (0.00000)    /   sin (3.14000)
+    Ticks          1       315     sin (0.00000)    /   sin (3.14000)
+
+ Stat  T2 "" (315 Values)
+    Mean:       3.589886e-001     round    tag
+    Stand.Dev:  5.247231e-001
+    Min:        0.000000e+000         1     x=0.00000
+    Max:        2.021442e+000       315     x=3.14000
+
+
+The computation of sin (x) took 1029..1952 cycles (with an average
+of 1720 cycles) for the 315 values it had been computed.
+sin() needs 19 bytes stack space.  The maximal difference between
+sin (x) and the 3rd-order approximation  x - x^3 / 6  is 2.02144
+and occurred for x = 3.14000.
+
+    PERF_STAT_FLOAT (N, F);
+
+in the example makes perf-meter N gather statistics of float value F:
+mean (expected value), standard deviation, minimum, maximum, and the
+START/STOP round for which a minimal / maximal value of F has been seen.
+If rounds have been tagged, the tags for the rounds that yielded a minimal
+and maximal value of F are also displayed.  Besides PERF_STAT_FLOAT there
+is also PERF_STAT_U32 and PERF_STAT_S32 to get statistics for (un)signed
+32-bit integer values.
+
+In the sample code from above, one is interested in the resource consumption
+of the sin function.  In order to supply that function with a value x and to
+store the result y, additional instructions are needed:
+
+    PERF_START (1);
+    y = sin (x);
+    PERF_STOP (1);
+
+If these additional instructions are of no interest, use
+
+    PERF_START_CALL (N);
+
+which only adds costs of instructions that are at a call depth of at
+least 1 (relative to the starting point).  This includes costs of
+CALL and RET that start / finish the function.
+
+Make sure that the function of interest is not inlined or optimized away,
+e.g. by making inputs and outputs volatile and attributing the function
+with __attribute__((__noipa__)).  The additional overhead caused by
+the volatile accesses does not matter as it is ignored by PERF_START_CALL.
 
 
 ==================================================
