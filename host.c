@@ -156,6 +156,8 @@ decode_avr_float (unsigned val)
   const int EXP_BIAS = 127;
   avr_float_t af;
 
+  af.bits = (uint32_t) val;
+
   int r = (1 << DIG_EXP) -1;
   unsigned mant = af.mant = val & ((1 << DIG_MANT) -1);
   val >>= DIG_MANT;
@@ -211,6 +213,8 @@ decode_avr_double (uint64_t val)
   const int DIG_EXP  = 11;
   const int EXP_BIAS = 1023;
   avr_float_t af;
+
+  af.bits = val;
 
   int r = (1 << DIG_EXP) -1;
   uint64_t mant = af.mant = val & (((uint64_t)1 << DIG_MANT) -1);
@@ -945,14 +949,12 @@ get_fulp (const avr_float_t *x, const avr_float_t *y)
   int iulp = is_special_ulp (x, y);
   if (iulp >= 0)
     return iulp;
-  const int DIG_MANT = 23;
-  int x_exp = x->exp - DIG_MANT;
-  int y_exp = y->exp - DIG_MANT;
-  float sx = ldexpf (x->mant1, x_exp) * (x->sign_bit ? -1 : 1);
-  float sy = ldexpf (y->mant1, y_exp) * (y->sign_bit ? -1 : 1);
-  float ulp = ldexpf (1, y_exp);
-
-  return (sx - sy) / ulp;
+  const uint32_t msb = (uint32_t) 1 << 31;
+  uint32_t ix = x->bits;
+  uint32_t iy = y->bits;
+  if (ix & msb) ix = msb - ix;
+  if (iy & msb) iy = msb - iy;
+  return (float) ((int32_t) ix - (int32_t) iy);
 }
 
 static float
@@ -1379,14 +1381,12 @@ get_dulp (const avr_float_t *x, const avr_float_t *y)
   int iulp = is_special_ulp (x, y);
   if (iulp >= 0)
     return iulp;
-  const int DIG_MANT = 52;
-  int x_exp = x->exp - DIG_MANT;
-  int y_exp = y->exp - DIG_MANT;
-  host_double_t sx = ldexp (x->mant1, x_exp) * (x->sign_bit ? -1 : 1);
-  host_double_t sy = ldexp (y->mant1, y_exp) * (y->sign_bit ? -1 : 1);
-  host_double_t ulp = ldexp (1, y_exp - DIG_MANT);
-
-  return (sx - sy) / ulp;
+  const uint64_t msb = (uint64_t) 1 << 63;
+  uint64_t ix = x->bits;
+  uint64_t iy = y->bits;
+  if (ix & msb) ix = msb - ix;
+  if (iy & msb) iy = msb - iy;
+  return (host_double_t) ((int64_t) ix - (int64_t) iy);
 }
 
 static host_double_t

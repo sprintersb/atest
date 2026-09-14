@@ -37,6 +37,8 @@ enum
 // Decomposed IEEE 754 floating point number.
 typedef struct
 {
+  // Bits as read from the target.
+  uint64_t bits;
   int sign_bit;
   // Mantissa without and with the leading (implicit) 1.
   uint64_t mant, mant1;

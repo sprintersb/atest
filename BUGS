@@ -1,3 +1,7 @@
+* ULP emulation didn't work properly for subnormals.
+
+  Affected versions: All up to 2026-09-13
+
 * avrtest_cycles_call() didn't account the full cost of the staring
   [R]CALL to the cycles returned by the following avrtest_cycles().
 
