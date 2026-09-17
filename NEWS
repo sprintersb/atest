@@ -3,6 +3,14 @@
                           avrtest NEWS
                           ============
 
+* The new avrtest-elf shell script helps to call the right       2026-09-17
+  AVRtest executable.  It maps an ELF file to a sh command
+  like  $(avrtest-elf main.elf) -> "avrtest -mmcu=avr6"
+  provided main.elf has been compiled with -mmcu=atmega2560.
+  In order to work as expected for the megaAVR 0-series
+  devices, the startup code from AVR-LibC must be used that
+  ships device info in section .note.gnu.avr.deviceinfo.
+
 * Support fixed-point multiplication and division with new       2026-09-01
   avrtest_mul<fx> and avrtest_div<fx> syscalls, where <fx>
   denotes the fixed-point suffix.
