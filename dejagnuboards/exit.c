@@ -92,7 +92,7 @@ avrtest_init_stream (void)
   stderr = &avrtest_stderr;
 }
 
-#if defined NVMCTRL_CTRLB && defined NVMCTRL_FLMAP_gm && defined NVMCTRL_FLMAP_gp
+#if defined NVMCTRL_CTRLB && defined NVMCTRL_FLMAP_gm && defined NVMCTRL_FLMAP_gp && __AVR_ARCH__ != 103
 /* Devices like AVR128* and AVR64* see a 32 KiB portion of their flash
    memory in the RAM address space.  Which 32 KiB segment is visible can
    be chosen by NVMCTRL_CRTLB.FLMAP.  */
