@@ -122,6 +122,10 @@ enum
     AVRTEST_MISC_divr,   AVRTEST_MISC_divur,
     AVRTEST_MISC_divlr,  AVRTEST_MISC_divulr,
     AVRTEST_MISC_divllr, AVRTEST_MISC_divullr,
+    AVRTEST_MISC_vfprintf,
+    AVRTEST_MISC_vfprintfLAST = AVRTEST_MISC_vfprintf + 5,
+    AVRTEST_MISC_vsnprintf,
+    AVRTEST_MISC_vsnprintfLAST = AVRTEST_MISC_vsnprintf + 5,
     AVRTEST_MISC_sentinel
   };
 
@@ -459,6 +463,41 @@ __extension__ enum
                         : "n" (N), "n" (SYSCo_ ## N),       \
                           "r" (r##R1), "r" (r##R2));        \
     return r##R0;                                           \
+  }
+
+#define AVRTEST_DEF_SYSCALL3_1M(S,N, T0,R0, T1,R1, T2,R2, T3,R3)        \
+  static AT_INLINE                                                      \
+  T0 avrtest_syscall ## S (unsigned char _m, T1 _a, T2 _b, T3 _c)       \
+  {                                                                     \
+    register T0 _res __asm (#R0);                                       \
+    register unsigned char _r26 __asm("26") = _m;                       \
+    register T1 _r1 __asm (#R1) = _a;                                   \
+    register T2 _r2 __asm (#R2) = _b;                                   \
+    register T3 _r3 __asm (#R3) = _c;                                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"                        \
+                        : "=r" (_res)                                   \
+                        : "n" (N), "n" (SYSCo_ ## N), "r" (_r26),       \
+                        "r" (_r1), "r" (_r2), "r" (_r3)                 \
+                        : "memory");                                    \
+    return _res;                                                        \
+  }
+
+#define AVRTEST_DEF_SYSCALL4_1M(S,N, T0,R0, T1,R1, T2,R2, T3,R3, T4,R4) \
+  static AT_INLINE                                                      \
+  T0 avrtest_syscall##S (unsigned char _m, T1 _a, T2 _b, T3 _c, T4 _d)  \
+  {                                                                     \
+    register T0 _res __asm (#R0);                                       \
+    register unsigned char _r26 __asm("26") = _m;                       \
+    register T1 _r1 __asm (#R1) = _a;                                   \
+    register T2 _r2 __asm (#R2) = _b;                                   \
+    register T3 _r3 __asm (#R3) = _c;                                   \
+    register T4 _r4 __asm (#R4) = _d;                                   \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"                        \
+                        : "=r" (_res)                                   \
+                        : "n" (N), "n" (SYSCo_ ## N), "r" (_r26),       \
+                        "r" (_r1), "r" (_r2), "r" (_r3), "r" (_r4)      \
+                        : "memory");                                    \
+    return _res;                                                        \
   }
 
 #define AVRTEST_DEF_SYSCALL1_1m(S, N, T0, R0, T2, R2)       \
@@ -1035,6 +1074,155 @@ static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 
+#if defined(_STDIO_H_)
+AVRTEST_DEF_SYSCALL3_1M (_21fprint,21, int,24, unsigned char,24, const char*,22, va_list,20)
+AVRTEST_DEF_SYSCALL4_1M (_21snprint,21, int,24, char*,24, __SIZE_TYPE__,30, const char*,22, va_list,20)
+
+static AT_INLINE int
+avrtest_vfprintf (FILE *_s, const char *_f, va_list _a)
+{
+  unsigned char _ctx = _s == stdout ? 1 : _s == stderr ? 2 : 0;
+  int _q = 0 + (__SIZEOF_DOUBLE__ + __SIZEOF_LONG_DOUBLE__) / 4 - 2;
+  return avrtest_syscall_21fprint (AVRTEST_MISC_vfprintf + _q, _ctx, _f, _a);
+}
+static AT_INLINE int
+avrtest_vprintf (const char *_f, va_list _a)
+{
+  return avrtest_vfprintf (stdout, _f, _a);
+}
+static AT_INLINE int
+avrtest_vsnprintf (char *_s, __SIZE_TYPE__ _z, const char *_f, va_list _a)
+{
+  int _q = 0 + (__SIZEOF_DOUBLE__ + __SIZEOF_LONG_DOUBLE__) / 4 - 2;
+  return avrtest_syscall_21snprint (AVRTEST_MISC_vsnprintf+_q, _s, _z, _f, _a);
+}
+static AT_INLINE int
+avrtest_vsprintf (char *_s, const char *_f, va_list _a)
+{
+  return avrtest_vsnprintf (_s, 0xffff, _f, _a);
+}
+
+static int __attribute__((__unused__))
+avrtest_printf (const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vfprintf (stdout, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+static int __attribute__((__unused__))
+avrtest_fprintf (FILE *_s, const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vfprintf (_s, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+static int __attribute__((__unused__))
+avrtest_sprintf (char *_s, const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vsprintf (_s, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+static int __attribute__((__unused__))
+avrtest_snprintf (char *_s, __SIZE_TYPE__ _z, const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vsnprintf (_s, _z, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+
+static AT_INLINE int
+avrtest_vfprintf_P (FILE *_s, const char *_f, va_list _a)
+{
+  unsigned char _ctx = _s == stdout ? 1 : _s == stderr ? 2 : 0;
+  int _q = 3 + (__SIZEOF_DOUBLE__ + __SIZEOF_LONG_DOUBLE__) / 4 - 2;
+  return avrtest_syscall_21fprint (AVRTEST_MISC_vfprintf + _q, _ctx, _f, _a);
+}
+static AT_INLINE int
+avrtest_vprintf_P (const char *_f, va_list _a)
+{
+  return avrtest_vfprintf_P (stdout, _f, _a);
+}
+static AT_INLINE int
+avrtest_vsnprintf_P (char *_s, __SIZE_TYPE__ _z, const char *_f, va_list _a)
+{
+  int _q = 3 + (__SIZEOF_DOUBLE__ + __SIZEOF_LONG_DOUBLE__) / 4 - 2;
+  return avrtest_syscall_21snprint (AVRTEST_MISC_vsnprintf+_q, _s, _z, _f, _a);
+}
+static AT_INLINE int
+avrtest_vsprintf_P (char *_s, const char *_f, va_list _a)
+{
+  return avrtest_vsnprintf_P (_s, 0xffff, _f, _a);
+}
+
+static int __attribute__((__unused__))
+avrtest_printf_P (const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vfprintf_P (stdout, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+static int __attribute__((__unused__))
+avrtest_fprintf_P (FILE *_s, const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vfprintf_P (_s, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+static int __attribute__((__unused__))
+avrtest_sprintf_P (char *_s, const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vsprintf_P (_s, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+static int __attribute__((__unused__))
+avrtest_snprintf_P (char *_s, __SIZE_TYPE__ _z, const char *_f, ...)
+{
+  va_list _a;
+  va_start (_a, _f);
+  int _ret = avrtest_vsnprintf_P (_s, _z, _f, _a);
+  va_end (_a);
+  return _ret;
+}
+#else /* to defined(_STDIO_H_) */
+#define AVRTEST_DEF_ERROR(T, fun)                                       \
+  __attribute__((__error__("include <stdio.h> prior to \"avrtest.h\""   \
+                           " when using avrtest_" #fun)))               \
+  extern int avrtest_##fun (T _x, ...)
+AVRTEST_DEF_ERROR (const char*, printf);
+AVRTEST_DEF_ERROR (void*, fprintf);
+AVRTEST_DEF_ERROR (char*, sprintf);
+AVRTEST_DEF_ERROR (char*, snprintf);
+AVRTEST_DEF_ERROR (const char*, vprintf);
+AVRTEST_DEF_ERROR (void*, vfprintf);
+AVRTEST_DEF_ERROR (char*, vsprintf);
+AVRTEST_DEF_ERROR (char*, vsnprintf);
+AVRTEST_DEF_ERROR (const char*, printf_P);
+AVRTEST_DEF_ERROR (void*, fprintf_P);
+AVRTEST_DEF_ERROR (char*, sprintf_P);
+AVRTEST_DEF_ERROR (char*, snprintf_P);
+AVRTEST_DEF_ERROR (const char*, vprintf_P);
+AVRTEST_DEF_ERROR (void*, vfprintf_P);
+AVRTEST_DEF_ERROR (char*, vsprintf_P);
+AVRTEST_DEF_ERROR (char*, vsnprintf_P);
+#undef AVRTEST_DEF_ERROR
+#endif /* defined(_STDIO_H_) */
+
 #undef AVRTEST_DEF_SYSCALL0
 #undef AVRTEST_DEF_SYSCALL1
 #undef AVRTEST_DEF_SYSCALL2
@@ -1048,6 +1236,8 @@ static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }
 #undef AVRTEST_DEF_SYSCALL2_1M
 #undef AVRTEST_DEF_SYSCALL2_1fx
 #undef AVRTEST_DEF_SYSCALL3_1
+#undef AVRTEST_DEF_SYSCALL3_1M
+#undef AVRTEST_DEF_SYSCALL4_1M
 
 static AT_INLINE void
 avrtest_abort (void)

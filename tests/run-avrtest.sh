@@ -111,7 +111,7 @@ while getopts $OPTS opt ; do
 done
 shift $((OPTIND - 1))
 
-test_list=${*:-"arith/*.c compile/*.c sreg/*.c"}
+test_list=${*:-"arith/*.c print/*.c compile/*.c sreg/*.c"}
 
 CPPFLAGS="-Wundef -I.."
 # -Wno-array-bounds: Ditch wrong warnings due to avr-gcc PR105523.
@@ -230,6 +230,10 @@ Simulate_avrtest ()
     # - 20  Out of memory.
     # - 21  Wrong avrtest usage: Unknown options, etc.
     # - 22  Program file could not be found / read.
+    # - 23  IEEE single emulation failed.
+    # - 24  IEEE double emulation failed.
+    # - 25  64-bit fixed-point emulation failed.
+    # - 26  A syscall has been invoked with bad arguments.
     # - 42  Fatal error in avrtest.
 
     # -no-stdin keeps AVRtest from hanging in rare situations of bogus

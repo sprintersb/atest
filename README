@@ -342,9 +342,10 @@ The following exit stati will be returned with -q:
   - 20  Out of memory.
   - 21  Wrong AVRtest usage: Unknown options, etc.
   - 22  Program file could not be found / read.
-  - 23  IEEE single emulation failed (e.g. on a big-endian host).
+  - 23  IEEE single emulation failed.
   - 24  IEEE double emulation failed.
   - 25  64-bit fixed-point emulation failed.
+  - 26  A syscall has been invoked with bad arguments.
 
   - 42  Fatal error in AVRtest.
 
@@ -634,6 +635,28 @@ Example:
 The simulator does not account cycles to syscalls.
 The values returned by `avrtest_prand()` do not depend on the host machine.
 They only depend on the number of calls since the last reset.
+
+
+================
+Printf Emulation
+================
+
+AVRtest supports syscalls avrtest_<f> with the obvious semantics for
+<f> in: printf, fprintf, sprintf, snprintf, vprintf, vfprintf, vsprintf,
+vsnprintf, printf_P, fprintf_P, sprintf_P, snprintf_P, vprintf_P,
+vfprintf_P, vsprintf_P, vsnprintf_P.
+
+The emulations try to mimic the AVR-LibC behavior, including the %S format
+for strings in program memory, though more formats are supported like
+long long and IEEE double.  The formats in the format string refer to
+the ABI of the target, e.g. %d refers to a 16-bit integer.
+Variable field width and precision like in %*d is not supported.
+
+To use these functions, <stdio.h> must be included prior to avrtest.h.
+The functions that take a FILE* argument must get stdout or stderr.
+The passed output stream is used to indicate where the output should
+go (the host's stdout or stderr stream), i.e. the stream's put() callback
+is ignored.
 
 
 ===================================

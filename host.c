@@ -371,6 +371,16 @@ get_mem_byte (unsigned addr)
   return get_mem_value (addr, & lay_1);
 }
 
+static uint64_t
+get_ram_value (unsigned addr, int n_bytes)
+{
+  const byte *p = cpu_address (addr, AR_RAM);
+  uint64_t v = 0;
+  for (int i = n_bytes - 1; i >= 0; --i)
+    v = 0x100 * v + p[i];
+  return v;
+}
+
 uint8_t get_mem_u8 (int r) { return get_mem_value (r, &layout[LOG_U8_CMD]); }
 uint16_t get_mem_u16 (int r) { return get_mem_value (r, &layout[LOG_U16_CMD]); }
 uint32_t get_mem_u32 (int r) { return get_mem_value (r, &layout[LOG_U32_CMD]); }
@@ -925,6 +935,14 @@ get_reg_float (int regno)
   return swap_float (f);
 }
 
+static UNUSED float
+get_ram_float (int regno)
+{
+  float f;
+  memcpy (&f, cpu_address (regno, AR_RAM), sizeof (float));
+  return swap_float (f);
+}
+
 void
 set_reg_float (int regno, float f)
 {
@@ -1283,12 +1301,14 @@ typedef double host_double_t;
 #   define DOUBLE_MANT_DIG __DBL_MANT_DIG__
 #   define DOUBLE_MAX_EXP  __DBL_MAX_EXP__
 #   define PRID "%e=%.13a"
+#   define PRIL ""
 #elif __SIZEOF_LONG_DOUBLE__ == 8
 typedef long double host_double_t;
 #   define HOST_LONG_DOUBLE
 #   define DOUBLE_MANT_DIG __LDBL_MANT_DIG__
 #   define DOUBLE_MAX_EXP  __LDBL_MAX_EXP__
 #   define PRID "%Le=%.13La"
+#   define PRIL "L"
 #else
 #define NO_DEMUL "host has no 64-bit IEEE double"
 #endif
@@ -1354,6 +1374,14 @@ get_reg_double (int regno)
 {
   host_double_t d;
   memcpy (&d, cpu_address (regno, AR_REG), sizeof (host_double_t));
+  return swap_double (d);
+}
+
+static UNUSED host_double_t
+get_ram_double (int regno)
+{
+  host_double_t d;
+  memcpy (&d, cpu_address (regno, AR_RAM), sizeof (host_double_t));
   return swap_double (d);
 }
 
@@ -1935,8 +1963,312 @@ sys_misc_fxop (int what)
 }
 
 
+enum { FMT_char, FMT_int, FMT_float, FMT_string, FMT_none };
+
+typedef struct
+{
+  // Passed down: arg pointer.
+  unsigned argp;
+  // Passed down: stream.
+  FILE *fout;
+  // Passed down: target string
+  uint16_t astr;
+  int sizeof_double, sizeof_ldouble;
+  // Name of the C function.
+  const char *name;
+  // fprintf, otherwise sprintf.
+  bool file_p;
+
+  // A FMT enum from above.
+  int kind;
+  // Length of flag + width + precision.
+  int n_prefix;
+  // Length of the entire format (without leading '%').
+  int n_fmt;
+  // Format char.
+  char c_fmt;
+  bool is_flash;
+  bool is_long;
+  bool is_longlong;
+  // Printf return value.
+  int ret_length;
+  // From snprintf, 0xffff for sprintf.
+  int n_lim;
+} printf_info_t;
+
+// When fmt0 points to a printf format string, then fill *pi accordingly.
+// Return 0 or the length of the entire format string.
+static int
+maybe_consume_format (printf_info_t *pi, const char *fmt0)
+{
+  const char *fmt = fmt0;
+  pi->kind = FMT_none;
+
+  // Consume optional flag char.
+  fmt += !! strchr ("0 +-#", *fmt);
+
+  // Consume optional width.
+  for (int off = 1; strchr ("0123456789" + off, *fmt); ++fmt)
+    off = 0;
+
+  // Consume optional precision
+  if (*fmt == '.')
+    for (++fmt; strchr ("0123456789", *fmt); ++fmt)
+      {}
+
+  pi->n_prefix = (int) (fmt - fmt0);
+
+  // Optional length modifier.
+  const bool is_L = *fmt == 'L';
+  const bool is_l = *fmt == 'l' && fmt[1] != 'l';
+  const bool is_ll = *fmt == 'l' && fmt[1] == 'l';
+
+  // Do the mandatory format.
+
+  // [long long] double.
+  if (strchr ("aefgAEFG", fmt[is_L || is_l]))
+    {
+      pi->is_longlong = is_L;
+      pi->kind = FMT_float;
+      pi->c_fmt = fmt[is_L || is_l];
+      return pi->n_fmt = pi->n_prefix + 1 + (is_L || is_l);
+    }
+
+  pi->c_fmt = fmt[is_l + 2 * is_ll];
+  pi->is_long = is_l;
+  pi->is_longlong = is_ll;
+
+  if (strchr ("diouxX", pi->c_fmt))
+    {
+      pi->kind = FMT_int;
+      return pi->n_fmt = pi->n_prefix + 1 + is_l + 2 * is_ll;
+    }
+
+  if (! is_l && ! is_ll
+      && strchr ("sScp", pi->c_fmt))
+    {
+      pi->kind = 0?0
+        : pi->c_fmt == 'c' ? FMT_char
+        : pi->c_fmt == 'p' ? FMT_int
+        : FMT_string;
+      pi->is_flash = pi->c_fmt == 'S';
+      return pi->n_fmt = pi->n_prefix + 1;
+    }
+
+  return 0;
+}
+
+static int
+ram_flashimage_start (void)
+{
+  // arch.flash_pm_offset works only for avrxmega3 / avrtiny.
+  return 0?0
+    : arch.flash_pm_offset ? arch.flash_pm_offset
+    : str_prefix ("avr", cpu.name) ? 0x8000
+    : 0;
+}
+
+// Print one argument with the host's fmt, and advance pi->ret_length.
+static void
+print_1arg (printf_info_t *pi, const char *fmt, ...)
+{
+  int n;
+  va_list args;
+  if (pi->file_p)
+    {
+      va_start (args, fmt);
+      n = vfprintf (pi->fout, fmt, args);
+      va_end (args);
+    }
+  else // print to string
+    {
+      va_start (args, fmt);
+      n = vsnprintf (NULL, 0, fmt, args);
+      va_end (args);
+
+      const int rem = pi->n_lim - pi->ret_length;
+      if (rem > 0)
+        {
+          // C99 demands to always write a terminal \0, so we need n + 1
+          // since vsnprintf above returned the length without the final \0.
+          const int n_chars = rem < n + 1 ? rem : n + 1;
+
+          if (ram_flashimage_start ()
+              && pi->astr + n_chars > ram_flashimage_start ())
+            leave (LEAVE_SYSARG, "%s writing to read-only area at 0x%x",
+                   pi->name, ram_flashimage_start ());
+          else if (pi->astr + n_chars > 0x10000)
+            leave (LEAVE_SYSARG, "%s writing past 0xffff", pi->name);
+
+          char *hstr = (char*) cpu_address (pi->astr, AR_RAM);
+
+          va_start (args, fmt);
+          vsnprintf (hstr, n_chars, fmt, args);
+          va_end (args);
+
+          pi->astr += n_chars - 1;
+        }
+    }
+
+  pi->ret_length += n;
+}
+
+// Print the emulated va_arg() according to the host ABI.  Use the appropriate
+// portion of afmt as part of the format string.  Advance pi->argp accordingly.
+static void
+consume_arg (printf_info_t *pi, const char *afmt)
+{
+  char hfmt[30];
+  const int hlen = (int) sizeof (hfmt) - 1;
+  if (pi->n_prefix >= hlen)
+    leave (LEAVE_SYSARG,
+           "%s format overflow: \"%%%.*s...\"", pi->name, hlen, afmt);
+
+  if (pi->kind == FMT_string)
+    {
+      const uint16_t astr = (uint16_t) get_ram_value (pi->argp, 2);
+      pi->argp += 2;
+      const int ar = pi->is_flash && !is_tiny ? AR_FLASH : AR_RAM;
+      const char *hstr = (const char*) cpu_address (astr, ar);
+      sprintf (hfmt, "%%%.*ss", pi->n_prefix, afmt);
+      print_1arg (pi, hfmt, hstr);
+    }
+  else if (pi->kind == FMT_char)
+    {
+      const int c = (int16_t) get_ram_value (pi->argp, 2);
+      pi->argp += 2;
+      sprintf (hfmt, "%%%.*sc", pi->n_prefix, afmt);
+      print_1arg (pi, hfmt, c);
+    }
+  else if (pi->kind == FMT_int)
+    {
+      const bool is_signed = !! strchr ("di", pi->c_fmt);
+      const int size = pi->is_longlong ? 8 : pi->is_long ? 4 : 2;
+      const uint64_t v8 = get_ram_value (pi->argp, size);
+      pi->argp += size;
+      if (size <= 4 && is_signed)
+        {
+          sprintf (hfmt, "%%%.*s%c", pi->n_prefix, afmt, pi->c_fmt);
+          int i = size == 2 ? (int)(int16_t) v8 : (int)(int32_t) v8;
+          print_1arg (pi, hfmt, i);
+        }
+      else if (size <= 4 && ! is_signed)
+        {
+          sprintf (hfmt, "%%%.*s%c", pi->n_prefix, afmt, pi->c_fmt);
+          print_1arg (pi, hfmt, (unsigned) v8);
+        }
+      else // size = 8
+        {
+          sprintf (hfmt, "%%%.*sll%c", pi->n_prefix, afmt, pi->c_fmt);
+          if (is_signed)
+            print_1arg (pi, hfmt, (long long)(int64_t) v8);
+          else
+            print_1arg (pi, hfmt, (unsigned long long) v8);
+        }
+    }
+  else if (pi->kind == FMT_float)
+    {
+      const int size = pi->is_longlong ? pi->sizeof_ldouble : pi->sizeof_double;
+      if (size == 4)
+        {
+#ifdef NO_FEMUL
+          leave (LEAVE_IEEE32,
+                 "%s IEEE single emulation failed: %s", pi->name, NO_FEMUL);
+#else
+          const float f = get_ram_float (pi->argp);
+          sprintf (hfmt, "%%%.*s%c", pi->n_prefix, afmt, pi->c_fmt);
+          print_1arg (pi, hfmt, f);
+#endif // Have IEEE single?
+        }
+      else
+        {
+#ifdef NO_DEMUL
+          leave (LEAVE_IEEE64,
+                 "%s IEEE double emulation failed: %s", pi->name, NO_DEMUL);
+#else
+          const host_double_t d = get_ram_double (pi->argp);
+          sprintf (hfmt, "%%%.*s%s%c", pi->n_prefix, afmt, PRIL, pi->c_fmt);
+          print_1arg (pi, hfmt, d);
+#endif // Have IEEE double?
+        }
+      pi->argp += size;
+    }
+  else
+    leave (LEAVE_FATAL, "%s todo: [fmt: %%%.*s]", pi->name, pi->n_fmt, afmt);
+}
+
+static void
+sys_misc_printf (int what, const char *name, bool file_p, int abi)
+{
+  const bool flash_p = abi >= 3;
+  const int float_abi = abi % 3;
+  const uint16_t r_fmt = get_reg_u16 (22);
+  printf_info_t pi;
+  pi.name = name;
+  pi.argp = get_reg_u16 (20);
+  pi.file_p = file_p;
+  pi.sizeof_double = float_abi == 2 ? 8 : 4;
+  pi.sizeof_ldouble = float_abi == 0 ? 4 : 8;
+  pi.ret_length = 0;
+  const int ar = flash_p && !is_tiny ? AR_FLASH : AR_RAM;
+  const char *fmt = (const char*) cpu_address (r_fmt, ar);
+
+  if (file_p)
+    {
+      const uint8_t r_ctx = get_reg_u8 (24);
+      if (r_ctx != 1 && r_ctx != 2)
+        leave (LEAVE_SYSARG, "avrtest_%s: stream must be stdout or stderr",
+               pi.name);
+      pi.fout = r_ctx == 1
+        ? program.f_stdout ? program.f_stdout : stdout
+        : program.f_stderr ? program.f_stderr : stderr;
+      log_add (" emulate %s %s", pi.name, r_ctx == 1 ? "stdout" : "stderr");
+    }
+  else
+    {
+      pi.n_lim = get_reg_u16 (30);
+      pi.astr = get_reg_u16 (24);
+      log_add (" emulate %s str@%04x", pi.name, pi.astr);
+      if (pi.n_lim != 0xffff) // snprintf?
+        log_add (" len=%d", pi.n_lim);
+    }
+  log_add (" argp@%04x fmt@%04x=\"%s\" d%dld%d", pi.argp, r_fmt, fmt,
+           8 * pi.sizeof_double, 8 * pi.sizeof_ldouble);
+
+  // Transpose the target's format string to the host's.
+
+  const char *per;
+  while ((per = strchr (fmt, '%')))
+    {
+      const ptrdiff_t len = per - fmt + (per[1] == '%');
+      print_1arg (&pi, "%.*s", (int) len, fmt);
+      // Position fmt after the % / %%.
+      fmt += len + 1;
+      if (per[1] != '%'
+          && maybe_consume_format (&pi, fmt))
+        {
+          consume_arg (&pi, fmt);
+          fmt += pi.n_fmt;
+        }
+      else if (per[1] != '%')
+        leave (LEAVE_SYSARG, "avrtest_%s bad format: %%%.12s", pi.name, fmt);
+    } // while
+
+  // No % found.
+  print_1arg (&pi, "%s", fmt);
+
+  set_reg_value (24, 2, pi.ret_length);
+}
+
+
 void sys_misc_emul (uint8_t what)
 {
+  // abi is a 2:3 mixed radix value.
+  // $0 = float abi: 0=32,32, 1=32,64, 2=64,64
+  // $1 = Is this a _P variant that reads fmt from program memory?
+  const int abi = (what - AVRTEST_MISC_vfprintf) % 6;
+  const bool flash_p = abi >= 3;
+
   switch (what)
     {
     case AVRTEST_MISC_nofxtof:
@@ -1997,6 +2329,28 @@ void sys_misc_emul (uint8_t what)
     case AVRTEST_MISC_divlr:  case AVRTEST_MISC_divulr:
     case AVRTEST_MISC_divllr: case AVRTEST_MISC_divullr:
       sys_misc_fxop (what);
+      break;
+
+    case AVRTEST_MISC_vfprintf:
+    case AVRTEST_MISC_vfprintf + 1:
+    case AVRTEST_MISC_vfprintf + 2:
+    case AVRTEST_MISC_vfprintf + 3:
+    case AVRTEST_MISC_vfprintf + 4:
+    case AVRTEST_MISC_vfprintf + 5:
+      sys_misc_printf (what, flash_p ? "vfprintf_P" : "vfprintf", 1, abi);
+      break;
+    case AVRTEST_MISC_vsnprintf:
+    case AVRTEST_MISC_vsnprintf + 1:
+    case AVRTEST_MISC_vsnprintf + 2:
+    case AVRTEST_MISC_vsnprintf + 3:
+    case AVRTEST_MISC_vsnprintf + 4:
+    case AVRTEST_MISC_vsnprintf + 5:
+      {
+        const char *name = get_reg_u16 (30) == 0xffff
+          ? flash_p ? "vsprintf_P" : "vsprintf"
+          : flash_p ? "vsnprintf_P" : "vsnprintf";
+        sys_misc_printf (what, name, 0, abi);
+      }
       break;
 
     default:

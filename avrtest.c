@@ -318,6 +318,8 @@ static const exit_status_t exit_status[] =
     [LEAVE_IEEE32]  = { "ABORTED", "IEEE single", EXIT_FAILURE, 23 },
     [LEAVE_IEEE64]  = { "ABORTED", "IEEE double", EXIT_FAILURE, 24 },
     [LEAVE_FX64]    = { "ABORTED", "64-bit fixed-point", EXIT_FAILURE, 25 },
+    // Similar, but show exit location.
+    [LEAVE_SYSARG]  = { "ABORTED", "syscall argument", EXIT_FAILURE, 26 },
     [LEAVE_FATAL]   = { "FATAL ABORTED", "fatal", EXIT_FAILURE, 42 },
   };
 
@@ -365,7 +367,8 @@ leave (int n, const char *reason, ...)
       printf ("\n"
               "     program: %s\n",
               program.name ? program.name : "-not set-");
-      if (EXIT_SUCCESS == status->failure)
+      if (EXIT_SUCCESS == status->failure
+          || n == LEAVE_SYSARG)
         {
           if (program.entry_point != 0)
             printf (" entry point: %06x\n", program.entry_point);

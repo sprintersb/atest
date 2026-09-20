@@ -131,6 +131,9 @@ typedef struct
 
   // For printing pc.
   int strlen_pc;
+
+  // From .note.gnu.avr.deviceinfo.
+  char name[32];
 } cpu_t;
 
 extern cpu_t cpu;
@@ -183,6 +186,7 @@ enum
     LEAVE_IEEE32,
     LEAVE_IEEE64,
     LEAVE_FX64,
+    LEAVE_SYSARG,
     LEAVE_FATAL
   };
 

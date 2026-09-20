@@ -243,7 +243,6 @@ static bool have_strtab;
 // From .note.gnu.avr.devicename if present.
 static bool have_deviceinfo;
 static avr_deviceinfo_t avr_deviceinfo;
-static char avr_devicename[32];
 
 static Elf32_Half
 get_elf32_half (const Elf32_Half *v)
@@ -400,13 +399,13 @@ load_deviceinfo_note (FILE *f, const Elf32_Shdr *shdr)
       || info_strtab[sizeof (info_strtab) - 1] != '\0')
     leave (LEAVE_ELF, "ELF note descript strtab truncated");
 
-  if (strlen (info_strtab + info->devname_offset) < sizeof (avr_devicename))
-    strcpy (avr_devicename, info_strtab + info->devname_offset);
+  if (strlen (info_strtab + info->devname_offset) < sizeof (cpu.name))
+    strcpy (cpu.name, info_strtab + info->devname_offset);
 
   if (options.do_verbose)
     {
       printf (">>> Load %s %s: mcu=\"%s\": Flash 0x%x -- 0x%x-1",
-              s_SHT[SHT_NOTE], NOTE_AVR_DEVICEINFO, avr_devicename,
+              s_SHT[SHT_NOTE], NOTE_AVR_DEVICEINFO, cpu.name,
               (unsigned) info->flash_start, (unsigned) info->flash_end);
       if (info->flash_start == 0  && info->flash_end % 1024 == 0)
         printf (" = %u KiB\n", (unsigned) info->flash_end / 1024);
@@ -498,8 +497,8 @@ check_arch (int elf_arch)
 
   const char *l = is_avrtest_log ? "_log" : "";
   char mcu[40] = { 0 };
-  if (*avr_devicename)
-    sprintf (mcu, " \"%s\"", avr_devicename);
+  if (*cpu.name)
+    sprintf (mcu, " \"%s\"", cpu.name);
 
   if (elf_tiny != is_tiny
       || elf_xmega != is_xmega)
@@ -621,7 +620,7 @@ load_elf (FILE *f, byte *flash, byte *ram, byte *eeprom)
           "atmega3209", "atmega4808", "atmega4809", NULL
         };
       for (const char **dev = devs; *dev; ++dev)
-        if (str_eq (*dev, avr_devicename))
+        if (str_eq (*dev, cpu.name))
           arch.flash_pm_offset = 0x4000;
     }
 

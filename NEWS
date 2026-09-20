@@ -3,6 +3,11 @@
                           avrtest NEWS
                           ============
 
+* New syscalls for: printf, fprintf, sprintf, snprintf,          2026-09-20
+  vprintf, vfprintf, vsprintf, vsnprintf, printf_P,
+  fprintf_P, sprintf_P, snprintf_P, vprintf_P, vfprintf_P,
+  vsprintf_P, vsnprintf_P.
+
 * The new avrtest-elf shell script helps to call the right       2026-09-17
   AVRtest executable.  It maps an ELF file to a sh command
   like  $(avrtest-elf main.elf) -> "avrtest -mmcu=avr6"
