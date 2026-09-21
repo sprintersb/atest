@@ -2058,16 +2058,6 @@ maybe_consume_format (printf_info_t *pi, const char *fmt0)
   return 0;
 }
 
-static int
-ram_flashimage_start (void)
-{
-  // arch.flash_pm_offset works only for avrxmega3 / avrtiny.
-  return 0?0
-    : arch.flash_pm_offset ? arch.flash_pm_offset
-    : str_prefix ("avr", cpu.name) ? 0x8000
-    : 0;
-}
-
 // Print one argument with the host's fmt, and advance pi->ret_length.
 static void
 print_1arg (printf_info_t *pi, const char *fmt, ...)
@@ -2093,10 +2083,10 @@ print_1arg (printf_info_t *pi, const char *fmt, ...)
           // since vsnprintf above returned the length without the final \0.
           const int n_chars = rem < n + 1 ? rem : n + 1;
 
-          if (ram_flashimage_start ()
-              && pi->astr + n_chars > ram_flashimage_start ())
+          if (cpu.flash_in_ram.yes
+              && pi->astr + n_chars > (int) cpu.flash_in_ram.ram_base)
             leave (LEAVE_SYSARG, "%s writing to read-only area at 0x%x",
-                   pi->name, ram_flashimage_start ());
+                   pi->name, cpu.flash_in_ram.ram_base);
           else if (pi->astr + n_chars > 0x10000)
             leave (LEAVE_SYSARG, "%s writing past 0xffff", pi->name);
 

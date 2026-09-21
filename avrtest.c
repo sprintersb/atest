@@ -871,10 +871,11 @@ load_indirect (int rd, int r_addr, int adjust, int offset)
     addr = add_address (addr, adjust);
 
 #if defined ISA_XMEGA || defined ISA_TINY
-  if ((is_tiny || arch.flash_pm_offset)
-      && (word) addr > arch.flash_pm_offset)
+  flash_in_ram_t *fir = & cpu.flash_in_ram;
+  if ((is_tiny || fir->yes)
+      && (unsigned) addr >= fir->ram_base)
     {
-      log_append ("{F:%04x} ", addr - arch.flash_pm_offset);
+      log_append ("{F:%0*x} ", fir->fmt_nibbles, addr - fir->offset);
       add_program_cycles (1);
     }
 #endif // XMEGA || TINY
@@ -1337,15 +1338,16 @@ static OP_FUNC_TYPE func_INC (int rd, int rr)
 static OP_FUNC_TYPE func_LDS (int rd, int rr)
 {
 #if defined ISA_XMEGA
+  flash_in_ram_t *fir = & cpu.flash_in_ram;
   if (arch.has_rampd)
     {
       byte ramp = get_ramp (0 /* RAMPD */);
       rr |= ramp << 16;
     }
-  else if (arch.flash_pm_offset
-           && (word) rr > arch.flash_pm_offset)
+  else if (fir->yes
+           && (unsigned) rr >= fir->ram_base)
     {
-      log_append ("{F:%04x} ", (word) rr - arch.flash_pm_offset);
+      log_append ("{F:%0*x} ", fir->fmt_nibbles, (word) rr - fir->offset);
       add_program_cycles (1);
     }
 #endif // XMEGA
@@ -2022,6 +2024,10 @@ static void sys_misc (uint8_t what)
           printf (">>> %0*x: copy Flash[0x%x--0x%x] to RAM:0x%x\n", pc_len, pc,
                   rodata_lma, rodata_lma + rodata_len - 1, rodata_vma);
         memcpy (cpu_data + rodata_vma, cpu_flash + rodata_lma, rodata_len);
+
+        flash_in_ram_t *fir = & cpu.flash_in_ram;
+        fir->flash_base = rodata_lma;
+        fir->offset = fir->ram_base - fir->flash_base;
       }
     }
   else

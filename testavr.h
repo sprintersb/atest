@@ -116,6 +116,17 @@ extern program_t program;
 
 typedef struct
 {
+  bool yes;
+  unsigned flash_base;
+  unsigned ram_base;
+  // Translate flash address -> RAM address.
+  int offset;
+  // For %x printing flash addresses.
+  int fmt_nibbles;
+} flash_in_ram_t;
+
+typedef struct
+{
   // Word address of current PC and offset into decoded_flash[].
   unsigned pc;
 
@@ -134,6 +145,9 @@ typedef struct
 
   // From .note.gnu.avr.deviceinfo.
   char name[32];
+
+  // Set by decode_flash() and by sys_misc() qua avrtest_misc_flmap.
+  flash_in_ram_t flash_in_ram;
 } cpu_t;
 
 extern cpu_t cpu;

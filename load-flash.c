@@ -1195,4 +1195,21 @@ decode_flash (decoded_t d[], const byte flash[])
   // when the last instruction is a [R]JMP or RET:  do_step() sets
   // the new PC *before* executing an instruction.
   program.max_pc = 1 + program.code_end / 2;
+
+  flash_in_ram_t *fir = & cpu.flash_in_ram;
+  if (arch.flash_pm_offset)
+    {
+      fir->ram_base = arch.flash_pm_offset;
+      fir->flash_base = 0;
+      fir->fmt_nibbles = 4;
+    }
+  else if (have_deviceinfo
+           && str_prefix ("avr", cpu.name))
+    {
+      fir->ram_base = 0x8000;
+      fir->flash_base = avr_deviceinfo.flash_end - 0x8000;
+      fir->fmt_nibbles = avr_deviceinfo.flash_end > 0x10000 ? 5 : 4;
+    }
+  fir->yes = fir->ram_base > 0;
+  fir->offset = fir->ram_base - fir->flash_base;
 }
