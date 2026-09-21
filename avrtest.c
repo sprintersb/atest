@@ -870,17 +870,19 @@ load_indirect (int rd, int r_addr, int adjust, int offset)
   if (adjust < 0)
     addr = add_address (addr, adjust);
 
+  const int addr_off = add_address (addr, offset);
+
 #if defined ISA_XMEGA || defined ISA_TINY
   flash_in_ram_t *fir = & cpu.flash_in_ram;
   if ((is_tiny || fir->yes)
-      && (unsigned) addr >= fir->ram_base)
+      && (unsigned) addr_off >= fir->ram_base)
     {
-      log_append ("{F:%0*x} ", fir->fmt_nibbles, addr - fir->offset);
+      log_append ("{F:%0*x} ", fir->fmt_nibbles, addr_off - fir->offset);
       add_program_cycles (1);
     }
 #endif // XMEGA || TINY
 
-  put_reg (rd, data_read_byte (add_address (addr, offset)));
+  put_reg (rd, data_read_byte (addr_off));
 
 #if defined ISA_XMEGA || defined ISA_TINY
   if (adjust >= 0 && !offset)
@@ -908,11 +910,19 @@ store_indirect (int rd, int r_addr, int adjust, int offset)
   if (adjust < 0)
     addr = add_address (addr, adjust);
 
-  data_write_byte (add_address (addr, offset), get_reg (rd));
+  const int addr_off = add_address (addr, offset);
+
+  data_write_byte (addr_off, get_reg (rd));
 
 #if defined ISA_XMEGA || defined ISA_TINY
   if (adjust >= 0 && !offset)
     add_program_cycles (-1);
+
+  // Leave only after the write so it's shown in the log.
+  flash_in_ram_t *fir = & cpu.flash_in_ram;
+  if ((is_tiny || fir->yes)
+      && (unsigned) addr_off >= fir->ram_base)
+    leave (LEAVE_CODE, "write to read-only RAM address 0x%04x", addr_off);
 #endif
 
   if (adjust > 0)
@@ -1358,6 +1368,9 @@ static OP_FUNC_TYPE func_LDS (int rd, int rr)
 /* 1010 0kkk dddd kkkk | LDS (Tiny) */
 static OP_FUNC_TYPE func_LDS1 (int rd, int rr)
 {
+  if (rr >= 0x4000)
+    log_append ("{F:%04x} ", rr - 0x4000);
+
   put_reg (rd, data_read_byte (rr));
 }
 
@@ -1505,12 +1518,24 @@ static OP_FUNC_TYPE func_STS (int rd, int rr)
 #endif // ISA_XMEGA
 
   data_write_byte (rr, get_reg (rd));
+
+#ifdef ISA_XMEGA
+  // Leave only after the write so it's shown in the log.
+  flash_in_ram_t *fir = & cpu.flash_in_ram;
+  if (fir->yes
+      && (unsigned) rr >= fir->ram_base)
+    leave (LEAVE_CODE, "write to read-only RAM address 0x%04x", rr);
+#endif // ISA_XMEGA
 }
 
 /* 1010 1kkk dddd kkkk | STS (Tiny) */
 static OP_FUNC_TYPE func_STS1 (int rd, int rr)
 {
   data_write_byte (rr, get_reg (rd));
+
+  // Leave only after the write so it's shown in the log.
+  if (rr >= 0x4000)
+    leave (LEAVE_CODE, "write to read-only RAM address 0x%04x", rr);
 }
 
 /* 1001 001d dddd 1100 | ST */
