@@ -67,7 +67,7 @@ myname="$0"
 
 AVRTEST_HOME=..
 
-: ${MCU_LIST="atmega128 attiny3216 atmega2560 atxmega128a3 at90s8515 attiny40" }
+: ${MCU_LIST="atmega128 attiny3216 atmega2560 atxmega128a3 at90s8515 attiny40 avr128da32" }
 
 FLAG_STOP=			# Stop at any error
 
