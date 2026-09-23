@@ -295,14 +295,14 @@ log_add_data_mov (const char *format, int addr, int value)
 
   for (const sfr_t *sfr = named_sfr; ; sfr++)
     {
-      if (addr == sfr->addr
-          && (sfr->pon == NULL || *sfr->pon))
-        s_name = sfr->name;
-      else if (sfr->name == NULL)
+      if (sfr->name == NULL)
         if (addr >= 0x10000 && arch.has_rampd)
           sprintf (name, "%02x:%04x", addr >> 16, addr & 0xffff);
         else
           sprintf (name, addr < 256 ? "%02x" : "%04x", addr);
+      else if (addr == sfr->addr
+          && (sfr->pon == NULL || *sfr->pon))
+        s_name = sfr->name;
       else
         continue;
       break;
