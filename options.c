@@ -391,7 +391,7 @@ static bool is_txt_filename (const char *filename)
 {
   static const char *const suff[] =
     {
-      ".txt", ".out", ".log", ".ppm", ".pgm", ".pbm", ".pnm"
+      ".txt", ".out", ".data", ".log", ".ppm", ".pgm", ".pbm", ".pnm"
     };
 
   for (size_t i = 0; i < ARRAY_SIZE (suff); ++i)
