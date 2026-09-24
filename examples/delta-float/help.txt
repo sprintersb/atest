@@ -1,0 +1,18 @@
+Determine the maximal relative error of a float function
+FUNC over the interval [LO, HI] and with ulp stride STEP.
+GNU make will spawn NUM processes running AVRtest.
+
+Specifying the function to investigate:
+    FUNC=[logf]     Float function to investigate.
+    LO=[0.5]        Lower / upper bound for the x values. A float
+    HI=[1-1]        value like inf with an optional ULP addend.
+    OUT=[float]     Output format: float or ulp.
+Custom parameters:
+    NUM=[1]         Number of parallel jobs.
+    STEP=[1]        Stride for x in units of ULPs.
+How the target program is compiled:
+    CC=[avr-gcc]    AVR compiler for the target program.
+    MCU=[atmega128] AVR device under simulation.
+    ARGS=           Extra arguments for the compiler.
+Example:
+    nice -10 make delta NUM=2 LO=0.54 HI=0.55 FUNC=logf

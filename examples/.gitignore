@@ -1,0 +1,6 @@
+*.elf
+*.data
+*.[isox]
+config.h
+plot.png
+plot.svg

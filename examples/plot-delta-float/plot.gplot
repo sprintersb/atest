@@ -1,0 +1,39 @@
+# show yrange
+# set yrange [*:*] noreverse nowriteback
+# gnuplot -e "a=1"  =>  exists("a") && a = 1
+
+if (!exists("base")) base = "plot"
+if (!exists("pixx")) pixx = "820"
+if (!exists("pixy")) pixx = "500"
+if (!exists("png_svg")) png_svg = "svg"
+
+data = base . ".data"
+outfile = base . "." . png_svg
+
+# Dummy plot to get statistical properties without having "stats" command. Sets:
+# size_x, min_x, max_x
+# size_y, min_y, max_y
+
+call "size.gplot" data
+
+x0 = min_x - 0.02 * size_x;
+x1 = max_x + 0.02 * size_x;
+y0 = min_y - 0.03 * size_y;
+y1 = max_y + 0.1 * size_y;
+
+set terminal png_svg size pixx,pixy
+set output outfile
+firstrow = system('head -1 '.data)
+txt = firstrow
+
+set yrange [y0 : y1] noreverse nowriteback
+
+#set multiplot
+
+set key horizontal
+set key autotitle columnheader
+
+plot [x0 : x1] \
+    data using 1:2 with impulses lc rgb "#dd3333"
+
+quit

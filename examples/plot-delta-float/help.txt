@@ -1,0 +1,24 @@
+Produce a plot that shows the accuracy (relative errors) of a
+floating point function FUNC over the interval [LO, HI].
+Syscalls like avrtest_expf are used to work out the accuracy:
+While FUNC is evaluated on the AVR as simulated by AVRtest,
+the syscall is executed on the host and with the host's accuracy.
+avrtest_printf prints the relative errors to a text file which
+is then fed into Gnuplot.
+The range of input values [LO, HO], the function FUNC and the
+dimensions DIM of the image can be adjusted by Makefile variables:
+
+Specifying the function to investigate:
+    FUNC=[logf]     Floating point function to investigate.
+    LO=[0.5]        Lower / upper bound for the x values. A float
+    HI=[1-1]        value like inf with an optional ULP addend.
+    OUT=[float]     Output format: float or ulp.
+Custom parameters:
+    NX=[1000]       The number of equidistant x-values in [LO, HI].
+    DIM=[850,500]   The size in pixels of the produced image.
+How the target program is compiled:
+    CC=[avr-gcc]    AVR compiler for the target program.
+    MCU=[atmega128] AVR device under simulation.
+    ARGS=           Extra arguments for the compiler.
+Example:
+    make plot.svg LO='-1' HI='10' FUNC=expf
