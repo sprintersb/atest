@@ -30,7 +30,6 @@
 
 #include "testavr.h"
 #include "options.h"
-#include "sreg.h"
 #include "graph.h"
 #include "perf.h"
 #include "logging.h"

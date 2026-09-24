@@ -31,6 +31,8 @@
 #include <stdarg.h>
 #include <inttypes.h>
 
+#include "sreg.h"
+
 // ---------------------------------------------------------------------------
 //     configuration values (in bytes).
 
@@ -303,8 +305,6 @@ extern need_t need;
 extern int get_nonglitch_SP (void);
 
 #endif  // AVRTEST_LOG
-
-extern const char s_SREG[8];
 
 void no_elf_string_table (char *stab, size_t size, int n_entries);
 void no_elf_function_symbol (int addr, size_t offset, bool is_func);

@@ -33,7 +33,6 @@
 #include "testavr.h"
 #include "options.h"
 #include "flag-tables.h"
-#include "sreg.h"
 #include "host.h"
 
 // ---------------------------------------------------------------------------
@@ -88,7 +87,7 @@ const int io_base = IOBASE;
 
 bool have_syscall[32];
 
-const char s_SREG[] = "CZNVSHTI";
+const char s_SREG[9] = "CZNVSHTI";
 
 // ----------------------------------------------------------------------------
 

@@ -19,6 +19,6 @@
 #define FLAG_Z  (1 << FLAG_Z_BIT)
 #define FLAG_C  (1 << FLAG_C_BIT)
 
-extern const char s_SREG[];
+extern const char s_SREG[9];
 
 #endif /* SREG_H */
