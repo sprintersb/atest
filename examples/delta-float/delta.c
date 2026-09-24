@@ -18,7 +18,7 @@ enum { OUT_FLOAT, OUT_ULP };
 int N = 0;   // In [0, Num).
 int Num = 0; // Size of the cohort.
 float Lo = 0.5, Hi = 1.5;
-uint32_t Step = 1 // Stride in ULPs;
+uint32_t Step = 1; // Stride in ULPs
 int OutFormat = OUT_FLOAT;
 
 #ifndef FUNC
