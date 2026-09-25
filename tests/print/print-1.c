@@ -26,7 +26,7 @@ char buf1[40];
     int n3 = avrtest_snprintf_P (buf1, n, PSTR (f), ##__VA_ARGS__); \
     if (n2 != n3)                                                   \
       exit (4);                                                     \
-    if (n && strcmp (buf0, buf1))                                   \
+    if (n != 0 && strcmp (buf0, buf1))                              \
       exit (5);                                                     \
   } while (0)
 
