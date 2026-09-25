@@ -1336,16 +1336,6 @@ void sys_emul_double (uint8_t fid)
   log_add ("not supported: %s", NO_DEMUL);
   leave (LEAVE_IEEE64, "IEEE double emulation failed: %s", NO_DEMUL);
 }
-static void sys_misc_ltof (void)
-{
-  log_add ("not supported: ltof: %s", NO_DEMUL);
-  leave (LEAVE_IEEE64, "ltof failed: %s", NO_DEMUL);
-}
-static void sys_misc_ftol (void)
-{
-  log_add ("not supported: ftol: %s", NO_DEMUL);
-  leave (LEAVE_IEEE64, "ftol failed: %s", NO_DEMUL);
-}
 
 #else // double emulation is supported
 
@@ -1668,7 +1658,9 @@ void sys_emul_double (uint8_t fid)
 
   set_reg_double (18, z);
 }
+#endif // NO_DEMUL
 
+#if !defined(NO_FEMUL) && !defined(NO_DEMUL)
 static void
 sys_misc_ltof (void)
 {
@@ -1688,7 +1680,30 @@ sys_misc_ftol (void)
 
   log_add (" ltof " PRIF " = " PRID, f,f, d,d);
 }
-#endif // NO_DEMUL
+#else // to !NO_FEMUL && !NO_DEMUL
+static void
+sys_misc_ltof (void)
+{
+#ifdef NO_FEMUL
+  log_add ("not supported: ltof: %s", NO_FEMUL);
+  leave (LEAVE_IEEE32, "ltof failed: %s", NO_FEMUL);
+#else
+  log_add ("not supported: ltof: %s", NO_DEMUL);
+  leave (LEAVE_IEEE64, "ltof failed: %s", NO_DEMUL);
+#endif
+}
+static void
+sys_misc_ftol (void)
+{
+#ifdef NO_FEMUL
+  log_add ("not supported: ftol: %s", NO_FEMUL);
+  leave (LEAVE_IEEE32, "ftol failed: %s", NO_FEMUL);
+#else
+  log_add ("not supported: ftol: %s", NO_DEMUL);
+  leave (LEAVE_IEEE64, "ftol failed: %s", NO_DEMUL);
+#endif
+}
+#endif // !NO_FEMUL && !NO_DEMUL
 
 #if defined(__SIZEOF_INT128__)
 __extension__ typedef unsigned __int128 u128_t;
@@ -1838,7 +1853,7 @@ sys_misc_fxop (int what)
   int ibit = 0;
   int fbit = 0;
 
-#define CASE_FX(OP, K, S, IBIT, FBIT)     \
+#define CASE_FX(OP, K, S, IBIT, FBIT)   \
   AVRTEST_MISC_##OP##K:                 \
     is_##OP = true;                     \
     sbit = S;                           \
