@@ -82,6 +82,10 @@ typedef struct
   // contain non-executable code like ELF headers that are part of PHDRs.
   unsigned code_start, code_end;
 
+  // The maximal value a valid SP can have, or 0.
+  // Set by syscall avrtest_max_sp to detect stack underflow.
+  unsigned max_sp;
+
   // Max word address the PC can ever have.  Anything bigger is bad_PC().
   unsigned max_pc;
 

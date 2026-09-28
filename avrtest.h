@@ -587,6 +587,7 @@ AVRTEST_DEF_SYSCALL1 (_30, 30, __INT16_TYPE__, 24) /* exit */
 AVRTEST_DEF_SYSCALL0 (_31, 31) /* abort */
 AVRTEST_DEF_SYSCALL0 (_25, 25) /* abort_2nd_hit */
 AVRTEST_DEF_SYSCALL0 (_20, 20) /* log_regs */
+AVRTEST_DEF_SYSCALL0 (_19, 19) /* record_max_sp */
 
 AVRTEST_DEF_SYSCALL0 (_0, 0) /* LOG_OFF  */
 AVRTEST_DEF_SYSCALL0 (_1, 1) /* LOG_ON   */
@@ -1275,6 +1276,11 @@ avrtest_abort_2nd_hit (void)
   avrtest_syscall_25 ();
 }
 
+static AT_INLINE void
+avrtest_record_max_sp (void)
+{
+  avrtest_syscall_19 ();
+}
 
 static AT_INLINE __UINT32_TYPE__
 avrtest_fileio_p (unsigned char _what, const void *_pargs)
@@ -1382,6 +1388,7 @@ avrtest_reset_all (void)
 #define AVRTEST_EXIT   avrtest_syscall 30
 #define AVRTEST_ABORT_2ND_HIT avrtest_syscall 25
 #define AVRTEST_PUTCHAR       avrtest_syscall 29
+#define AVRTEST_RECORD_MAX_SP avrtest_syscall 19
 
 #endif /* ASSEMBLER */
 #endif /* AVRTEST_H */

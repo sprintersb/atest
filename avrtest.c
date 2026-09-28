@@ -708,9 +708,12 @@ push_byte (int value)
 static int
 pop_byte(void)
 {
-  int sp = data_read_word (SPL);
+  unsigned sp = data_read_word (SPL);
   data_write_word (SPL, ++sp);
-  return data_read_byte (sp);
+  byte b = data_read_byte (sp);
+  leave (LEAVE_CODE, "stack pointer underflow (SP = 0x%04x > 0x%04x)",
+         sp, program.max_sp);
+  return b;
 }
 
 static INLINE void
@@ -744,13 +747,18 @@ static INLINE void
 pop_PC (void)
 {
   unsigned pc = 0;
-  int sp = data_read_word (SPL);
+  unsigned sp = data_read_word (SPL);
   if (arch.pc_3bytes)
     pc = data_read_byte (++sp) << 16;
 
   pc |= data_read_byte (++sp) << 8;
   pc |= data_read_byte (++sp);
   data_write_word (SPL, sp);
+
+  if (program.max_sp && sp > program.max_sp)
+    leave (LEAVE_CODE, "stack pointer underflow (SP = 0x%04x > 0x%04x)",
+           sp, program.max_sp);
+
   set_pc (pc);
 }
 
@@ -2025,6 +2033,12 @@ static void sys_abort (void)
   leave (LEAVE_ABORTED, "abort function called");
 }
 
+static void sys_record_max_sp (void)
+{
+  log_append ("record_max_sp: ");
+  program.max_sp = data_read_word (SPL);
+}
+
 static void sys_misc (uint8_t what)
 {
   log_append ("misc %u", what);
@@ -2156,6 +2170,7 @@ static OP_FUNC_TYPE func_SYSCALL (int sysno, int rr)
     case 23: sys_emul_double (cpu_reg[26]); break;
     case 26: sys_fileio();     break;
     // ...above.
+    case 19: sys_record_max_sp ();          break;
     case 21: sys_misc (cpu_reg[26]);        break;
     case 24: sys_stderr();     break;
     case 25: sys_abort_2nd_hit(); break;

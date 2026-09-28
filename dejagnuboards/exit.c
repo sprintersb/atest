@@ -38,6 +38,8 @@
 
 #include "avrtest.h"
 
+#define INIT(Sec) __attribute__ ((naked, section(Sec), used))
+
 /* .weak in avr-libc/crt1/gcrt1.S */
 
 extern void __vector_default (void);
@@ -101,14 +103,14 @@ avrtest_init_stream (void)
 
 
 #ifdef HAVE_FLMAP
-static void __attribute__ ((naked, section(".init0"), used))
+static void INIT(".init0")
 avrtest_init_flmap (void)
 {
   /* Reset value of FLMAP is all bits set to 1. */
   NVMCTRL_CTRLB = NVMCTRL_FLMAP_gm;
 }
 
-static void __attribute__ ((naked, section(".init4"), used))
+static void INIT(".init4")
 avrtest_init_rodata (void)
 {
   /* Copy 32 KiB block as of FLMAP from flash (LMA) to rodata (VMA).  */
@@ -118,7 +120,14 @@ avrtest_init_rodata (void)
 #endif /* have FLMAP */
 
 
-static void __attribute__ ((naked, section(".init8"), used))
+static void INIT(".init3")
+avrtest_program_max_sp (void)
+{
+  avrtest_record_max_sp ();
+}
+
+
+static void INIT(".init8")
 avrtest_init_argc_argv (void)
 {
   /* Use 0xf000 as start address for command line arguments as passed by

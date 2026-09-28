@@ -35,11 +35,12 @@ https://sourceforge.net/projects/winavr/files/AVRtest
 
 ### Features
 
+* [Securing the Program](#securing-the-program)
 * [Logging Control](#-no-log-and-logging-control)
 * [Logging to the Host Computer](#logging-values-to-the-host-computer)
 * [Support of FLMAP](#support-of-flmap)
 * [Timing Data and Random Values](#timing-data-and-random-values)
-* Arithmetik Emulation
+* Emulation
   * [Printf Emulation](#printf-emulation)
   * [32-Bit and 64-Bit Integer Emulation](#32-bit-and-64-bit-integer-emulation)
   * [IEEE single Emulation](#ieee-single-emulation)
@@ -424,6 +425,21 @@ Supported suffixes are `k` for 1000 and `M` for a million, for example `-m 1M`
 and `-m 1e6` will simulate no more than 1000000 instructions and terminate
 with a TIMEOUT exit status when the program requires more instructions.
 `-m 0` means no limitation (default).
+
+
+Securing the Program
+====================
+
+The following syscalls are available to secure a simulated program,
+and to abort the program as soon as possible when problems are observed.
+These syscalls are invoked by the additional AVRtest startup code
+provided in `exit.c`.
+
+- `avrtest_abort_2nd_hit()`: Abort the program when executed more than once.
+  Used in AVRtest startup code since the startup code should only run once.
+
+- `avrtest_record_max_sp()`: Record the maximal value the stack pointer may
+  have.  Called in AVRtest startup code to record the value of a pristine SP.
 
 
 `-args ...`: Passing Arguments to the Program
@@ -841,6 +857,7 @@ Assembler Support in `avrtest.h`
     AVRTEST_EXIT        ;; Same as "avrtest_syscall 30", exit value = R25:R24.
     AVRTEST_PUTCHAR     ;; Same as "avrtest_syscall 29", char = R24
     AVRTEST_ABORT_2ND_HIT ;; Same as "avrtest_syscall 25"
+    AVRTEST_RECORD_MAX_SP ;; Same as "avrtest_syscall 19"
 
 `avrtest_syscall <sysno>` is an assembler macro which expands to
 

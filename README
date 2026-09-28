@@ -397,6 +397,22 @@ with a TIMEOUT exit status when the program requires more instructions.
 -m 0 means no limitation (default).
 
 
+====================
+Securing the Program
+====================
+
+The following syscalls are available to secure a simulated program,
+and to abort the program as soon as possible when problems are observed.
+These syscalls are invoked by the additional AVRtest startup code
+provided in exit.c.
+
+- avrtest_abort_2nd_hit(): Abort the program when executed more than once.
+  Used in AVRtest startup code since the startup code should only run once.
+
+- avrtest_record_max_sp(): Record the maximal value the stack pointer may
+  have.  Called in AVRtest startup code to record the value of a pristine SP.
+
+
 ============================================
 -args ... : Passing Arguments to the Program
 ============================================
