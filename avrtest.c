@@ -711,8 +711,9 @@ pop_byte(void)
   unsigned sp = data_read_word (SPL);
   data_write_word (SPL, ++sp);
   byte b = data_read_byte (sp);
-  leave (LEAVE_CODE, "stack pointer underflow (SP = 0x%04x > 0x%04x)",
-         sp, program.max_sp);
+  if (program.max_sp && sp > program.max_sp)
+    leave (LEAVE_CODE, "stack pointer underflow (SP = 0x%04x > 0x%04x)",
+           sp, program.max_sp);
   return b;
 }
 
