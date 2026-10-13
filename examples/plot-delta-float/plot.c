@@ -17,13 +17,10 @@
 
 #define NI __attribute((noipa))
 
-enum { OUT_FLOAT, OUT_ULP };
-
 // Command Line Args
 uint32_t NX = 0; // Number of pixels.
 float Lo = 0.5, Hi = 1.5;
 float Step = 1.0;
-int OutFormat = OUT_FLOAT;
 
 #ifndef FUNC
 #define FUNC logf
@@ -35,6 +32,19 @@ int OutFormat = OUT_FLOAT;
 
 #define stringy_(X) #X
 #define stringy(X) stringy_(X)
+
+enum { OUT_rel, OUT_abs, OUT_ulp };
+
+#if defined OUT_ULP
+const int out_fmt = OUT_ulp;
+const char *s_out = "ULP";
+#elif defined OUT_ABS
+const int out_fmt = OUT_abs;
+const char *s_out = "absolute";
+#else
+const int out_fmt = OUT_rel;
+const char *s_out = "relative";
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // For convenience, introduce PSTR and avrtest_* for printing and diagnosing.
@@ -172,25 +182,6 @@ static bool get_float (const char *arg, const char *prefix, float *pf)
     return true;
 }
 
-static bool get_out_format (const char *arg, const char *prefix, int *ofmt)
-{
-    if (! is_prefix (prefix, arg))
-        return false;
-
-    if (! strcasecmp (arg + strlen (prefix), "float"))
-    {
-        *ofmt = OUT_FLOAT;
-        return true;
-    }
-    if (! strcasecmp (arg + strlen (prefix), "ulp"))
-    {
-        *ofmt = OUT_ULP;
-        return true;
-    }
-
-    return false;
-}
-
 //////////////////////////////////////////////////////////////////////
 // The very Routine to determine the relative Error at x.
 
@@ -210,11 +201,11 @@ static float get_delta (float x)
     if (avrtest_cmpf (ulp, 0) == 0)
         return 0;
 
-    if (OutFormat == OUT_ULP)
+    if (out_fmt == OUT_ulp)
         return ulp;
 
     long double d = avrtest_subl (yl, y0);
-    long double r = avrtest_divl (d, y0);
+    long double r = out_fmt == OUT_abs ? d : avrtest_divl (d, y0);
 
     return avrtest_ltof (r);
 }
@@ -224,8 +215,7 @@ static float get_delta (float x)
 
 void print_deltas (void)
 {
-    printf ("== \"x\" \"%s{/symbol D} " stringy (FUNC) "\"\n",
-            OutFormat == OUT_ULP ? "ulp " : "");
+    printf ("== \"x\" \"%s {/symbol D} " stringy (FUNC) "\"\n", s_out);
 
     for (uint32_t i = 0; i < NX; ++i)
     {
@@ -254,8 +244,7 @@ int main (int argc, char *argv[])
 
         if (! get_u32 (argv[i], "-nx=", &NX)
             && ! get_float (argv[i], "-lo=", &Lo)
-            && ! get_float (argv[i], "-hi=", &Hi)
-            && ! get_out_format (argv[i], "-out=", &OutFormat))
+            && ! get_float (argv[i], "-hi=", &Hi))
         {
             error ("unknown option %s\n", argv[i]);
         }

@@ -18,7 +18,7 @@ AVRTEST_HOME ?= ../..
 FUNC=logf
 LO="0.5"
 HI="1-1"
-OUT=float
+OUT=rel
 
 # targets plot.png / plot.svg
 NX = 1000
@@ -48,14 +48,15 @@ plot.elf: plot.c config.h exit.o force
 
 # config.h tries to guess the required float format (IEEE single or double).
 config.h: gen-config.sh force
-	./$< $(FUNC) > $@
+	./$< "$(FUNC)" "$(OUT)" > $@
+	@cat $@
 
 # avrtest-elf maps the ELF file to the right executable like avrtest-xmega.
 avrtest_x = $(shell avrtest-elf $<) -q
 
 # Use intermediate plot1.data so make stops when avrtest goes EXIT_FAILURE.
 plot.data : plot.elf
-	$(avrtest_x) ./$< $(AARGS) -args -nx=$(NX) -lo="$(LO)" -hi="$(HI)" -out=$(OUT) $(XARGS) > plot1.data
+	$(avrtest_x) ./$< $(AARGS) -args -nx=$(NX) -lo="$(LO)" -hi="$(HI)" $(XARGS) > plot1.data
 	grep '^==' plot1.data | sed -e 's:^==::' > $@
 
 GPLOT_ARGS = -e pixx=\"$(PIXX)\" -e pixy=\"$(PIXY)\"
