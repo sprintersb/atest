@@ -28,8 +28,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# $Id$
-
 # Use
 #
 #     MCUS="..." ./run-avrtest.sh ...
@@ -60,7 +58,7 @@
 
 set -e
 
-myname="$0"
+myname=$(basename $0)
 
 : ${CC:=avr-gcc}
 : ${avrtest:=avrtest}
@@ -120,7 +118,7 @@ CFLAGS=${CFLAGS-"-W -Wall -pipe -Os ${EXTRA_CFLAGS}"}
 
 Err_echo ()
 {
-    echo "*** $*"
+    echo "*** $myname: $*"
     if [ $FLAG_STOP ] ; then
 	Errx "Stop"
     fi
@@ -271,6 +269,14 @@ n_emake=0	# number of compile/link errors
 n_esimul=0	# number of simulation errors
 
 for test_file in $test_list ; do
+    case "$test_file" in
+	logging/*)
+	    continue;;
+	-* )
+	    Err_echo "error: $test_file option specified after the files"
+	    exit 1 ;;
+    esac
+
     case `basename $test_file` in
 
 	*.c | *.cpp | *.cc | *.S | *.sx)

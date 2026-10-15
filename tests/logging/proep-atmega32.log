@@ -1,0 +1,21 @@
++++[1->2] main --> func
++++[1<-2] main <-- func
++++[1->2] main --> func
++++[2] func --> func.proep
++++[2] func.proep --> __prologue_saves__ + 0x16 (7 regs)
++++[2] func.proep <-- __prologue_saves__ + 0x16 (7 regs)
++++[2] func.proep --> __epilogue_restores__ + 0x16 (7 regs)
++++[1<-2] main <-- func.proep <-- __epilogue_restores__ + 0x16 (7 regs)
++++[1->2] main --> func2
++++[2->3] func2 --> func
++++[3] func --> func.proep
++++[3] func.proep --> __prologue_saves__ + 0x16 (7 regs)
++++[3] func.proep <-- __prologue_saves__ + 0x16 (7 regs)
++++[3] func.proep --> __epilogue_restores__ + 0x16 (7 regs)
++++[2<-3] func2 <-- func.proep <-- __epilogue_restores__ + 0x16 (7 regs)
++++[2] func2 --> func
++++[2] func --> func.proep
++++[2] func.proep --> __prologue_saves__ + 0x16 (7 regs)
++++[2] func.proep <-- __prologue_saves__ + 0x16 (7 regs)
++++[2] func.proep --> __epilogue_restores__ + 0x16 (7 regs)
++++[1<-2] main <-- func.proep <-- __epilogue_restores__ + 0x16 (7 regs)

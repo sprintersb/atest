@@ -29,3 +29,5 @@ Georg-Johann Lay              Support XMEGA cores.
                               Support performance-meter.
 
 Martin Ettl                   Fix a resource leak in gen-flag-tables.c.
+
+Uwe Bissinger                 Authored tests/logging/fp64_stackB.S.

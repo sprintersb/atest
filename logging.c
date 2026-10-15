@@ -468,7 +468,7 @@ log_init (unsigned val)
 
   need.logging = (is_avrtest_log
                   && (options.do_log
-                      || have_syscall[1]
+                      || have_syscall[1] || have_syscall[20]
                       || have_syscall[10] || have_syscall[11]
                       || (have_syscall[2] && need.perf)
                       || have_syscall[3]));

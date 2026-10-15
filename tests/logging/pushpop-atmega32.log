@@ -1,0 +1,6 @@
++++[1->2] main --> test_pushpop8
++++[2->3] test_pushpop8 --> push8
++++[2<-3] test_pushpop8 <-- push8
++++[2->3] test_pushpop8 --> pop8
++++[2<-3] test_pushpop8 <-- pop8
++++[1<-2] main <-- test_pushpop8

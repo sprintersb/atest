@@ -1,0 +1,7 @@
++++[1->2] main --> __fp64_pushB
++++[2] __fp64_pushB --> __fp64_pushB_int
++++[2] __fp64_pushB_int --> __fp64_L_ret
++++[1<-2] main <-- __fp64_L_ret
++++[1->2] main --> __fp64_popB
++++[2] __fp64_popB --> __fp64_L_ret
++++[1<-2] main <-- __fp64_L_ret

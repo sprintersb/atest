@@ -2131,12 +2131,21 @@ static OP_FUNC_TYPE func_UNDEF (int id, int opcode1)
        SYSCALL 22:     emulate IEEE single functions. Signature depends on R26.
        SYSCALL 21:     Misc tasks collected in one syscall.
        SYSCALL 20:     Log GPRs, SP and SREG.
+       SYSCALL 19:     Record max SP
+       SYSCALL 11: *   Log pop
+       SYSCALL 10: *   Log push ON
+       SYSCALL 9:  *   Log push Off
        SYSCALL 8:      sys_log_dump(): Log 64-bit values.
        SYSCALL 7:      sys_log_dump(): Log values.
+       SYSCALL 6:  *   sys_perf_cmd(): Performace metering.
+       SYSCALL 5:  *   sys_perf_tag_cmd()
        SYSCALL 4:      sys_ticks_cmd(): Cycles, insn. rand, prand.
+       SYSCALL 3:  *   LOG_SET
+       SYSCALL 2:  *   LOG_PERF
+       SYSCALL 1:  *   LOG_ON
+       SYSCALL 0:  *   LOF_OFF
 
-   There are more syscalls to interact with avrtest_log and that have no effect
-   on avrtest.
+   (*) avrtest_log only
 
    The simulator accounts no cycles to executing SYSCALL pseudo instructions.
 

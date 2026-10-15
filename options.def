@@ -127,3 +127,5 @@ AVRTEST_OPT (graph-skip=, 0, graph_skip)
 AVRTEST_OPT (graph-all, 0, graph_all)
 
 AVRTEST_OPT (debug-tree, 0, debug_tree)
+
+AVRTEST_OPT (debug-ystack, 0, debug_ystack)

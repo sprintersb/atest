@@ -194,6 +194,7 @@ static char* const *s_skips;
 static int n_skips;
 
 #define DEBUG_TREE (options.do_debug_tree)
+#define DEBUG_YSTACK (options.do_debug_ystack)
 
 static edge_t*
 get_edge (symbol_t *from, symbol_t *to)
@@ -715,6 +716,10 @@ update_call_stack (symbol_t *sym, int delta, bool is_longjmp)
   list_t *l;
   int sp = get_nonglitch_SP();
 
+  if (DEBUG_YSTACK)
+    printf ("/// ystack update: %s delta=%d\n",
+            sym && sym->name ? sym->name : "(null)", delta);
+
   account_cycles ();
 
   // Fix change of call depth for (very) special functions
@@ -815,17 +820,35 @@ update_call_stack (symbol_t *sym, int delta, bool is_longjmp)
 
           if (DEBUG_TREE)
             dump_ystack();
-        }
+        } // is_longjmp
+
+
+      if (DEBUG_YSTACK)
+        if (delta < 0)
+          printf ("/// ystack update (sp = 0x%04x)\n", sp);
+
+      const int depth = ystack->depth + delta >= 0 ? ystack->depth + delta : 0;
 
       // The normal case
       while (ystack->next
-             && (delta < 0
+             && ((delta < 0 && ystack->depth > depth)
                  // this might yield better recovery from longjmp
                  || ystack->sp < sp))
         {
           bool main_returns = delta < 0 && ystack && ystack->sym == graph.main;
+
+          if (DEBUG_YSTACK)
+            printf ("/// ystack update pop '%s' %d 0x%04x\n",
+                    ystack->sym && ystack->sym->name
+                    ? ystack->sym->name : "(null)", ystack->depth, ystack->sp);
+
           lpop (&ystack);
-          delta += delta < 0;
+
+          if (DEBUG_YSTACK)
+            printf ("/// ystack update top '%s' %d 0x%04x\n",
+                    ystack->sym && ystack->sym->name
+                    ? ystack->sym->name : "(null)", ystack->depth, ystack->sp);
+
           if (main_returns)
             break;
         }
@@ -878,6 +901,9 @@ log_transition (list_t *yold, list_t *ynew, int is_proep, const char *s_pe)
   int d = d_new - d_old;
   bool reglog = options.do_regs;
   const int pos = log_position ();
+
+  if (DEBUG_YSTACK)
+    printf ("/// ystack trans d_old %d -> d_new %d\n", d_old, d_new);
 
   if (is_proep)
     {
