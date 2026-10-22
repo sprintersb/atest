@@ -1,5 +1,6 @@
 *.elf
 *.lst
+*.map
 *.data
 *.[isox]
 config.h

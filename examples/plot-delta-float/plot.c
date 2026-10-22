@@ -47,6 +47,33 @@ const char *s_out = "relative";
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
+// Supplement of functions not in math.h / AVRtest.
+
+long double exp2l (long double);
+long double pow2l (long double);
+long double exp10l (long double);
+long double pow10l (long double);
+
+long double avrtest_exp2l (long double x)
+{
+    x = avrtest_mull (x, M_LN2);
+    return avrtest_expl (x);
+}
+long double avrtest_pow2l (long double x)
+{
+    return avrtest_exp2l (x);
+}
+long double avrtest_exp10l (long double x)
+{
+    x = avrtest_mull (x, M_LN10);
+    return avrtest_expl (x);
+}
+long double avrtest_pow10l (long double x)
+{
+    return avrtest_exp10l (x);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // For convenience, introduce PSTR and avrtest_* for printing and diagnosing.
 // Notice that avrtest_*printf is more capable than printf since it can
 // print IEEE double.
@@ -225,7 +252,7 @@ void print_deltas (void)
         x = avrtest_fminf (x, Hi);
         float d = get_delta (x);
 
-        printf ("== %e %e\n", x, d);
+        printf ("== %.8e %.8e\n", x, d);
     }
 }
 
