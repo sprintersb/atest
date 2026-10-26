@@ -695,6 +695,11 @@ format for strings in program memory, though more formats are supported like
 the ABI of the target, e.g. `%d` refers to a 16-bit integer.
 Variable field width and precision like in `%*d` is not supported.
 
+`long double` can be printed with formats like `%Lf`. Plus, the `D` flag
+allows to print IEEE double in 64-bit integer representation (as passed
+to `avrtest_sin_d64` etc).  This allows to print IEEE double with `%Df` etc.
+even when the `long double` type is only 32 bits wide.
+
 To use these functions, `<stdio.h>` must be included prior to avrtest.h.
 The functions that take a `FILE*` argument must get `stdout` or `stderr`.
 The passed output stream is used to indicate where the output should
@@ -733,12 +738,15 @@ Supported functions with two float arguments are:
     pow, atan2, hypot, fdim, fmin, fmax, fmod.
 
 Some more functions are:
-    frexp, ldexp, modf, powi, cmp, uto, sto, strto.
+    frexp, ldexp, modf, powi, cmp, u32to, s32to, u64to, s64to, strto.
 
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.
 
-* `avrtest_utof` and `avrtest_stof` convert uint32_t resp. int32_t to float.
+* `avrtest_u32tof` and `avrtest_s32tof` convert uint32_t resp. int32_t to float.
+* `avrtest_u64tof` and `avrtest_s64tof` convert uint64_t resp. int64_t to float.
+* `avrtest_d64tof` and `avrtest_fto64` convert IEEE double in d64
+representation to/from float.
 * `avrtest_cmpf` compares two floating-point values.  It returns –1, 0, +1
 when the values are less, equal or greater, respectively.
 It returns –128 for unordered comparisons.

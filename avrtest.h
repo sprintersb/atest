@@ -83,6 +83,7 @@ enum
     AVRTEST_ldexp = AVRTEST_EMUL_misc,
     AVRTEST_frexp, AVRTEST_modf, AVRTEST_powi,
     AVRTEST_u32to, AVRTEST_s32to,
+    AVRTEST_u64to, AVRTEST_s64to,
     AVRTEST_cmp, AVRTEST_strto,
     AVRTEST_EMUL_sentinel
   };
@@ -103,7 +104,7 @@ enum
     AVRTEST_MISC_ftok, AVRTEST_MISC_ftohk,
     AVRTEST_MISC_ftour, AVRTEST_MISC_ftouhr,
     AVRTEST_MISC_ftouk, AVRTEST_MISC_ftouhk,
-    AVRTEST_MISC_ftol,
+    AVRTEST_MISC_ftol, AVRTEST_MISC_ftod64,
     AVRTEST_MISC_ltof,
     AVRTEST_MISC_nofxemul,
     AVRTEST_MISC_mulhk,  AVRTEST_MISC_muluhk,
@@ -687,8 +688,10 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
 #undef AVRTEST_DEFF
 
 #ifndef __AVR_TINY__
+#if __SIZEOF_LONG_LONG__ == 8
 AVRTEST_DEF_SYSCALL2_1m (_21_u64,21, __UINT64_TYPE__,18, __UINT64_TYPE__,18, __UINT64_TYPE__,10)
 AVRTEST_DEF_SYSCALL2_1m (_21_s64,21, __INT64_TYPE__,18, __INT64_TYPE__,18, __INT64_TYPE__,10)
+
 #define AVRTEST_DEFF(OP)                                                \
 static AT_INLINE __UINT64_TYPE__                                        \
 avrtest_##OP##u64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ _y)              \
@@ -702,6 +705,7 @@ avrtest_##OP##s64 (__INT64_TYPE__ _x, __INT64_TYPE__ _y)                \
 }
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
 #undef AVRTEST_DEFF
+#endif /* long long == 8 */
 #endif /* AVR TINY */
 
 #ifdef _AVRGCC_STDFIX_H
@@ -810,16 +814,19 @@ AVRTEST_DEFFX(llr,long long _Fract) AVRTEST_DEFFX(ullr,unsigned long long _Fract
 #undef AVRTEST_DEFFX
 
 AVRTEST_DEF_SYSCALL1_1m (_22_u32to,22, float,22, __UINT32_TYPE__,22)
-static AT_INLINE float avrtest_utof (__UINT32_TYPE__ _u)
+static AT_INLINE float avrtest_u32tof (__UINT32_TYPE__ _u)
 {
   return avrtest_syscall_22_u32to (AVRTEST_u32to, _u);
 }
 
 AVRTEST_DEF_SYSCALL1_1m (_22_s32to,22, float,22, __INT32_TYPE__,22)
-static AT_INLINE float avrtest_stof (__INT32_TYPE__ _s)
+static AT_INLINE float avrtest_s32tof (__INT32_TYPE__ _s)
 {
   return avrtest_syscall_22_s32to (AVRTEST_s32to, _s);
 }
+
+#define avrtest_stof(x) avrtest_s32tof (x) /* old */
+#define avrtest_utof(x) avrtest_u32tof (x) /* old */
 
 AVRTEST_DEF_SYSCALL2_1m (_22_cmp,22, __INT8_TYPE__,24, float,22, float,18)
 static AT_INLINE __INT8_TYPE__ avrtest_cmpf (float _x, float _y)
@@ -834,6 +841,9 @@ AVRTEST_DEF_SYSCALL2_1m(_22_2fi,22,  float,22, float,22, int,20)
 AVRTEST_DEF_SYSCALL2_1M(_22_2fpi,22, float,22, float,22, int*,20)
 AVRTEST_DEF_SYSCALL2_1M(_22_2fpf,22, float,22, float,22, float*,20)
 AVRTEST_DEF_SYSCALL2_1M(_22_strto,22, float,22, const char*,24, char**,22)
+#if __SIZEOF_LONG_LONG__ == 8
+AVRTEST_DEF_SYSCALL1_1m(_22_u64to,22, float,22, __UINT64_TYPE__,18)
+#endif /* long long == 8 */
 
 #define AVRTEST_DEFF(ID)                          \
   static AT_INLINE float                          \
@@ -860,6 +870,19 @@ AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
+
+#if __SIZEOF_LONG_LONG__ == 8
+static AT_INLINE float
+avrtest_u64tof (__UINT64_TYPE__ _x)
+{
+  return avrtest_syscall_22_u64to (AVRTEST_u64to, _x);
+}
+static AT_INLINE float
+avrtest_s64tof (__INT64_TYPE__ _x)
+{
+  return avrtest_syscall_22_u64to (AVRTEST_s64to, (__UINT64_TYPE__) _x);
+}
+#endif /* long long == 8 */
 
 static AT_INLINE float
 avrtest_strtof (const char *_x, char **_y)
@@ -896,6 +919,8 @@ AVRTEST_DEF_SYSCALL3_1 (_23_u64_2, 23, __UINT64_TYPE__, 18,
 AVRTEST_DEF_SYSCALL2_1m (_23_u64_2di,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18, int,16)
 AVRTEST_DEF_SYSCALL2_1M (_23_u64_2dpi,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18, int*,16)
 AVRTEST_DEF_SYSCALL2_1M (_23_u64_2dpd,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18, __UINT64_TYPE__*,16)
+AVRTEST_DEF_SYSCALL1_1m(_23_u32to_d64,23, __UINT64_TYPE__,18, __UINT32_TYPE__,22)
+AVRTEST_DEF_SYSCALL1_1m(_23_u64to_d64,23, __UINT64_TYPE__,18, __UINT64_TYPE__,18)
 
 #define AVRTEST_DEFF(ID)                                \
   static AT_INLINE __UINT64_TYPE__                      \
@@ -922,6 +947,45 @@ AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
+
+AVRTEST_DEF_SYSCALL1_1m (_21_ftod64,21, __UINT64_TYPE__,18, float,22)
+AVRTEST_DEF_SYSCALL1_1m (_21_d64tof,21, float,22, __UINT64_TYPE__,18)
+static AT_INLINE __UINT64_TYPE__ avrtest_ftod64 (float _x)
+{
+  return avrtest_syscall_21_ftod64 (AVRTEST_MISC_ftol, _x);
+}
+static AT_INLINE float avrtest_d64tof (__UINT64_TYPE__ _x)
+{
+  return avrtest_syscall_21_d64tof (AVRTEST_MISC_ltof, _x);
+}
+
+static AT_INLINE __UINT64_TYPE__
+avrtest_u32tod64 (__UINT32_TYPE__ _x)
+{
+  return avrtest_syscall_23_u32to_d64 (AVRTEST_u32to, _x);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_s32tod64 (__INT32_TYPE__ _x)
+{
+  return avrtest_syscall_23_u32to_d64 (AVRTEST_s32to, (__UINT32_TYPE__) _x);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_u64tod64 (__UINT64_TYPE__ _x)
+{
+  return avrtest_syscall_23_u64to_d64 (AVRTEST_u64to, _x);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_s64tod64 (__INT64_TYPE__ _x)
+{
+  return avrtest_syscall_23_u64to_d64 (AVRTEST_s64to, (__UINT64_TYPE__) _x);
+}
+
+AVRTEST_DEF_SYSCALL2_1m (_23_u64_2i8dd,23, __INT8_TYPE__,24, __UINT64_TYPE__,18, __UINT64_TYPE__,10)
+static AT_INLINE __INT8_TYPE__
+avrtest_cmp_d64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ _y)
+{
+  return avrtest_syscall_23_u64_2i8dd (AVRTEST_cmp, _x, _y);
+}
 
 static AT_INLINE __UINT64_TYPE__
 avrtest_ldexp_d64 (__UINT64_TYPE__ _x, int _y)
@@ -961,7 +1025,10 @@ AVRTEST_DEF_SYSCALL2_1m(_23_2di, 23, long double,18, long double,18, int,16)
 AVRTEST_DEF_SYSCALL2_1M(_23_2lpi,23, long double,18, long double,18, int*,16)
 AVRTEST_DEF_SYSCALL2_1M(_23_2lpl,23, long double,18, long double,18, long double*,16)
 AVRTEST_DEF_SYSCALL2_1M(_23_strto,23, long double,18, const char*,24, char**,22)
-
+AVRTEST_DEF_SYSCALL1_1m(_23_u32to,23, long double,18, __UINT32_TYPE__,22)
+#if __SIZEOF_LONG_LONG__ == 8
+AVRTEST_DEF_SYSCALL1_1m(_23_u64to,23, long double,18, __UINT64_TYPE__,18)
+#endif /* long long = 8 */
 #define AVRTEST_DEFF(ID)                                \
   static AT_INLINE long double                          \
   avrtest_##ID##l (long double _x)                      \
@@ -987,6 +1054,29 @@ AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
+
+static AT_INLINE long double
+avrtest_u32tol (__UINT32_TYPE__ _x)
+{
+  return avrtest_syscall_23_u32to (AVRTEST_u32to, _x);
+}
+static AT_INLINE long double
+avrtest_s32tol (__INT32_TYPE__ _x)
+{
+  return avrtest_syscall_23_u32to (AVRTEST_s32to, (__UINT32_TYPE__) _x);
+}
+#if __SIZEOF_LONG_LONG__ == 8
+static AT_INLINE long double
+avrtest_u64tol (__UINT64_TYPE__ _x)
+{
+  return avrtest_syscall_23_u64to (AVRTEST_u64to, _x);
+}
+static AT_INLINE long double
+avrtest_s64tol (__INT64_TYPE__ _x)
+{
+  return avrtest_syscall_23_u64to (AVRTEST_s64to, (__UINT64_TYPE__) _x);
+}
+#endif /* long long = 8 */
 
 static AT_INLINE long double
 avrtest_ldexpl (long double _x, int _y)
@@ -1049,6 +1139,10 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_log2l  avrtest_log2f
 #define avrtest_log10l avrtest_log10f
 #define avrtest_fabsl  avrtest_fabsf
+#define avrtest_u32tol avrtest_u32tof
+#define avrtest_s32tol avrtest_s32tof
+#define avrtest_u64tol avrtest_u64tof
+#define avrtest_s64tol avrtest_s64tof
 
 #define avrtest_powl   avrtest_powf
 #define avrtest_atan2l avrtest_atan2f

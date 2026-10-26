@@ -1115,12 +1115,28 @@ emul_float_misc (uint8_t fid)
         set_reg_float (22, z);
         break;
       }
-
     case AVRTEST_s32to:
       {
         int32_t s32 = get_reg_s32 (22);
         float z = (float) s32;
         log_add ("stof(%d=0x%x) = " PRIF, (signed) s32, (signed) s32, z,z);
+        set_reg_float (22, z);
+        break;
+      }
+
+    case AVRTEST_u64to:
+      {
+        uint64_t u64 = get_reg_u64 (18);
+        float z = (float) u64;
+        log_add ("u64tof(%" PRIu64 "=0x%" PRIx64 ") = " PRIF, u64, u64, z,z);
+        set_reg_float (22, z);
+        break;
+      }
+    case AVRTEST_s64to:
+      {
+        int64_t s64 = get_reg_s64 (18);
+        float z = (float) s64;
+        log_add ("s64tof(%" PRId64 "=0x%" PRIx64 ") = " PRIF, s64, s64, z,z);
         set_reg_float (22, z);
         break;
       }
@@ -1622,6 +1638,40 @@ emul_double_misc (uint8_t fid)
         set_reg_value (24, 1, z);
         break;
       }
+
+    case AVRTEST_u32to:
+      {
+        uint32_t u32 = get_reg_u32 (22);
+        host_double_t z = (host_double_t) u32;
+        log_add ("u32tol(%" PRIu32 "=0x%" PRIx32 ") = " PRID, u32, u32, z,z);
+        set_reg_double (18, z);
+        break;
+      }
+    case AVRTEST_s32to:
+      {
+        int32_t s32 = get_reg_s32 (22);
+        host_double_t z = (host_double_t) s32;
+        log_add ("s32tol(%" PRId32 "=0x%" PRIx32 ") = " PRID, s32, s32, z,z);
+        set_reg_double (18, z);
+        break;
+      }
+
+    case AVRTEST_u64to:
+      {
+        uint64_t u64 = get_reg_u64 (18);
+        host_double_t z = (host_double_t) u64;
+        log_add ("u64tol(%" PRIu64 "=0x%" PRIx64 ") = " PRID, u64, u64, z,z);
+        set_reg_double (18, z);
+        break;
+      }
+    case AVRTEST_s64to:
+      {
+        int64_t s64 = get_reg_s64 (18);
+        host_double_t z = (host_double_t) s64;
+        log_add ("s64tol(%" PRId64 "=0x%" PRIx64 ") = " PRID, s64, s64, z,z);
+        set_reg_double (18, z);
+        break;
+      }
     } // switch
 }
 
@@ -1631,14 +1681,8 @@ void sys_emul_double (uint8_t fid)
   if (fid >= AVRTEST_EMUL_sentinel)
     leave (LEAVE_USAGE, "unknown IEEE double emulate function %u\n", fid);
 
-  switch (fid)
+  if (fid >= AVRTEST_EMUL_misc)
     {
-    case AVRTEST_strto:
-    case AVRTEST_ldexp:
-    case AVRTEST_frexp:
-    case AVRTEST_modf:
-    case AVRTEST_powi:
-    case AVRTEST_cmp:
       emul_double_misc (fid);
       return;
     }
@@ -2005,6 +2049,7 @@ typedef struct
   bool is_flash;
   bool is_long;
   bool is_longlong;
+  bool is_d64;
   // Printf return value.
   int ret_length;
   // From snprintf, 0xffff for sprintf.
@@ -2034,19 +2079,22 @@ maybe_consume_format (printf_info_t *pi, const char *fmt0)
   pi->n_prefix = (int) (fmt - fmt0);
 
   // Optional length modifier.
+  const bool is_D = *fmt == 'D';
   const bool is_L = *fmt == 'L';
   const bool is_l = *fmt == 'l' && fmt[1] != 'l';
   const bool is_ll = *fmt == 'l' && fmt[1] == 'l';
 
   // Do the mandatory format.
 
-  // [long long] double.
-  if (strchr ("aefgAEFG", fmt[is_L || is_l]))
+  // [long] double.
+  const bool is_LlD = is_L || is_l || is_D;
+  if (strchr ("aefgAEFG", fmt[is_LlD]))
     {
+      pi->is_d64 = is_D;
       pi->is_longlong = is_L;
       pi->kind = FMT_float;
-      pi->c_fmt = fmt[is_L || is_l];
-      return pi->n_fmt = pi->n_prefix + 1 + (is_L || is_l);
+      pi->c_fmt = fmt[is_LlD];
+      return pi->n_fmt = pi->n_prefix + 1 + is_LlD;
     }
 
   pi->c_fmt = fmt[is_l + 2 * is_ll];
@@ -2173,7 +2221,10 @@ consume_arg (printf_info_t *pi, const char *afmt)
     }
   else if (pi->kind == FMT_float)
     {
-      const int size = pi->is_longlong ? pi->sizeof_ldouble : pi->sizeof_double;
+      const int size = 0?0
+        : pi->is_d64 ? 8
+        : pi->is_longlong ? pi->sizeof_ldouble
+        : pi->sizeof_double;
       if (size == 4)
         {
 #ifdef NO_FEMUL
