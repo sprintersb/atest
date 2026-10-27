@@ -71,7 +71,7 @@ enum
     AVRTEST_cos, AVRTEST_acos, AVRTEST_cosh, AVRTEST_acosh,
     AVRTEST_tan, AVRTEST_atan, AVRTEST_tanh, AVRTEST_atanh,
     AVRTEST_sqrt, AVRTEST_cbrt, AVRTEST_exp, AVRTEST_log,
-    AVRTEST_trunc, AVRTEST_ceil, AVRTEST_floor, AVRTEST_round,
+    AVRTEST_trunc, AVRTEST_ceil, AVRTEST_floor, AVRTEST_round, AVRTEST_rint,
     AVRTEST_log2, AVRTEST_log10, AVRTEST_fabs,
     AVRTEST_EMUL_2args,
     AVRTEST_pow = AVRTEST_EMUL_2args,
@@ -856,7 +856,7 @@ AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
 AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
-AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
+AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -933,7 +933,7 @@ AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
 AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
-AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
+AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                                \
@@ -1040,7 +1040,7 @@ AVRTEST_DEFF(cos) AVRTEST_DEFF(acos) AVRTEST_DEFF(cosh) AVRTEST_DEFF(acosh)
 AVRTEST_DEFF(tan) AVRTEST_DEFF(atan) AVRTEST_DEFF(tanh) AVRTEST_DEFF(atanh)
 AVRTEST_DEFF(exp) AVRTEST_DEFF(log)  AVRTEST_DEFF(sqrt) AVRTEST_DEFF(cbrt)
 AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
-AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs)
+AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -1136,6 +1136,7 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_ceill  avrtest_ceilf
 #define avrtest_floorl avrtest_floorf
 #define avrtest_roundl avrtest_roundf
+#define avrtest_rintl  avrtest_rintf
 #define avrtest_log2l  avrtest_log2f
 #define avrtest_log10l avrtest_log10f
 #define avrtest_fabsl  avrtest_fabsf

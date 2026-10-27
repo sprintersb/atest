@@ -1004,7 +1004,7 @@ static const func1f_t func1f[] =
     _(cos) _(acos) _(cosh) _(acosh)
     _(tan) _(atan) _(tanh) _(atanh)
     _(exp) _(log)  _(sqrt) _(cbrt)
-    _(trunc) _(ceil) _(floor) _(round)
+    _(trunc) _(ceil) _(floor) _(round) _(rint)
     _(log2) _(log10) _(fabs)
   };
 #undef _
@@ -1460,7 +1460,7 @@ static const func1l_t func1l[] =
     _(cos) _(acos) _(cosh) _(acosh)
     _(tan) _(atan) _(tanh) _(atanh)
     _(exp) _(log)  _(sqrt) _(cbrt)
-    _(trunc) _(ceil) _(floor) _(round)
+    _(trunc) _(ceil) _(floor) _(round) _(rint)
     _(log2) _(log10) _(fabs)
   };
 #undef _
