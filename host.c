@@ -1141,6 +1141,39 @@ emul_float_misc (uint8_t fid)
         break;
       }
 
+    case AVRTEST_lrint:
+      {
+        float x = get_reg_float (22);
+        int32_t s32 = (int32_t) lrintf (x);
+        log_add ("lrintf(" PRIF ") = %" PRId32, x,x, s32);
+        set_reg_value (22, 4, s32);
+        break;
+      }
+    case AVRTEST_llrint:
+      {
+        float x = get_reg_float (22);
+        int64_t s64 = (int64_t) llrintf (x);
+        log_add ("llrintf(" PRIF ") = %" PRId64, x,x, s64);
+        set_reg_value (18, 8, s64);
+        break;
+      }
+    case AVRTEST_lround:
+      {
+        float x = get_reg_float (22);
+        int32_t s32 = (int32_t) lroundf (x);
+        log_add ("lroundf(" PRIF ") = %" PRId32, x,x, s32);
+        set_reg_value (22, 4, s32);
+        break;
+      }
+    case AVRTEST_llround:
+      {
+        float x = get_reg_float (22);
+        int64_t s64 = (int64_t) llroundf (x);
+        log_add ("llroundf(" PRIF ") = %" PRId64, x,x, s64);
+        set_reg_value (18, 8, s64);
+        break;
+      }
+
     case AVRTEST_cmp:
       {
         float x = get_reg_float (22);
@@ -1624,6 +1657,55 @@ emul_double_misc (uint8_t fid)
           }
         break;
       } // strtold
+
+    case AVRTEST_lrint:
+      {
+        host_double_t x = get_reg_double (18);
+#if defined HOST_DOUBLE
+        int32_t s32 = (int32_t) lrint (x);
+#elif defined HOST_LONG_DOUBLE
+        int32_t s32 = (int32_t) lrintl (x);
+#endif
+        log_add ("lrintl(" PRID ") = %" PRId32, x,x, s32);
+        set_reg_value (22, 4, s32);
+        break;
+      }
+    case AVRTEST_llrint:
+      {
+        host_double_t x = get_reg_double (18);
+#if defined HOST_DOUBLE
+        int64_t s64 = (int64_t) llrint (x);
+#elif defined HOST_LONG_DOUBLE
+        int64_t s64 = (int64_t) llrintl (x);
+#endif
+        log_add ("llrintl(" PRID ") = %" PRId64, x,x, s64);
+        set_reg_value (18, 8, s64);
+        break;
+      }
+    case AVRTEST_lround:
+      {
+        host_double_t x = get_reg_double (18);
+#if defined HOST_DOUBLE
+        int32_t s32 = (int32_t) lround (x);
+#elif defined HOST_LONG_DOUBLE
+        int32_t s32 = (int32_t) lroundl (x);
+#endif
+        log_add ("lroundl(" PRID ") = %" PRId32, x,x, s32);
+        set_reg_value (22, 4, s32);
+        break;
+      }
+    case AVRTEST_llround:
+      {
+        host_double_t x = get_reg_double (18);
+#if defined HOST_DOUBLE
+        int64_t s64 = (int64_t) llround (x);
+#elif defined HOST_LONG_DOUBLE
+        int64_t s64 = (int64_t) llroundl (x);
+#endif
+        log_add ("llroundl(" PRID ") = %" PRId64, x,x, s64);
+        set_reg_value (18, 8, s64);
+        break;
+      }
 
     case AVRTEST_cmp:
       {

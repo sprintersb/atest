@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* New syscalls for: rint, lrint, llrint, lround, llround.        2026-10-28
+
 * A new syscall avrtest_record_max_sp has been added to          2026-09-28
   the startup code in exit.c.  It records the current SP
   value to be used in stack underflow detection.

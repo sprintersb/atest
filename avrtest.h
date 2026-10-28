@@ -82,6 +82,7 @@ enum
     AVRTEST_EMUL_misc,
     AVRTEST_ldexp = AVRTEST_EMUL_misc,
     AVRTEST_frexp, AVRTEST_modf, AVRTEST_powi,
+    AVRTEST_lrint, AVRTEST_llrint, AVRTEST_lround, AVRTEST_llround,
     AVRTEST_u32to, AVRTEST_s32to,
     AVRTEST_u64to, AVRTEST_s64to,
     AVRTEST_cmp, AVRTEST_strto,
@@ -818,7 +819,6 @@ static AT_INLINE float avrtest_u32tof (__UINT32_TYPE__ _u)
 {
   return avrtest_syscall_22_u32to (AVRTEST_u32to, _u);
 }
-
 AVRTEST_DEF_SYSCALL1_1m (_22_s32to,22, float,22, __INT32_TYPE__,22)
 static AT_INLINE float avrtest_s32tof (__INT32_TYPE__ _s)
 {
@@ -827,6 +827,27 @@ static AT_INLINE float avrtest_s32tof (__INT32_TYPE__ _s)
 
 #define avrtest_stof(x) avrtest_s32tof (x) /* old */
 #define avrtest_utof(x) avrtest_u32tof (x) /* old */
+
+AVRTEST_DEF_SYSCALL1_1m (_22_i32_f,22, __INT32_TYPE__,22, float,22)
+static AT_INLINE __INT32_TYPE__ avrtest_lrintf (float _f)
+{
+  return avrtest_syscall_22_i32_f (AVRTEST_lrint, _f);
+}
+static AT_INLINE __INT32_TYPE__ avrtest_lroundf (float _f)
+{
+  return avrtest_syscall_22_i32_f (AVRTEST_lround, _f);
+}
+#if __SIZEOF_LONG_LONG__ == 8
+AVRTEST_DEF_SYSCALL1_1m (_22_i64_f,22, __INT64_TYPE__,18, float,22)
+static AT_INLINE __INT64_TYPE__ avrtest_llrintf (float _f)
+{
+  return avrtest_syscall_22_i64_f (AVRTEST_llrint, _f);
+}
+static AT_INLINE __INT64_TYPE__ avrtest_llroundf (float _f)
+{
+  return avrtest_syscall_22_i64_f (AVRTEST_llround, _f);
+}
+#endif /* long long == 8 */
 
 AVRTEST_DEF_SYSCALL2_1m (_22_cmp,22, __INT8_TYPE__,24, float,22, float,18)
 static AT_INLINE __INT8_TYPE__ avrtest_cmpf (float _x, float _y)
@@ -980,6 +1001,25 @@ avrtest_s64tod64 (__INT64_TYPE__ _x)
   return avrtest_syscall_23_u64to_d64 (AVRTEST_s64to, (__UINT64_TYPE__) _x);
 }
 
+AVRTEST_DEF_SYSCALL1_1m (_23_i32_d64,23, __INT32_TYPE__,22, __UINT64_TYPE__,18)
+static AT_INLINE __INT32_TYPE__ avrtest_lrint_d64 (__UINT64_TYPE__ _f)
+{
+  return avrtest_syscall_23_i32_d64 (AVRTEST_lrint, _f);
+}
+static AT_INLINE __INT32_TYPE__ avrtest_lround_d64 (__UINT64_TYPE__ _f)
+{
+  return avrtest_syscall_23_i32_d64 (AVRTEST_lround, _f);
+}
+AVRTEST_DEF_SYSCALL1_1m (_23_i64_d64,23, __INT64_TYPE__,18, __UINT64_TYPE__,18)
+static AT_INLINE __INT64_TYPE__ avrtest_llrint_d64 (__UINT64_TYPE__ _f)
+{
+  return avrtest_syscall_23_i64_d64 (AVRTEST_llrint, _f);
+}
+static AT_INLINE __INT64_TYPE__ avrtest_llround_d64 (__UINT64_TYPE__ _f)
+{
+  return avrtest_syscall_23_i64_d64 (AVRTEST_llround, _f);
+}
+
 AVRTEST_DEF_SYSCALL2_1m (_23_u64_2i8dd,23, __INT8_TYPE__,24, __UINT64_TYPE__,18, __UINT64_TYPE__,10)
 static AT_INLINE __INT8_TYPE__
 avrtest_cmp_d64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ _y)
@@ -1011,6 +1051,27 @@ avrtest_modf_d64 (__UINT64_TYPE__ _x, __UINT64_TYPE__ *_y)
 #endif /* Have uint64_t */
 
 #if __SIZEOF_LONG_DOUBLE__ == 8
+
+AVRTEST_DEF_SYSCALL1_1m (_23_i32_l,23, __INT32_TYPE__,22, long double,18)
+static AT_INLINE __INT32_TYPE__ avrtest_lrintl (long double _f)
+{
+  return avrtest_syscall_23_i32_l (AVRTEST_lrint, _f);
+}
+static AT_INLINE __INT32_TYPE__ avrtest_lroundl (long double _f)
+{
+  return avrtest_syscall_23_i32_l (AVRTEST_lround, _f);
+}
+#if __SIZEOF_LONG_LONG__ == 8
+AVRTEST_DEF_SYSCALL1_1m (_23_i64_l,23, __INT64_TYPE__,18, long double,18)
+static AT_INLINE __INT64_TYPE__ avrtest_llrintl (long double _f)
+{
+  return avrtest_syscall_23_i64_l (AVRTEST_llrint, _f);
+}
+static AT_INLINE __INT64_TYPE__ avrtest_llroundl (long double _f)
+{
+  return avrtest_syscall_23_i64_l (AVRTEST_llround, _f);
+}
+#endif /* long long == 8 */
 
 AVRTEST_DEF_SYSCALL2_1m (_23_cmp,23, __INT8_TYPE__,24, long double,18, long double,10)
 static AT_INLINE __INT8_TYPE__ avrtest_cmpl (long double _x, long double _y)
@@ -1137,6 +1198,10 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_floorl avrtest_floorf
 #define avrtest_roundl avrtest_roundf
 #define avrtest_rintl  avrtest_rintf
+#define avrtest_lroundl  avrtest_lroundf
+#define avrtest_llroundl avrtest_llroundf
+#define avrtest_lrintl   avrtest_lrintf
+#define avrtest_llrintl  avrtest_llrintf
 #define avrtest_log2l  avrtest_log2f
 #define avrtest_log10l avrtest_log10f
 #define avrtest_fabsl  avrtest_fabsf

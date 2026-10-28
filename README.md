@@ -731,7 +731,8 @@ in order to help with IEEE single implementation.
 
 Supported functions with one float argument are:
     sin, asin, sinh, asinh, cos, acos, cosh, acosh, tan, atan, tanh, atanh,
-    exp, log, log2, log10, sqrt, cbrt, trunc, ceil, floor, round, rint, fabs.
+    exp, log, log2, log10, sqrt, cbrt, trunc, ceil, floor, round, rint, fabs,
+    lrint, llrint, lround, llround.
 
 Supported functions with two float arguments are:
     mul, div, add, sub, ulp, prand,
