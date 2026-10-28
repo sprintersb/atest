@@ -1,3 +1,5 @@
+/* at:flags { -Os } */
+
 #include "avrtest.h"
 
 #define T float

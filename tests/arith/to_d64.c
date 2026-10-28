@@ -53,12 +53,12 @@ void test32 (void)
         int32_t i = vals32[n].i;
         T f = vals32[n].f;
 
-        if (avrtest_s32to_d64 (i) != f)
+        if (avrtest_s32tod64 (i) != f)
             exit (10 + n);
 
         if (i >= 0)
         {
-            if (avrtest_u32to_d64 ((uint32_t) i) != f)
+            if (avrtest_u32tod64 ((uint32_t) i) != f)
                 exit (20 + n);
         }
     }
@@ -71,12 +71,12 @@ void test64 (void)
         int64_t i = vals64[n].i;
         T f = vals64[n].f;
 
-        if (avrtest_s64to_d64 (i) != f)
+        if (avrtest_s64tod64 (i) != f)
             exit (30 + n);
 
         if (i >= 0)
         {
-            if (avrtest_u64to_d64 ((uint64_t) i) != f)
+            if (avrtest_u64tod64 ((uint64_t) i) != f)
                 exit (40 + n);
         }
     }

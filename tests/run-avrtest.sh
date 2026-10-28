@@ -256,13 +256,16 @@ Simulate_avrtest ()
 # Usage: Compile SRCFILE MCU ELFILE
 Compile ()
 {
-    local flags=
-
-    flags="-std=gnu99"
-
-    $CC $CPPFLAGS $CFLAGS $flags -mmcu=$2 $1 $o_gcc -o $3
+    $CC $CPPFLAGS $CFLAGS -std=gnu99 $flags -mmcu=$2 $1 $o_gcc -o $3
 }
 
+Extract_Directives ()
+{
+    flags=
+    if flags=$(grep '.* at:flags { .* }.*' $1); then
+	flags=$(sed 's/.* at:flags { \(.*\) }.*/\1/' <<< "$flags")
+    fi
+}
 
 n_files=0	# number of operated files
 n_emake=0	# number of compile/link errors
@@ -276,6 +279,8 @@ for test_file in $test_list ; do
 	    Err_echo "error: $test_file option specified after the files"
 	    exit 1 ;;
     esac
+
+    Extract_Directives "$test_file"
 
     case `basename $test_file` in
 

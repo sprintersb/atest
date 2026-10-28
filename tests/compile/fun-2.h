@@ -3,10 +3,11 @@
 #define GENF2(F, S)  GENF (F##S)
 
 #define GENF(F)                                    \
-  T fun_##F (T x, float y)                         \
+  T fun_##F (T x, T y)                             \
   {                                                \
     return avrtest_##F (x, y);                     \
-  }
+  }                                                \
+  T (*var_##F)(T, T) = avrtest_##F;
 
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
 AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)

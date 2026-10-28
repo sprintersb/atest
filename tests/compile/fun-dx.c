@@ -1,3 +1,5 @@
+/* at:flags { -Os } */
+
 #include <stdint.h>
 #include "avrtest.h"
 
