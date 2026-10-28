@@ -1351,6 +1351,7 @@ typedef double host_double_t;
 #   define DOUBLE_MAX_EXP  __DBL_MAX_EXP__
 #   define PRID "%e=%.13a"
 #   define PRIL ""
+#   define DNAME(X) X
 #elif __SIZEOF_LONG_DOUBLE__ == 8
 typedef long double host_double_t;
 #   define HOST_LONG_DOUBLE
@@ -1358,6 +1359,7 @@ typedef long double host_double_t;
 #   define DOUBLE_MAX_EXP  __LDBL_MAX_EXP__
 #   define PRID "%Le=%.13La"
 #   define PRIL "L"
+#   define DNAME(X) X##l
 #else
 #define NO_DEMUL "host has no 64-bit IEEE double"
 #endif
@@ -1559,11 +1561,7 @@ emul_double_misc (uint8_t fid)
         host_double_t x = get_reg_double (18);
         int y = get_reg_s16 (16);
         host_double_t z = -1;
-#if defined HOST_DOUBLE
-        z = ldexp (x, y);
-#elif defined HOST_LONG_DOUBLE
-        z = ldexpl (x, y);
-#endif
+        z = DNAME(ldexp) (x, y);
         const char *name = "ldexp";
         log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
         set_reg_double (18, z);
@@ -1575,11 +1573,7 @@ emul_double_misc (uint8_t fid)
         host_double_t x = get_reg_double (18);
         int y = get_reg_s16 (16);
         host_double_t z = -1;
-#if defined HOST_DOUBLE
-        z = __builtin_powi (x, y);
-#elif defined HOST_LONG_DOUBLE
-        z = __builtin_powil (x, y);
-#endif
+        z = DNAME(__builtin_powi) (x, y);
         const char *name = "powi";
         log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
         set_reg_double (18, z);
@@ -1591,11 +1585,7 @@ emul_double_misc (uint8_t fid)
         host_double_t x = get_reg_double (18);
         uint16_t pex = get_reg_u16 (16);
         int ex;
-#if defined HOST_DOUBLE
-        host_double_t z = frexp (x, &ex);
-#elif defined HOST_LONG_DOUBLE
-        host_double_t z = frexpl (x, &ex);
-#endif
+        host_double_t z = DNAME(frexp) (x, &ex);
         int16_t ex16 = (int16_t) ex;
         const char *name = "frexp";
         log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, pex, z,z);
@@ -1610,11 +1600,7 @@ emul_double_misc (uint8_t fid)
         host_double_t x = get_reg_double (18);
         uint16_t py = get_reg_u16 (16);
         host_double_t y;
-#if defined HOST_DOUBLE
-        host_double_t z = modf (x, &y);
-#elif defined HOST_LONG_DOUBLE
-        host_double_t z = modfl (x, &y);
-#endif
+        host_double_t z = DNAME(modf) (x, &y);
         const char *name = "modf";
         log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, py, z,z);
         set_reg_double (18, z);
@@ -1661,11 +1647,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_lrint:
       {
         host_double_t x = get_reg_double (18);
-#if defined HOST_DOUBLE
-        int32_t s32 = (int32_t) lrint (x);
-#elif defined HOST_LONG_DOUBLE
-        int32_t s32 = (int32_t) lrintl (x);
-#endif
+        int32_t s32 = (int32_t) DNAME(lrint) (x);
         log_add ("lrintl(" PRID ") = %" PRId32, x,x, s32);
         set_reg_value (22, 4, s32);
         break;
@@ -1673,11 +1655,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_llrint:
       {
         host_double_t x = get_reg_double (18);
-#if defined HOST_DOUBLE
-        int64_t s64 = (int64_t) llrint (x);
-#elif defined HOST_LONG_DOUBLE
-        int64_t s64 = (int64_t) llrintl (x);
-#endif
+        int64_t s64 = (int64_t) DNAME(llrint) (x);
         log_add ("llrintl(" PRID ") = %" PRId64, x,x, s64);
         set_reg_value (18, 8, s64);
         break;
@@ -1685,11 +1663,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_lround:
       {
         host_double_t x = get_reg_double (18);
-#if defined HOST_DOUBLE
-        int32_t s32 = (int32_t) lround (x);
-#elif defined HOST_LONG_DOUBLE
-        int32_t s32 = (int32_t) lroundl (x);
-#endif
+        int32_t s32 = (int32_t) DNAME(lround) (x);
         log_add ("lroundl(" PRID ") = %" PRId32, x,x, s32);
         set_reg_value (22, 4, s32);
         break;
@@ -1697,11 +1671,7 @@ emul_double_misc (uint8_t fid)
     case AVRTEST_llround:
       {
         host_double_t x = get_reg_double (18);
-#if defined HOST_DOUBLE
-        int64_t s64 = (int64_t) llround (x);
-#elif defined HOST_LONG_DOUBLE
-        int64_t s64 = (int64_t) llroundl (x);
-#endif
+        int64_t s64 = (int64_t) DNAME(llround) (x);
         log_add ("llroundl(" PRID ") = %" PRId64, x,x, s64);
         set_reg_value (18, 8, s64);
         break;
