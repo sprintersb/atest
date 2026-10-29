@@ -1036,8 +1036,7 @@ emul_float_misc (uint8_t fid)
         float x = get_reg_float (22);
         int y = (int) get_reg_s16 (20);
         float z = ldexpf (x, y);
-        const char *name = "ldexp";
-        log_add ("emulate %sf(" PRIF ", %d) = " PRIF "", name, x,x, y, z,z);
+        log_add ("ldexpf(" PRIF ", %d) = " PRIF "", x,x, y, z,z);
         set_reg_float (22, z);
         break;
       }
@@ -1047,8 +1046,7 @@ emul_float_misc (uint8_t fid)
         float x = get_reg_float (22);
         int y = (int) get_reg_s16 (20);
         float z = __builtin_powif (x, y);
-        const char *name = "powi";
-        log_add ("emulate %sf(" PRIF ", %d) = " PRIF "", name, x,x, y, z,z);
+        log_add ("powif(" PRIF ", %d) = " PRIF "", x,x, y, z,z);
         set_reg_float (22, z);
         break;
       }
@@ -1060,8 +1058,7 @@ emul_float_misc (uint8_t fid)
         int ex;
         float z = frexpf (x, &ex);
         int16_t ex16 = (int16_t) ex;
-        const char *name = "frexp";
-        log_add ("emulate %sf(" PRIF ", 0x%04x) = " PRIF, name, x,x, pex, z,z);
+        log_add ("frexpf(" PRIF ", 0x%04x) = " PRIF, x,x, pex, z,z);
         set_reg_float (22, z);
         set_mem_value (pex, 2, ex);
         log_add (", *0x%04x = %d", pex, (int) ex16);
@@ -1074,8 +1071,7 @@ emul_float_misc (uint8_t fid)
         uint16_t py = get_reg_u16 (20);
         float y;
         float z = modff (x, &y);
-        const char *name = "modf";
-        log_add ("emulate %sf(" PRIF ", 0x%04x) = " PRIF, name, x,x, py, z,z);
+        log_add ("modff(" PRIF ", 0x%04x) = " PRIF, x,x, py, z,z);
         set_reg_float (22, z);
         byte *b = cpu_address (py, AR_RAM);
         memcpy (b, &y, 4);
@@ -1566,8 +1562,7 @@ emul_double_misc (uint8_t fid)
         int y = get_reg_s16 (16);
         host_double_t z = -1;
         z = DNAME(ldexp) (x, y);
-        const char *name = "ldexp";
-        log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
+        log_add ("ldexpl(" PRID ", %d) = " PRID "", x,x, y, z,z);
         set_reg_double (18, z);
         break;
       }
@@ -1578,8 +1573,7 @@ emul_double_misc (uint8_t fid)
         int y = get_reg_s16 (16);
         host_double_t z = -1;
         z = DNAME(__builtin_powi) (x, y);
-        const char *name = "powi";
-        log_add ("emulate %sl(" PRID ", %d) = " PRID "", name, x,x, y, z,z);
+        log_add ("powil(" PRID ", %d) = " PRID "", x,x, y, z,z);
         set_reg_double (18, z);
         break;
       }
@@ -1591,8 +1585,7 @@ emul_double_misc (uint8_t fid)
         int ex;
         host_double_t z = DNAME(frexp) (x, &ex);
         int16_t ex16 = (int16_t) ex;
-        const char *name = "frexp";
-        log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, pex, z,z);
+        log_add ("frexpl(" PRID ", 0x%04x) = " PRID, x,x, pex, z,z);
         set_reg_double (18, z);
         set_mem_value (pex, 2, ex16);
         log_add (", *0x%04x = %d", pex, (int) ex16);
@@ -1605,8 +1598,7 @@ emul_double_misc (uint8_t fid)
         uint16_t py = get_reg_u16 (16);
         host_double_t y;
         host_double_t z = DNAME(modf) (x, &y);
-        const char *name = "modf";
-        log_add ("emulate %sl(" PRID ", 0x%04x) = " PRID, name, x,x, py, z,z);
+        log_add ("modfl(" PRID ", 0x%04x) = " PRID, x,x, py, z,z);
         set_reg_double (18, z);
         byte *b = cpu_address (py, AR_RAM);
         memcpy (b, &y, 8);
