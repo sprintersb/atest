@@ -1017,6 +1017,12 @@ static const func2f_t func2f[] =
   };
 #undef _
 
+static bool
+is_nonfinitef (float x, int bits)
+{
+  return isinf (x) || isnan (x) || fabsf (x) >= ldexpf (1, bits);
+}
+
 static void
 emul_float_misc (uint8_t fid)
 {
@@ -1142,34 +1148,26 @@ emul_float_misc (uint8_t fid)
       }
 
     case AVRTEST_lrint:
+    case AVRTEST_lround:
       {
+        const char *name = fid == AVRTEST_lrint ? "lrint" : "lround";
         float x = get_reg_float (22);
-        int32_t s32 = (int32_t) lrintf (x);
-        log_add ("lrintf(" PRIF ") = %" PRId32, x,x, s32);
+        int32_t s32 = is_nonfinitef (x, 31)
+          ? INT32_MIN
+          : (int32_t) (fid == AVRTEST_lrint ? lrintf (x) : lroundf (x));
+        log_add ("%sf(" PRIF ") = %" PRId32, name, x,x, s32);
         set_reg_value (22, 4, s32);
         break;
       }
     case AVRTEST_llrint:
-      {
-        float x = get_reg_float (22);
-        int64_t s64 = (int64_t) llrintf (x);
-        log_add ("llrintf(" PRIF ") = %" PRId64, x,x, s64);
-        set_reg_value (18, 8, s64);
-        break;
-      }
-    case AVRTEST_lround:
-      {
-        float x = get_reg_float (22);
-        int32_t s32 = (int32_t) lroundf (x);
-        log_add ("lroundf(" PRIF ") = %" PRId32, x,x, s32);
-        set_reg_value (22, 4, s32);
-        break;
-      }
     case AVRTEST_llround:
       {
+        const char *name = fid == AVRTEST_llrint ? "llrint" : "llround";
         float x = get_reg_float (22);
-        int64_t s64 = (int64_t) llroundf (x);
-        log_add ("llroundf(" PRIF ") = %" PRId64, x,x, s64);
+        int64_t s64 = is_nonfinitef (x, 63)
+          ? INT64_MIN
+          : (int64_t) (fid == AVRTEST_llrint ? llrintf (x) : llroundf (x));
+        log_add ("%sf(" PRIF ") = %" PRId64, name, x,x, s64);
         set_reg_value (18, 8, s64);
         break;
       }
@@ -1548,6 +1546,12 @@ emul_double2 (uint8_t fid)
   set_reg_double (18, z);
 }
 
+static bool
+is_nonfinitel (host_double_t x, int bits)
+{
+  return isinf (x) || isnan (x) || DNAME(fabs) (x) >= DNAME(ldexp) (1, bits);
+}
+
 static void
 emul_double_misc (uint8_t fid)
 {
@@ -1645,34 +1649,30 @@ emul_double_misc (uint8_t fid)
       } // strtold
 
     case AVRTEST_lrint:
+    case AVRTEST_lround:
       {
+        const char *name = fid == AVRTEST_lrint ? "lrint" : "lround";
         host_double_t x = get_reg_double (18);
-        int32_t s32 = (int32_t) DNAME(lrint) (x);
-        log_add ("lrintl(" PRID ") = %" PRId32, x,x, s32);
+        int32_t s32 = is_nonfinitel (x, 31)
+          ? INT32_MIN
+          : (int32_t) (fid == AVRTEST_lrint
+                       ? DNAME(lrint) (x)
+                       : DNAME(lround) (x));
+        log_add ("%sl(" PRID ") = %" PRId32, name, x,x, s32);
         set_reg_value (22, 4, s32);
         break;
       }
     case AVRTEST_llrint:
-      {
-        host_double_t x = get_reg_double (18);
-        int64_t s64 = (int64_t) DNAME(llrint) (x);
-        log_add ("llrintl(" PRID ") = %" PRId64, x,x, s64);
-        set_reg_value (18, 8, s64);
-        break;
-      }
-    case AVRTEST_lround:
-      {
-        host_double_t x = get_reg_double (18);
-        int32_t s32 = (int32_t) DNAME(lround) (x);
-        log_add ("lroundl(" PRID ") = %" PRId32, x,x, s32);
-        set_reg_value (22, 4, s32);
-        break;
-      }
     case AVRTEST_llround:
       {
+        const char *name = fid == AVRTEST_llrint ? "llrint" : "llround";
         host_double_t x = get_reg_double (18);
-        int64_t s64 = (int64_t) DNAME(llround) (x);
-        log_add ("llroundl(" PRID ") = %" PRId64, x,x, s64);
+        int64_t s64 = is_nonfinitel (x, 63)
+          ? INT64_MIN
+          : (int64_t) (fid == AVRTEST_llrint
+                       ? DNAME(llrint) (x)
+                       : DNAME(llround) (x));
+        log_add ("%sl(" PRID ") = %" PRId64, name, x,x, s64);
         set_reg_value (18, 8, s64);
         break;
       }
