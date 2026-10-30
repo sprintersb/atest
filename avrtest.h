@@ -75,7 +75,7 @@ enum
     AVRTEST_log2, AVRTEST_log10, AVRTEST_fabs,
     AVRTEST_EMUL_2args,
     AVRTEST_pow = AVRTEST_EMUL_2args,
-    AVRTEST_atan2, AVRTEST_hypot, AVRTEST_fdim,
+    AVRTEST_absdiff, AVRTEST_atan2, AVRTEST_hypot, AVRTEST_fdim,
     AVRTEST_fmin, AVRTEST_fmax, AVRTEST_fmod,
     AVRTEST_mul, AVRTEST_div, AVRTEST_add, AVRTEST_sub,
     AVRTEST_ulp, AVRTEST_prand,
@@ -887,7 +887,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
     return avrtest_syscall_22_2 (_x, _y, AVRTEST_##ID); \
   }
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
-AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
+AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod) AVRTEST_DEFF(absdiff)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
@@ -964,7 +964,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
     return avrtest_syscall_23_u64_2 (_x, _y, AVRTEST_##ID);             \
   }
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
-AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
+AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod) AVRTEST_DEFF(absdiff)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
@@ -1111,7 +1111,7 @@ AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
     return avrtest_syscall_23_2 (_x, _y, AVRTEST_##ID); \
   }
 AVRTEST_DEFF(pow)  AVRTEST_DEFF(atan2) AVRTEST_DEFF(hypot) AVRTEST_DEFF(fdim)
-AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod)
+AVRTEST_DEFF(fmin) AVRTEST_DEFF(fmax)  AVRTEST_DEFF(fmod) AVRTEST_DEFF(absdiff)
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
@@ -1210,6 +1210,7 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_u64tol avrtest_u64tof
 #define avrtest_s64tol avrtest_s64tof
 
+#define avrtest_absdiffl avrtest_absdifff
 #define avrtest_powl   avrtest_powf
 #define avrtest_atan2l avrtest_atan2f
 #define avrtest_hypotl avrtest_hypotf

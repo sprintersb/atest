@@ -709,7 +709,7 @@ Supported functions with one float argument are:
 
 Supported functions with two float arguments are:
     mul, div, add, sub, ulp, prand,
-    pow, atan2, hypot, fdim, fmin, fmax, fmod.
+    pow, atan2, hypot, fdim, fmin, fmax, fmod, absdiff.
 
 Some more functions are:
     frexp, ldexp, modf, powi, cmp, u32to, s32to, u64to, s64to, strto.

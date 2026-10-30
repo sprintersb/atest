@@ -1009,11 +1009,17 @@ static const func1f_t func1f[] =
   };
 #undef _
 
+static float
+absdifff (float x, float y)
+{
+  return fabsf (x - y);
+}
+
 #define _(X) [AVRTEST_##X - AVRTEST_EMUL_2args] = { X ## f, #X },
 static const func2f_t func2f[] =
   {
     _(pow)  _(atan2) _(hypot) _(fdim)
-    _(fmin) _(fmax)  _(fmod)
+    _(fmin) _(fmax)  _(fmod) _(absdiff)
   };
 #undef _
 
@@ -1499,10 +1505,17 @@ static const func1l_t func1l[] =
 #elif defined HOST_LONG_DOUBLE
 #define _(X) [AVRTEST_##X - AVRTEST_EMUL_2args] = { X ## l, #X },
 #endif
+
+static host_double_t
+DNAME(absdiff) (host_double_t x, host_double_t y)
+{
+  return DNAME(fabs) (x - y);
+}
+
 static const func2l_t func2l[] =
   {
     _(pow)  _(atan2) _(hypot) _(fdim)
-    _(fmin) _(fmax)  _(fmod)
+    _(fmin) _(fmax)  _(fmod) _(absdiff)
   };
 #undef _
 
