@@ -21,6 +21,10 @@ The recognized parameters can be displayed by running `make help`.
 Supported functions are univariate float&rarr;float and
 long double&rarr;long double functions from math.h.
 
+### Function as a Graph
+
+Similar like above, but with `OUT=fun`.
+
 ## The maximal relative Error
 
 The `delta` Makefile target in `examples/delta-float` can be used to work out

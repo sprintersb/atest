@@ -31,8 +31,11 @@ case "$2" in
     ulp)
 	echo "#define OUT_ULP"
 	;;
+    fun)
+	echo "#define OUT_FUN"
+	;;
     *)
-	echo "$(basename $0): error: unknown OUT: $2 (rel, abs, ulp)" >&2
+	echo "$(basename $0): error: unknown OUT: $2 (rel, abs, ulp, fun)" >&2
 	exit 1
 	;;
 esac

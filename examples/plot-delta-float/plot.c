@@ -16,6 +16,7 @@
 #endif
 
 #define NI __attribute((noipa))
+#define UU __attribute((unused))
 
 // Command Line Args
 uint32_t NX = 0; // Number of pixels.
@@ -33,17 +34,22 @@ float Step = 1.0;
 #define stringy_(X) #X
 #define stringy(X) stringy_(X)
 
-enum { OUT_rel, OUT_abs, OUT_ulp };
+#define S_DELTA "{/symbol D}"
+
+enum { OUT_rel, OUT_abs, OUT_ulp, OUT_fun };
 
 #if defined OUT_ULP
 const int out_fmt = OUT_ulp;
-const char *s_out = "ULP";
+const char *s_out = "ULP " S_DELTA;
+#elif defined OUT_FUN
+const int out_fmt = OUT_fun;
+const char *s_out = "";
 #elif defined OUT_ABS
 const int out_fmt = OUT_abs;
-const char *s_out = "absolute";
+const char *s_out = "absolute " S_DELTA;
 #else
 const int out_fmt = OUT_rel;
-const char *s_out = "relative";
+const char *s_out = "relative " S_DELTA;
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
@@ -210,9 +216,20 @@ static bool get_float (const char *arg, const char *prefix, float *pf)
 }
 
 //////////////////////////////////////////////////////////////////////
-// The very Routine to determine the relative Error at x.
+// The very Routine to determine the Error / Value at x.
 
-static float get_delta (float x)
+UU static float get_func (float x)
+{
+#if FLOAT_SIZE == 4
+    float y = FUNC (x);
+#else
+    long double y = FUNC (avrtest_ftol (x));
+#endif
+
+    return avrtest_ltof (y);
+}
+
+UU static float get_delta (float x)
 {
     long double y0 = AFUNC (avrtest_ftol (x));
 #if FLOAT_SIZE == 4
@@ -242,7 +259,7 @@ static float get_delta (float x)
 
 void print_deltas (void)
 {
-    printf ("== \"x\" \"%s {/symbol D} " stringy (FUNC) "\"\n", s_out);
+    printf ("== \"x\" \"%s " stringy (FUNC) "\"\n", s_out);
 
     for (uint32_t i = 0; i < NX; ++i)
     {
@@ -250,7 +267,9 @@ void print_deltas (void)
         float x = avrtest_addf (Lo, off);
         x = avrtest_fmaxf (x, Lo);
         x = avrtest_fminf (x, Hi);
-        float d = get_delta (x);
+        float d = out_fmt == OUT_fun
+            ? get_func (x)
+            : get_delta (x);
 
         printf ("== %.8e %.8e\n", x, d);
     }
