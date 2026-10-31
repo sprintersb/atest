@@ -65,6 +65,12 @@ DEPS += graph.h perf.h logging.h avrtest.h sreg.h flag-tables.h
 
 XLIB += -lm
 
+# To rebuild:  make clean-host; make -j2 WITH_MPFR=1
+ifeq ($(WITH_MPFR),1)
+XLIB := -lmpfr $(XLIB)
+CFLAGS_FOR_HOST := $(CFLAGS_FOR_HOST) -DWITH_MPFR
+endif
+
 $(A_log:=.s)	: XDEF += -DAVRTEST_LOG
 $(A_xmega:=.s)	: XDEF += -DISA_XMEGA
 $(A_tiny:=.s)	: XDEF += -DISA_TINY

@@ -31,6 +31,10 @@
 #include "options.h"
 #include "host.h"
 
+#ifdef WITH_MPFR
+#include <mpfr.h>
+#endif // MPFR
+
 #define IN_AVRTEST
 #include "avrtest.h"
 
@@ -1023,6 +1027,38 @@ static const func2f_t func2f[] =
   };
 #undef _
 
+static float
+float_with_mpfr (float x, int fid, const char *name)
+{
+  float z = x;
+
+#ifdef WITH_MPFR
+  mpfr_set_default_prec (53);
+
+  mpfr_t xx;
+  mpfr_init (xx);
+  mpfr_set_flt (xx, x, MPFR_RNDN);
+
+  switch (fid)
+    {
+    case AVRTEST_sinpi: mpfr_sinpi (xx, xx, MPFR_RNDN); break;
+    case AVRTEST_cospi: mpfr_cospi (xx, xx, MPFR_RNDN); break;
+    case AVRTEST_tanpi: mpfr_tanpi (xx, xx, MPFR_RNDN); break;
+    default:
+      leave (LEAVE_USAGE, "unknown MPFR misc function %d %s\n", fid, name);
+    }
+
+  z = mpfr_get_flt (xx, MPFR_RNDN);
+  log_add ("%sf(" PRIF ") = " PRIF "", name, x,x, z,z);
+
+  mpfr_clear (xx);
+#else // WITH_MPFR
+  leave (LEAVE_IEEE32, "%sf failed: %sf requires MPFR", name, name);
+#endif // WITH_MPFR
+
+  return z;
+}
+
 static bool
 is_nonfinitef (float x, int bits)
 {
@@ -1082,6 +1118,22 @@ emul_float_misc (uint8_t fid)
         byte *b = cpu_address (py, AR_RAM);
         memcpy (b, &y, 4);
         log_add (", *0x%04x = " PRIF, py, y,y);
+        break;
+      }
+
+    case AVRTEST_sinpi:
+    case AVRTEST_cospi:
+    case AVRTEST_tanpi:
+      {
+        float x = get_reg_float (22);
+        float z = -1;
+        switch (fid)
+          {
+          case AVRTEST_sinpi: z = float_with_mpfr (x, fid, "sinpi"); break;
+          case AVRTEST_cospi: z = float_with_mpfr (x, fid, "cospi"); break;
+          case AVRTEST_tanpi: z = float_with_mpfr (x, fid, "tanpi"); break;
+          }
+        set_reg_float (22, z);
         break;
       }
 
@@ -1352,6 +1404,7 @@ typedef double host_double_t;
 #   define PRID "%e=%.13a"
 #   define PRIL ""
 #   define DNAME(X) X
+#   define LDNAME(X) X##d
 #elif __SIZEOF_LONG_DOUBLE__ == 8
 typedef long double host_double_t;
 #   define HOST_LONG_DOUBLE
@@ -1360,6 +1413,7 @@ typedef long double host_double_t;
 #   define PRID "%Le=%.13La"
 #   define PRIL "L"
 #   define DNAME(X) X##l
+#   define LDNAME(X) X##ld
 #else
 #define NO_DEMUL "host has no 64-bit IEEE double"
 #endif
@@ -1555,6 +1609,38 @@ emul_double2 (uint8_t fid)
   set_reg_double (18, z);
 }
 
+static host_double_t
+double_with_mpfr (host_double_t x, int fid, const char *name)
+{
+  host_double_t z = x;
+
+#ifdef WITH_MPFR
+  mpfr_set_default_prec (53);
+
+  mpfr_t xx;
+  mpfr_init (xx);
+  LDNAME(mpfr_set_) (xx, x, MPFR_RNDN);
+
+  switch (fid)
+    {
+    case AVRTEST_sinpi: mpfr_sinpi (xx, xx, MPFR_RNDN); break;
+    case AVRTEST_cospi: mpfr_cospi (xx, xx, MPFR_RNDN); break;
+    case AVRTEST_tanpi: mpfr_tanpi (xx, xx, MPFR_RNDN); break;
+    default:
+      leave (LEAVE_USAGE, "unknown MPFR misc function %d %s\n", fid, name);
+    }
+
+  z = LDNAME(mpfr_get_) (xx, MPFR_RNDN); // flt // ld
+  log_add ("%sl(" PRID ") = " PRID "", name, x,x, z,z);
+
+  mpfr_clear (xx);
+#else // WITH_MPFR
+  leave (LEAVE_IEEE64, "%sl failed: %sl requires MPFR", name, name);
+#endif // WITH_MPFR
+
+  return z;
+}
+
 static bool
 is_nonfinitel (host_double_t x, int bits)
 {
@@ -1619,6 +1705,22 @@ emul_double_misc (uint8_t fid)
         break;
       }
 
+    case AVRTEST_sinpi:
+    case AVRTEST_cospi:
+    case AVRTEST_tanpi:
+      {
+        host_double_t x = get_reg_double (18);
+        host_double_t z = -1;
+        switch (fid)
+          {
+          case AVRTEST_sinpi: z = double_with_mpfr (x, fid, "sinpi"); break;
+          case AVRTEST_cospi: z = double_with_mpfr (x, fid, "cospi"); break;
+          case AVRTEST_tanpi: z = double_with_mpfr (x, fid, "tanpi"); break;
+          }
+        set_reg_double (18, z);
+        break;
+      }
+
     case AVRTEST_strto:
       {
         char s_float[100], *tail;
@@ -1626,11 +1728,7 @@ emul_double_misc (uint8_t fid)
         const uint16_t pend = get_reg_u16 (22);
 
         read_string (s_float, addr, false, sizeof(s_float) - 1);
-#if defined HOST_DOUBLE
-        const host_double_t f = strtod (s_float, &tail);
-#elif defined HOST_LONG_DOUBLE
-        const host_double_t f = strtold (s_float, &tail);
-#endif
+        const host_double_t f = LDNAME(strto) (s_float, &tail);
         const size_t n_chars = tail - s_float;
         const char *name = "strto";
         log_add (" %sld 0x%04x, 0x%04x:\"%s\" -> " PRID, name, addr, pend,
