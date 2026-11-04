@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Add avrtest_strtod64.                                          2026-11-04
+
 * New syscalls for: rint, lrint, llrint, lround, llround.        2026-10-28
 
 * A new syscall avrtest_record_max_sp has been added to          2026-09-28
@@ -143,7 +145,7 @@
   -  LOG_DOUBLE (X)
   -  LOG_LDOUBLE (X)
   -  LOG_D64 (X)
-  
+
   and respective macros with custom format string.
   For details, see README.
 

@@ -972,6 +972,13 @@ AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(add) AVRTEST_DEFF(sub)
 AVRTEST_DEFF(ulp) AVRTEST_DEFF(prand)
 #undef AVRTEST_DEFF
 
+AVRTEST_DEF_SYSCALL2_1M(_23_strto_d64,23, __UINT64_TYPE__,18, const char*,24, char**,22)
+static AT_INLINE __UINT64_TYPE__
+avrtest_strtod64 (char *_x, char **_y)
+{
+  return avrtest_syscall_23_strto_d64 (AVRTEST_strto, _x, _y);
+}
+
 AVRTEST_DEF_SYSCALL1_1m (_21_ftod64,21, __UINT64_TYPE__,18, float,22)
 AVRTEST_DEF_SYSCALL1_1m (_21_d64tof,21, float,22, __UINT64_TYPE__,18)
 static AT_INLINE __UINT64_TYPE__ avrtest_ftod64 (float _x)
