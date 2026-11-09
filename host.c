@@ -2487,8 +2487,20 @@ sys_misc_printf (int what, const char *name, bool file_p, int abi)
       if (pi.n_lim != 0xffff) // snprintf?
         log_add (" len=%d", pi.n_lim);
     }
-  log_add (" argp@%04x fmt@%04x=\"%s\" d%dld%d", pi.argp, r_fmt, fmt,
-           8 * pi.sizeof_double, 8 * pi.sizeof_ldouble);
+
+  log_add (" argp@%04x fmt@%04x=\"", pi.argp, r_fmt);
+  // Do fmt by hand to print `\n` as "\n" etc.
+  for (const char *f = fmt; *f != '\0'; ++f)
+    switch (*f)
+      {
+      default: log_add ("%c", *f); break;
+      case '\r': log_add ("\\r"); break;
+      case '\n': log_add ("\\n"); break;
+      case '\t': log_add ("\\t"); break;
+      case '\v': log_add ("\\v"); break;
+      case '"': log_add ("\\\""); break;
+      }
+  log_add ("\" d%dld%d", 8 * pi.sizeof_double, 8 * pi.sizeof_ldouble);
 
   // Transpose the target's format string to the host's.
 
