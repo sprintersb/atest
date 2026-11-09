@@ -2177,7 +2177,7 @@ sys_misc_fxop (int what)
 }
 
 
-enum { FMT_char, FMT_int, FMT_float, FMT_string, FMT_none };
+enum { FMT_char, FMT_int, FMT_float, FMT_string, FMT_fract, FMT_none };
 
 typedef struct
 {
@@ -2202,6 +2202,7 @@ typedef struct
   // Format char.
   char c_fmt;
   bool is_flash;
+  bool is_half;
   bool is_long;
   bool is_longlong;
   bool is_d64;
@@ -2236,6 +2237,7 @@ maybe_consume_format (printf_info_t *pi, const char *fmt0)
   // Optional length modifier.
   const bool is_D = *fmt == 'D';
   const bool is_L = *fmt == 'L';
+  const bool is_h = *fmt == 'h';
   const bool is_l = *fmt == 'l' && fmt[1] != 'l';
   const bool is_ll = *fmt == 'l' && fmt[1] == 'l';
 
@@ -2250,6 +2252,18 @@ maybe_consume_format (printf_info_t *pi, const char *fmt0)
       pi->kind = FMT_float;
       pi->c_fmt = fmt[is_LlD];
       return pi->n_fmt = pi->n_prefix + 1 + is_LlD;
+    }
+
+  // fract / accum.
+  int oo = is_h + is_l + 2 * is_ll;
+  if (strchr ("krKR", fmt[oo]))
+    {
+      pi->is_half = is_h;
+      pi->is_long = is_l;
+      pi->is_longlong = is_ll;
+      pi->kind = FMT_fract;
+      pi->c_fmt = fmt[oo];
+      return pi->n_fmt = pi->n_prefix + 1 + oo;
     }
 
   pi->c_fmt = fmt[is_l + 2 * is_ll];
@@ -2328,9 +2342,9 @@ consume_arg (printf_info_t *pi, const char *afmt)
 {
   char hfmt[30];
   const int hlen = (int) sizeof (hfmt) - 1;
-  if (pi->n_prefix >= hlen)
+  if (pi->n_prefix >= hlen - 5)
     leave (LEAVE_SYSARG,
-           "%s format overflow: \"%%%.*s...\"", pi->name, hlen, afmt);
+           "%s format overflow: \"%%%.*s...\"", pi->name, hlen - 5, afmt);
 
   if (pi->kind == FMT_string)
     {
@@ -2403,6 +2417,36 @@ consume_arg (printf_info_t *pi, const char *afmt)
 #endif // Have IEEE double?
         }
       pi->argp += size;
+    }
+  else if (pi->kind == FMT_fract)
+    {
+#ifdef NO_DEMUL
+      leave (LEAVE_IEEE64, "%s IEEE double emulation for fixed-point"
+             " print '%c' failed: %s", pi->name, pi->c_fmt, NO_DEMUL);
+#else
+      static const int n_accu[] = { 2, 4, 8, 8 };
+      static const int n_frac[] = { 1, 2, 4, 8 };
+      static const int f_accu[] = { 8, 16, 32, 48 };
+      static const int f_frac[] = { 8, 16, 32, 64 };
+      const bool is_accum = !! strchr ("kK", pi->c_fmt);
+      const bool is_signed = !! strchr ("kr", pi->c_fmt);
+      const bool none = !pi->is_half && !pi->is_long && !pi->is_longlong;
+      const int idx = none + 2 * pi->is_long + 3 * pi->is_longlong;
+      const int size = is_accum ? n_accu[idx] : n_frac[idx];
+      const int fbit = (is_accum ? f_accu[idx] : f_frac[idx]) - is_signed;
+
+      uint64_t val = get_ram_value (pi->argp, size);
+      pi->argp += size;
+      host_double_t d =
+        ! is_signed ? (host_double_t) val
+        : size == 1 ? (host_double_t) (int8_t) val
+        : size == 2 ? (host_double_t) (int16_t) val
+        : size == 4 ? (host_double_t) (int32_t) val
+        :             (host_double_t) (int64_t) val;
+      d = DNAME(ldexp) (d, -fbit);
+      sprintf (hfmt, "%%%.*s%s%c", pi->n_prefix, afmt, PRIL, 'f');
+      print_1arg (pi, hfmt, d);
+#endif // Have IEEE double?
     }
   else
     leave (LEAVE_FATAL, "%s todo: [fmt: %%%.*s]", pi->name, pi->n_fmt, afmt);
@@ -2703,7 +2747,7 @@ host_fopen (dword args)
     }
   log_add ("\n*** %s <- fopen \"%s\" for \"%s\"",
            file->name, s_path, s_mode);
-  file->binary_p = strchr (s_mode, 'b');
+  file->binary_p = !! strchr (s_mode, 'b');
   return 0xff & (dword) file->handle;
 }
 

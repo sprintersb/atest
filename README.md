@@ -700,6 +700,11 @@ allows to print IEEE double in 64-bit integer representation (as passed
 to `avrtest_sin_d64` etc).  This allows to print IEEE double with `%Df` etc.
 even when the `long double` type is only 32 bits wide.
 
+Fixed-point values can be printed with formats `%k` (accum),
+`%K` (unsigned accum), `%r` (fract), `%R` (unsigned fract).
+The size can be specified with flags `h` (short), `l` (long) and
+`ll` (long long).  For example, `%+.8hk` prints a `short accum`.
+
 To use these functions, `<stdio.h>` must be included prior to avrtest.h.
 The functions that take a `FILE*` argument must get `stdout` or `stderr`.
 The passed output stream is used to indicate where the output should

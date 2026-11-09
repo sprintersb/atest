@@ -3,6 +3,8 @@
                           avrtest NEWS
                           ============
 
+* Support fixed-point values in avrtest_printf.                  2026-11-09
+
 * Add avrtest_strtod64.                                          2026-11-04
 
 * New syscalls for: rint, lrint, llrint, lround, llround.        2026-10-28
