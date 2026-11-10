@@ -305,6 +305,7 @@ typedef struct
 // Some data shared by logging modules logging.c, perf.c, graph.c.
 // Objects hosted by logging.c.
 extern need_t need;
+extern bool log_is_transition;
 
 extern int get_nonglitch_SP (void);
 

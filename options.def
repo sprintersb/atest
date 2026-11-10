@@ -68,6 +68,9 @@ AVRTEST_OPT (runtime, 0, runtime)
 // Whether to log GPRs at each transition.
 AVRTEST_OPT (regs, 0, regs)
 
+// Whether to log only transition (calls, returns) when logging.
+AVRTEST_OPT (t, 0, log_only_transitions)
+
 // Whether STDIN_PORT is active
 AVRTEST_OPT (stdin,  1, stdin)
 AVRTEST_OPT (stdin=, 0, stdin_filename)

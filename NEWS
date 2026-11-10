@@ -3,6 +3,9 @@
                           avrtest NEWS
                           ============
 
+* New option -t only logs transitions (calls, returns)           2026-11-10
+  when instruction logging is on.
+
 * Support fixed-point values in avrtest_printf.                  2026-11-09
 
 * Add avrtest_strtod64.                                          2026-11-04

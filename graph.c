@@ -1083,7 +1083,11 @@ graph_update_call_depth (const decoded_t *deco)
     }
 
   if (!log_unused)
-    log_transition (yold, ystack, is_proep, s_pe);
+    {
+      log_is_transition = true;
+      log_transition (yold, ystack, is_proep, s_pe);
+      log_is_transition = false;
+    }
 
   if (is_proep == 2)
     pro_ep = NULL;

@@ -71,6 +71,8 @@ typedef struct
 
 unsigned old_PC, old_old_PC;
 need_t need;
+bool log_is_transition;
+
 static int maybe_SP_glitch;
 
 static alog_t alog;
@@ -84,7 +86,8 @@ log_position (void)
 void
 log_append (const char *fmt, ...)
 {
-  if (log_unused)
+  if (log_unused
+      || (options.do_log_only_transitions && ! log_is_transition))
     return;
 
   va_list args;
@@ -96,7 +99,8 @@ log_append (const char *fmt, ...)
 void
 log_append_va (const char *fmt, va_list args)
 {
-  if (log_unused)
+  if (log_unused
+      || (options.do_log_only_transitions && ! log_is_transition))
     return;
 
   alog.pos += vsprintf (alog.pos, fmt, args);
@@ -495,7 +499,10 @@ log_dump_line (const decoded_t *d)
   if (log_this || (log_this != alog.log_this))
     {
       alog.maybe_log = true;
-      puts (alog.data);
+
+      if (alog.data[0])
+          puts (alog.data);
+
       if (log_this && log_unused)
         leave (LEAVE_FATAL, "problem in log_dump_line");
     }

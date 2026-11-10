@@ -57,6 +57,7 @@ static const char USAGE[] =
   "  -v            Verbose mode.  Print the loaded ELF program headers\n"
   "                and the used streams.\n"
   "  -regs         Show register contents in the instruction log.\n"
+  "  -t            Only log transitions (calls, returns) when logging is on.\n"
   "  -runtime      Print avrtest execution time.\n"
   "  -no-log       Disable instruction logging in avrtest_log.  Logging\n"
   "                can still be turned on with LOG_ON etc., see README.\n"
