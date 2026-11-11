@@ -60,19 +60,9 @@ long double pow2l (long double);
 long double exp10l (long double);
 long double pow10l (long double);
 
-long double avrtest_exp2l (long double x)
-{
-    x = avrtest_mull (x, M_LN2);
-    return avrtest_expl (x);
-}
 long double avrtest_pow2l (long double x)
 {
     return avrtest_exp2l (x);
-}
-long double avrtest_exp10l (long double x)
-{
-    x = avrtest_mull (x, M_LN10);
-    return avrtest_expl (x);
 }
 long double avrtest_pow10l (long double x)
 {

@@ -737,7 +737,8 @@ in order to help with IEEE single implementation.
 
 Supported functions with one float argument are:
     sin, asin, sinh, asinh, cos, acos, cosh, acosh, tan, atan, tanh, atanh,
-    exp, log, log2, log10, sqrt, cbrt, trunc, ceil, floor, round, rint, fabs,
+    exp, exp2, exp10, log, log2, log10,
+    sqrt, cbrt, trunc, ceil, floor, round, rint, fabs,
     lrint, llrint, lround, llround, sinpi, cospi, tanpi.
 
 Supported functions with two float arguments are:
@@ -749,8 +750,8 @@ Some more functions are:
 
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.<br>
-sinpi, cospi, tanpi are only available when AVRtest is built
-<tt>WITH_<a href="https://www.mpfr.org">MPFR</a></tt>.
+exp10, sinpi, cospi, tanpi are only available when AVRtest is built
+<tt>WITH_<a href="https://www.mpfr.org">MPFR</a>=1</tt>.
 
 * `avrtest_u32tof` and `avrtest_s32tof` convert uint32_t resp. int32_t to float.
 * `avrtest_u64tof` and `avrtest_s64tof` convert uint64_t resp. int64_t to float.

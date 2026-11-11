@@ -33,6 +33,8 @@
 
 #ifdef WITH_MPFR
 #include <mpfr.h>
+#define AT_MPFR_VERSION \
+  (1000 * (MPFR_VERSION_MAJOR) + 10 * (MPFR_VERSION_MINOR))
 #endif // MPFR
 
 #define IN_AVRTEST
@@ -1010,6 +1012,7 @@ static const func1f_t func1f[] =
     _(exp) _(log)  _(sqrt) _(cbrt)
     _(trunc) _(ceil) _(floor) _(round) _(rint)
     _(log2) _(log10) _(fabs)
+    _(exp2)
   };
 #undef _
 
@@ -1041,11 +1044,15 @@ float_with_mpfr (float x, int fid, const char *name)
 
   switch (fid)
     {
+    case AVRTEST_exp10: mpfr_exp10 (xx, xx, MPFR_RNDN); break;
+#if AT_MPFR_VERSION >= 4020
     case AVRTEST_sinpi: mpfr_sinpi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_cospi: mpfr_cospi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_tanpi: mpfr_tanpi (xx, xx, MPFR_RNDN); break;
+#endif // MPFR >= 4.2
     default:
-      leave (LEAVE_USAGE, "unknown MPFR misc function %d %s\n", fid, name);
+      leave (LEAVE_IEEE32, "misc function %d %sf not supported by MPFR %s\n",
+             fid, name, MPFR_VERSION_STRING);
     }
 
   z = mpfr_get_flt (xx, MPFR_RNDN);
@@ -1121,21 +1128,17 @@ emul_float_misc (uint8_t fid)
         break;
       }
 
-    case AVRTEST_sinpi:
-    case AVRTEST_cospi:
-    case AVRTEST_tanpi:
-      {
-        float x = get_reg_float (22);
-        float z = -1;
-        switch (fid)
-          {
-          case AVRTEST_sinpi: z = float_with_mpfr (x, fid, "sinpi"); break;
-          case AVRTEST_cospi: z = float_with_mpfr (x, fid, "cospi"); break;
-          case AVRTEST_tanpi: z = float_with_mpfr (x, fid, "tanpi"); break;
-          }
-        set_reg_float (22, z);
-        break;
-      }
+#define _(X)                                                \
+      case AVRTEST_##X:                                     \
+        {                                                   \
+          float x = get_reg_float (22);                     \
+          float z = float_with_mpfr (x, fid, #X);           \
+          set_reg_float (22, z);                            \
+          break;                                            \
+        }
+
+      _(exp10) _(sinpi) _(cospi) _(tanpi)
+#undef _
 
     case AVRTEST_strto:
       {
@@ -1551,6 +1554,7 @@ static const func1l_t func1l[] =
     _(exp) _(log)  _(sqrt) _(cbrt)
     _(trunc) _(ceil) _(floor) _(round) _(rint)
     _(log2) _(log10) _(fabs)
+    _(exp2)
   };
 #undef _
 
@@ -1623,14 +1627,18 @@ double_with_mpfr (host_double_t x, int fid, const char *name)
 
   switch (fid)
     {
+    case AVRTEST_exp10: mpfr_exp10 (xx, xx, MPFR_RNDN); break;
+#if AT_MPFR_VERSION >= 4020
     case AVRTEST_sinpi: mpfr_sinpi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_cospi: mpfr_cospi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_tanpi: mpfr_tanpi (xx, xx, MPFR_RNDN); break;
+#endif // MPFR >= 4.2
     default:
-      leave (LEAVE_USAGE, "unknown MPFR misc function %d %s\n", fid, name);
+      leave (LEAVE_IEEE64, "misc function %d %sl not supported by MPFR %s\n",
+             fid, name, MPFR_VERSION_STRING);
     }
 
-  z = LDNAME(mpfr_get_) (xx, MPFR_RNDN); // flt // ld
+  z = LDNAME(mpfr_get_) (xx, MPFR_RNDN); // d / ld
   log_add ("%sl(" PRID ") = " PRID "", name, x,x, z,z);
 
   mpfr_clear (xx);
@@ -1705,21 +1713,17 @@ emul_double_misc (uint8_t fid)
         break;
       }
 
-    case AVRTEST_sinpi:
-    case AVRTEST_cospi:
-    case AVRTEST_tanpi:
-      {
-        host_double_t x = get_reg_double (18);
-        host_double_t z = -1;
-        switch (fid)
-          {
-          case AVRTEST_sinpi: z = double_with_mpfr (x, fid, "sinpi"); break;
-          case AVRTEST_cospi: z = double_with_mpfr (x, fid, "cospi"); break;
-          case AVRTEST_tanpi: z = double_with_mpfr (x, fid, "tanpi"); break;
-          }
-        set_reg_double (18, z);
-        break;
-      }
+#define _(X)                                                \
+      case AVRTEST_##X:                                     \
+        {                                                   \
+          host_double_t x = get_reg_double (18);            \
+          host_double_t z = double_with_mpfr (x, fid, #X);  \
+          set_reg_double (18, z);                           \
+          break;                                            \
+        }
+
+      _(exp10) _(sinpi) _(cospi) _(tanpi)
+#undef _
 
     case AVRTEST_strto:
       {
