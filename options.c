@@ -29,6 +29,10 @@
 #include "testavr.h"
 #include "options.h"
 
+#ifdef WITH_MPFR
+#include <mpfr.h>
+#endif
+
 // ----------------------------------------------------------------------------
 //     parse command line arguments
 
@@ -40,6 +44,9 @@ static const char USAGE[] =
   "                 [-graph[=FILE]] [-sbox=FOLDER]\n"
   "                 program [-args [...]]\n"
   "         avrtest --help\n"
+#ifdef WITH_MPFR
+  "  built with MPFR " MPFR_VERSION_STRING "\n"
+#endif
   "Options:\n"
   "  -h            Show this help and exit.\n"
   "  -args ...     Pass all following parameters as argc and argv to main.\n"
