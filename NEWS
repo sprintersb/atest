@@ -1,7 +1,9 @@
 
 
-                          avrtest NEWS
+                          AVRtest NEWS
                           ============
+
+* New avrtest_can_<feat> syscalls for feature detection.         2026-11-14
 
 * New option -t only logs transitions (calls, returns)           2026-11-10
   when instruction logging is on.

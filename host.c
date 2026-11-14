@@ -2624,6 +2624,38 @@ void sys_misc_emul (uint8_t what)
       }
       break;
 
+    case AVRTEST_MISC_can_float:
+#ifdef NO_FEMUL
+      set_reg_value (24, 2, 0);
+#else
+      set_reg_value (24, 2, 1);
+#endif
+      break;
+
+    case AVRTEST_MISC_can_double:
+#ifdef NO_DEMUL
+      set_reg_value (24, 2, 0);
+#else
+      set_reg_value (24, 2, 1);
+#endif
+      break;
+
+    case AVRTEST_MISC_can_int128:
+#if defined(__SIZEOF_INT128__)
+      set_reg_value (24, 2, 1);
+#else
+      set_reg_value (24, 2, 0);
+#endif
+      break;
+
+    case AVRTEST_MISC_can_mpfr:
+#ifdef WITH_MPFR
+      set_reg_value (24, 2, AT_MPFR_VERSION);
+#else
+      set_reg_value (24, 2, 0);
+#endif
+      break;
+
     default:
       leave (LEAVE_FATAL, "syscall 21 misc R26=%d not implemented", what);
     }

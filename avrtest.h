@@ -94,6 +94,8 @@ enum
 enum
   {
     AVRTEST_MISC_flmap,
+    AVRTEST_MISC_can_float, AVRTEST_MISC_can_double,
+    AVRTEST_MISC_can_mpfr, AVRTEST_MISC_can_int128,
     AVRTEST_MISC_mulu32, AVRTEST_MISC_divu32, AVRTEST_MISC_modu32,
     AVRTEST_MISC_muls32, AVRTEST_MISC_divs32, AVRTEST_MISC_mods32,
     AVRTEST_MISC_mulu64, AVRTEST_MISC_divu64, AVRTEST_MISC_modu64,
@@ -504,6 +506,19 @@ __extension__ enum
     return _res;                                                        \
   }
 
+#define AVRTEST_DEF_SYSCALL0_1m(S, N, T0, R0)               \
+  static AT_INLINE                                          \
+  T0 avrtest_syscall ## S (unsigned char _v1_)              \
+  {                                                         \
+    register T0 _res __asm (#R0);                           \
+    register unsigned char _r26 __asm("26") = _v1_;         \
+    __asm __volatile__ (".long %2 ;; SYSCALL %1"            \
+                        : "=r" (_res)                       \
+                        : "n" (N), "n" (SYSCo_##N),         \
+                          "r" (_r26));                      \
+    return _res;                                            \
+  }
+
 #define AVRTEST_DEF_SYSCALL1_1m(S, N, T0, R0, T2, R2)       \
   static AT_INLINE                                          \
   T0 avrtest_syscall ## S (unsigned char _v1_, T2 _v2_)     \
@@ -672,6 +687,24 @@ AVRTEST_DEF_SYSCALL2 (_21a, 21, unsigned char, 26, unsigned char, 24)
 static AT_INLINE void avrtest_misc_flmap (unsigned char _flmap)
 {
     avrtest_syscall_21a (AVRTEST_MISC_flmap, _flmap);
+}
+
+AVRTEST_DEF_SYSCALL0_1m (_21can, 21, __INT16_TYPE__, 24)
+static AT_INLINE __INT16_TYPE__ avrtest_can_float (void)
+{
+  return avrtest_syscall_21can (AVRTEST_MISC_can_float);
+}
+static AT_INLINE __INT16_TYPE__ avrtest_can_double (void)
+{
+  return avrtest_syscall_21can (AVRTEST_MISC_can_double);
+}
+static AT_INLINE __INT16_TYPE__ avrtest_can_int128 (void)
+{
+  return avrtest_syscall_21can (AVRTEST_MISC_can_int128);
+}
+static AT_INLINE __INT16_TYPE__ avrtest_can_mpfr (void)
+{
+  return avrtest_syscall_21can (AVRTEST_MISC_can_mpfr);
 }
 
 AVRTEST_DEF_SYSCALL2_1m (_21_u32,21, __UINT32_TYPE__,22, __UINT32_TYPE__,22, __UINT32_TYPE__,18)

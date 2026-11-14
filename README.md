@@ -46,6 +46,7 @@ https://sourceforge.net/projects/winavr/files/AVRtest
   * [IEEE single Emulation](#ieee-single-emulation)
   * [IEEE double Emulation](#ieee-double-emulation)
   * [Fixed-point Emulation](#fixed-point-emulation)
+* [Probing available Features](#probing-available-features)
 * [Assembler Support in avrtest.h](#assembler-support-in-avrtesth)
 * [Compiler Support](#compiler-support)
 * [Performance Measurement](#performance-measurement)
@@ -857,6 +858,26 @@ For the layout of the fixed-point types, see the
 
 * The 64-bit fixed-point emulations require that the host compiler
   supports 128-bit integers.  They are not available on Reduced Tiny.
+
+
+Probing available Features
+==========================
+
+The `avrtest_can_<feat>()` syscalls can be used to check whether specific
+syscalls are available for `<feat>` in:
+
+* `float`: IEEE single emulation is supported.
+
+* `double`: IEEE double emulation is supported.
+
+* `int128`: The host supports the __int128 type which is needed for some
+fixed-point emulations.
+
+* `mpfr`: AVRtest has been built with [MPFR](https://www.mpfr.org/)
+(make WITH_MPFR=1) which is needed for syscalls like avrtest_sinpil etc.
+avrtest_can_mpfr() returns the MPFR version as an integer,
+like 4020 for MPFR 4.2.<br>
+For MPFR 4.2 changes, see https://www.mpfr.org/mpfr-4.2.0/#changes
 
 
 Assembler Support in `avrtest.h`
