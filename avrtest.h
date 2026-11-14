@@ -1185,6 +1185,21 @@ avrtest_s64tol (__INT64_TYPE__ _x)
 {
   return avrtest_syscall_23_u64to (AVRTEST_s64to, (__UINT64_TYPE__) _x);
 }
+
+static AT_INLINE long double
+avrtest_d64tol (__UINT64_TYPE__ _x)
+{
+  long double _y;
+  __asm ("" : "=r" (_y) : "0" (_x));
+  return _y;
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_ltod64 (long double _x)
+{
+  __UINT64_TYPE__ _y;
+  __asm ("" : "=r" (_y) : "0" (_x));
+  return _y;
+}
 #endif /* long long = 8 */
 
 static AT_INLINE long double
