@@ -87,7 +87,7 @@ enum
     AVRTEST_sinpi, AVRTEST_cospi, AVRTEST_tanpi, AVRTEST_exp10, /* MPFR */
     AVRTEST_u32to, AVRTEST_s32to,
     AVRTEST_u64to, AVRTEST_s64to,
-    AVRTEST_cmp, AVRTEST_strto,
+    AVRTEST_cmp, AVRTEST_strto, AVRTEST_pstrto,
     AVRTEST_EMUL_sentinel
   };
 
@@ -948,6 +948,21 @@ avrtest_strtof (const char *_x, char **_y)
   return avrtest_syscall_22_strto (AVRTEST_strto, _x, _y);
 }
 static AT_INLINE float
+avrtest_pstrtof (const char *_x, char **_y)
+{
+  return avrtest_syscall_22_strto (AVRTEST_pstrto, _x, _y);
+}
+#if defined(__FLASH) && defined(__STDC_VERSION__)
+#if __STDC_VERSION__ >= 199900
+AVRTEST_DEF_SYSCALL2_1M(_22_fstrto,22, float,22, const __flash char*,24, char**,22)
+static AT_INLINE float
+avrtest_fstrtof (const __flash char *_x, char **_y)
+{
+  return avrtest_syscall_22_fstrto (AVRTEST_pstrto, _x, _y);
+}
+#endif
+#endif /* __FLASH */
+static AT_INLINE float
 avrtest_ldexpf (float _x, int _y)
 {
   return avrtest_syscall_22_2fi (AVRTEST_ldexp, _x, _y);
@@ -1014,6 +1029,21 @@ avrtest_strtod64 (char *_x, char **_y)
 {
   return avrtest_syscall_23_strto_d64 (AVRTEST_strto, _x, _y);
 }
+static AT_INLINE __UINT64_TYPE__
+avrtest_pstrtod64 (const char *_x, char **_y)
+{
+  return avrtest_syscall_23_strto_d64 (AVRTEST_pstrto, _x, _y);
+}
+#if defined(__FLASH) && defined(__STDC_VERSION__)
+#if __STDC_VERSION__ >= 199900
+AVRTEST_DEF_SYSCALL2_1M(_23_fstrto_d64,23, __UINT64_TYPE__,18, const __flash char*,24, char**,22)
+static AT_INLINE __UINT64_TYPE__
+avrtest_fstrtod64 (const __flash char *_x, char **_y)
+{
+  return avrtest_syscall_23_fstrto_d64 (AVRTEST_pstrto, _x, _y);
+}
+#endif
+#endif /* __FLASH */
 
 AVRTEST_DEF_SYSCALL1_1m (_21_ftod64,21, __UINT64_TYPE__,18, float,22)
 AVRTEST_DEF_SYSCALL1_1m (_21_d64tof,21, float,22, __UINT64_TYPE__,18)
@@ -1227,6 +1257,21 @@ avrtest_strtold (char *_x, char** _y)
 {
   return avrtest_syscall_23_strto (AVRTEST_strto, _x, _y);
 }
+static AT_INLINE long double
+avrtest_pstrtold (const char *_x, char **_y)
+{
+  return avrtest_syscall_23_strto (AVRTEST_pstrto, _x, _y);
+}
+#if defined(__FLASH) && defined(__STDC_VERSION__)
+#if __STDC_VERSION__ >= 199900
+AVRTEST_DEF_SYSCALL2_1M(_23_fstrto,23, long double,18, const __flash char*,24, char**,22)
+static AT_INLINE long double
+avrtest_fstrtold (const __flash char *_x, char **_y)
+{
+  return avrtest_syscall_23_fstrto (AVRTEST_pstrto, _x, _y);
+}
+#endif
+#endif /* __FLASH */
 
 AVRTEST_DEF_SYSCALL1_1m (_21_ftol,21, long double,18, float,22)
 AVRTEST_DEF_SYSCALL1_1m (_21_ltof,21, float,22, long double,18)
@@ -1297,6 +1342,12 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_powil  avrtest_powif
 #define avrtest_prandl avrtest_prandf
 #define avrtest_strtold avrtest_strtof
+#define avrtest_pstrtold avrtest_pstrtof
+#if defined(__FLASH) && defined(__STDC_VERSION__)
+#if __STDC_VERSION__ >= 199900
+#define avrtest_fstrtold avrtest_fstrtof
+#endif
+#endif /* __FLASH */
 static AT_INLINE long double avrtest_modfl (long double x, long double *y) { return avrtest_modff (x, (float*) y); }
 static AT_INLINE long double avrtest_ftol (float x) { return (long double) x; }
 static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }

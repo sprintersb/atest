@@ -747,7 +747,8 @@ Supported functions with two float arguments are:
     pow, atan2, hypot, fdim, fmin, fmax, fmod, absdiff.
 
 Some more functions are:
-    frexp, ldexp, modf, powi, cmp, u32to, s32to, u64to, s64to, strto.
+    frexp, ldexp, modf, powi, cmp, u32to, s32to, u64to, s64to,
+    strto, pstrto, fstrto
 
 > :warning:
 Don't forget to append `f` to the function name for the `float` versions.<br>
@@ -762,6 +763,8 @@ representation to/from float.
 when the values are less, equal or greater, respectively.
 It returns –128 for unordered comparisons.
 * `avrtest_strtof` converts an ASCII string to float, just like `strtof`.
+Similarly, `avrtest_pstrtof` and `avrtest_fstrtof` convert a string
+located in progmem resp. __flash.
 * `avrtest_prandf` returns an evenly distributed pseudo-random number
 in the specified range.  The pseudo-random source is the same like
 for `avrtest_prand`.

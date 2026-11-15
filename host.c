@@ -1141,12 +1141,13 @@ emul_float_misc (uint8_t fid)
 #undef _
 
     case AVRTEST_strto:
+    case AVRTEST_pstrto:
       {
         char s_float[100], *tail;
         const uint16_t addr = get_reg_u16 (24);
         const uint16_t pend = get_reg_u16 (22);
 
-        read_string (s_float, addr, false, sizeof(s_float) - 1);
+        read_string (s_float, addr, fid == AVRTEST_pstrto, sizeof(s_float) - 1);
         const float f = strtof (s_float, &tail);
         const size_t n_chars = tail - s_float;
         const char *name = "strto";
@@ -1726,12 +1727,13 @@ emul_double_misc (uint8_t fid)
 #undef _
 
     case AVRTEST_strto:
+    case AVRTEST_pstrto:
       {
         char s_float[100], *tail;
         const uint16_t addr = get_reg_u16 (24);
         const uint16_t pend = get_reg_u16 (22);
 
-        read_string (s_float, addr, false, sizeof(s_float) - 1);
+        read_string (s_float, addr, fid == AVRTEST_pstrto, sizeof(s_float) - 1);
         const host_double_t f = LDNAME(strto) (s_float, &tail);
         const size_t n_chars = tail - s_float;
         const char *name = "strto";
