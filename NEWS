@@ -3,8 +3,10 @@
                           ============
 
 * New avrtest_pstrto* syscalls convert a string located in       2026-11-15
-  progmem to a floating point value.  Similar avrtest_fstrto
-  syscalls read the string from named address space __flash.
+  progmem to a floating point value, a long, or a long long.
+  Supported suffixes are: f, ld, d64, l, ul, ll, ull.
+  Similary, avrtest_fstrto* reads the string from named
+  address space __flash.
 
 * New avrtest_can_<feat> syscalls for feature detection.         2026-11-14
 

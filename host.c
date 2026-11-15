@@ -2048,6 +2048,65 @@ emul_fxdiv (uint64_t a, uint64_t b, int bits, bool sbit, int fbit)
   return emul_fxsat (res, sbit, result_sign, bits);
 }
 
+
+static void
+sys_misc_strto (int size, bool unsigned_p, bool flash_p, const char *name)
+{
+  char s_int[100], *tail;
+  const uint16_t addr = get_reg_u16 (24);
+  const uint16_t pend = get_reg_u16 (22);
+  const int base = (int) get_reg_s16 (20);
+
+  read_string (s_int, addr, flash_p, sizeof(s_int) - 1);
+
+  log_add (" %s 0x%04x, 0x%0*x, %d: \"%s\" -> ", name, addr,
+           pend ? 4 : 0, pend, base, s_int);
+
+  uint64_t uval = 0;
+  if (size == 8 && unsigned_p)
+    {
+      uval = (uint64_t) strtoull (s_int, &tail, base);
+      log_add ("%" PRIu64 " = 0x%016" PRIx64, uval,uval);
+    }
+  else if (size == 8 && ! unsigned_p)
+    {
+      int64_t val = (int64_t) strtoll (s_int, &tail, base);
+      log_add ("%" PRIi64, val);
+      uval = (uint64_t) val;
+    }
+  else if (size == 4 && unsigned_p)
+    {
+      uint32_t val = (uint32_t) strtoul (s_int, &tail, base);
+      log_add ("%" PRIu32 " = 0x%08" PRIx32, val,val);
+      uval = val;
+    }
+  else if (size == 4 && ! unsigned_p)
+    {
+      int32_t val = (int32_t) strtol (s_int, &tail, base);
+      log_add ("%" PRIi32, val);
+      uval = (uint64_t) val;
+    }
+
+  const size_t n_chars = tail - s_int;
+  if (*tail)
+    {
+      log_add (", pend+=%d", (int) n_chars);
+      log_add (", *pend=0x%x", *tail);
+      if (isprint (*tail))
+        log_add ("='%c'", *tail);
+    }
+
+  set_reg_value (26 - size, size, uval);
+
+  if (pend)
+    {
+      uint16_t end = addr + n_chars;
+      set_mem_value (pend, 2, end);
+      log_add (", *0x%x=0x%x", pend, end);
+    }
+}
+
+
 static void
 sys_misc_fxop (int what)
 {
@@ -2580,6 +2639,15 @@ void sys_misc_emul (uint8_t what)
     case AVRTEST_MISC_mods64:
       sys_misc_s64 (what);
       break;
+
+    case AVRTEST_MISC_strtol:    sys_misc_strto (4, 0, 0, "strtol"); break;
+    case AVRTEST_MISC_strtoul:   sys_misc_strto (4, 1, 0, "strtoul"); break;
+    case AVRTEST_MISC_pstrtol:   sys_misc_strto (4, 0, 1, "pstrtol"); break;
+    case AVRTEST_MISC_pstrtoul:  sys_misc_strto (4, 1, 1, "pstrtoul"); break;
+    case AVRTEST_MISC_strtoll:    sys_misc_strto (8, 0, 0, "strtoll"); break;
+    case AVRTEST_MISC_strtoull:   sys_misc_strto (8, 1, 0, "strtoull"); break;
+    case AVRTEST_MISC_pstrtoll:   sys_misc_strto (8, 0, 1, "pstrtoll"); break;
+    case AVRTEST_MISC_pstrtoull:  sys_misc_strto (8, 1, 1, "pstrtoull"); break;
 
     case AVRTEST_MISC_ltof:  sys_misc_ltof ();   break;
     case AVRTEST_MISC_ftol:  sys_misc_ftol ();   break;

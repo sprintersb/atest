@@ -100,6 +100,10 @@ enum
     AVRTEST_MISC_muls32, AVRTEST_MISC_divs32, AVRTEST_MISC_mods32,
     AVRTEST_MISC_mulu64, AVRTEST_MISC_divu64, AVRTEST_MISC_modu64,
     AVRTEST_MISC_muls64, AVRTEST_MISC_divs64, AVRTEST_MISC_mods64,
+    AVRTEST_MISC_strtol, AVRTEST_MISC_pstrtol,
+    AVRTEST_MISC_strtoll, AVRTEST_MISC_pstrtoll,
+    AVRTEST_MISC_strtoul, AVRTEST_MISC_pstrtoul,
+    AVRTEST_MISC_strtoull, AVRTEST_MISC_pstrtoull,
     AVRTEST_MISC_nofxtof,
     AVRTEST_MISC_rtof, AVRTEST_MISC_hrtof,
     AVRTEST_MISC_ktof, AVRTEST_MISC_hktof,
@@ -723,6 +727,43 @@ avrtest_##OP##s32 (__INT32_TYPE__ _x, __INT32_TYPE__ _y)                \
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
 #undef AVRTEST_DEFF
 
+AVRTEST_DEF_SYSCALL3_1M(_21_strtol,21, __INT32_TYPE__,22, const char*,24, char**,22, int,20)
+static AT_INLINE __INT32_TYPE__
+avrtest_strtol (const char *_x, char **_y, int _b)
+{
+  return avrtest_syscall_21_strtol (AVRTEST_MISC_strtol, _x, _y, _b);
+}
+static AT_INLINE __INT32_TYPE__
+avrtest_pstrtol (const char *_x, char **_y, int _b)
+{
+  return avrtest_syscall_21_strtol (AVRTEST_MISC_pstrtol, _x, _y, _b);
+}
+static AT_INLINE __UINT32_TYPE__
+avrtest_strtoul (const char *_x, char **_y, int _b)
+{
+  return (__UINT32_TYPE__) avrtest_syscall_21_strtol (AVRTEST_MISC_strtoul, _x, _y, _b);
+}
+static AT_INLINE __UINT32_TYPE__
+avrtest_pstrtoul (const char *_x, char **_y, int _b)
+{
+  return (__UINT32_TYPE__) avrtest_syscall_21_strtol (AVRTEST_MISC_pstrtoul, _x, _y, _b);
+}
+#if defined(__FLASH) && defined(__STDC_VERSION__)
+#if __STDC_VERSION__ >= 199900
+AVRTEST_DEF_SYSCALL3_1M(_21_fstrtol,21, __INT32_TYPE__,22, const __flash char*,24, char**,22, int,20)
+static AT_INLINE __INT32_TYPE__
+avrtest_fstrtol (const __flash char *_x, char **_y, int _b)
+{
+  return avrtest_syscall_21_fstrtol (AVRTEST_MISC_pstrtol, _x, _y, _b);
+}
+static AT_INLINE __UINT32_TYPE__
+avrtest_fstrtoul (const __flash char *_x, char **_y, int _b)
+{
+  return (__UINT32_TYPE__) avrtest_syscall_21_fstrtol (AVRTEST_MISC_pstrtoul, _x, _y, _b);
+}
+#endif
+#endif /* __FLASH */
+
 #ifndef __AVR_TINY__
 #if __SIZEOF_LONG_LONG__ == 8
 AVRTEST_DEF_SYSCALL2_1m (_21_u64,21, __UINT64_TYPE__,18, __UINT64_TYPE__,18, __UINT64_TYPE__,10)
@@ -741,6 +782,44 @@ avrtest_##OP##s64 (__INT64_TYPE__ _x, __INT64_TYPE__ _y)                \
 }
 AVRTEST_DEFF(mul) AVRTEST_DEFF(div) AVRTEST_DEFF(mod)
 #undef AVRTEST_DEFF
+
+AVRTEST_DEF_SYSCALL3_1M(_21_strtoll,21, __INT64_TYPE__,18, const char*,24, char**,22, int,20)
+static AT_INLINE __INT64_TYPE__
+avrtest_strtoll (const char *_x, char **_y, int _b)
+{
+  return avrtest_syscall_21_strtoll (AVRTEST_MISC_strtoll, _x, _y, _b);
+}
+static AT_INLINE __INT64_TYPE__
+avrtest_pstrtoll (const char *_x, char **_y, int _b)
+{
+  return avrtest_syscall_21_strtoll (AVRTEST_MISC_pstrtoll, _x, _y, _b);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_strtoull (const char *_x, char **_y, int _b)
+{
+  return (__UINT64_TYPE__) avrtest_syscall_21_strtoll (AVRTEST_MISC_strtoull, _x, _y, _b);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_pstrtoull (const char *_x, char **_y, int _b)
+{
+  return (__UINT64_TYPE__) avrtest_syscall_21_strtoll (AVRTEST_MISC_pstrtoull, _x, _y, _b);
+}
+#if defined(__FLASH) && defined(__STDC_VERSION__)
+#if __STDC_VERSION__ >= 199900
+AVRTEST_DEF_SYSCALL3_1M(_21_fstrtoll,21, __INT64_TYPE__,18, const __flash char*,24, char**,22, int,20)
+static AT_INLINE __INT64_TYPE__
+avrtest_fstrtoll (const __flash char *_x, char **_y, int _b)
+{
+  return avrtest_syscall_21_fstrtoll (AVRTEST_MISC_pstrtoll, _x, _y, _b);
+}
+static AT_INLINE __UINT64_TYPE__
+avrtest_fstrtoull (const __flash char *_x, char **_y, int _b)
+{
+  return (__UINT64_TYPE__) avrtest_syscall_21_fstrtoll (AVRTEST_MISC_pstrtoull, _x, _y, _b);
+}
+#endif
+#endif /* __FLASH */
+
 #endif /* long long == 8 */
 #endif /* AVR TINY */
 
@@ -962,6 +1041,7 @@ avrtest_fstrtof (const __flash char *_x, char **_y)
 }
 #endif
 #endif /* __FLASH */
+
 static AT_INLINE float
 avrtest_ldexpf (float _x, int _y)
 {
