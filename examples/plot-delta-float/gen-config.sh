@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # $1 = func
-# $2 = OUT (rel, abs, ulp)
+# $2 = OUT (rel, abs, ulp, fun, cyc)
 
 macro="FLOAT_SIZE"
 
@@ -10,21 +10,19 @@ echo "#define S_FUNC \"$(sed 's:_:\\\\\\\\_:g' <<< $1)\""
 
 case "$1" in
     *f)
-	echo "#define AFUNC avrtest_${1::-1}l"
+	echo "#define AFUNC avrtest_${1::-1}_d64"
 	echo "#define $macro __SIZEOF_FLOAT__"
 	;;
     *l)
-	echo "#define AFUNC avrtest_${1::-1}l"
+	echo "#define AFUNC avrtest_${1::-1}_d64"
 	echo "#define $macro __SIZEOF_LONG_DOUBLE__"
 	;;
     fp64_*)
 	cat <<EOF
-#define AFUNC avrtest_${1:5}l
-long double $1 (long double);
-#define $macro __SIZEOF_LONG_DOUBLE__
-#if $macro != 8
-#error "$1 from fp64lib requires 64-bit long double"
-#endif
+#define USE_FP64LIB
+#define AFUNC avrtest_${1:5}_d64
+LL $1 (LL);
+#define $macro 8
 EOF
 	;;
     *)

@@ -9,6 +9,9 @@
 #include <avr/pgmspace.h>
 
 #include "avrtest.h"
+
+typedef uint64_t LL;
+
 #include "config.h"
 
 #ifndef FLOAT_SIZE
@@ -28,7 +31,7 @@ float Step = 1.0;
 #endif
 
 #ifndef AFUNC
-#define AFUNC avrtest_logl
+#define AFUNC avrtest_log_d64
 #endif
 
 #define stringy_(X) #X
@@ -49,7 +52,7 @@ const int out_fmt = OUT_abs;
 const char *s_out = "absolute " S_DELTA;
 #elif defined OUT_CYC
 const int out_fmt = OUT_cyc;
-const char *s_out = "cycles ";
+const char *s_out = "cycles";
 #else
 const int out_fmt = OUT_rel;
 const char *s_out = "relative " S_DELTA;
@@ -63,13 +66,13 @@ long double pow2l (long double);
 long double exp10l (long double);
 long double pow10l (long double);
 
-long double avrtest_pow2l (long double x)
+LL avrtest_pow2_d64 (LL x)
 {
-    return avrtest_exp2l (x);
+    return avrtest_exp2_d64 (x);
 }
-long double avrtest_pow10l (long double x)
+LL avrtest_pow10_d64 (LL x)
 {
-    return avrtest_exp10l (x);
+    return avrtest_exp10_d64 (x);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -219,6 +222,11 @@ UU NI static float get_func (float x)
     float y = FUNC (x);
     if (out_fmt == OUT_fun)
         return y;
+#elif defined (USE_FP64LIB)
+    LL lx = avrtest_ftod64 (x);
+    LL y = FUNC (lx);
+    if (out_fmt == OUT_fun)
+        return avrtest_d64tof (y);
 #else // to FLOAT_SIZE == 4
     long double lx = avrtest_ftol (x);
     long double y = FUNC (lx);
@@ -232,15 +240,19 @@ UU NI static float get_func (float x)
 
 UU static float get_delta (float x)
 {
-    long double y0 = AFUNC (avrtest_ftol (x));
+    LL y0 = AFUNC (avrtest_ftod64 (x));
 #if FLOAT_SIZE == 4
     float y = FUNC (x);
-    long double yl = avrtest_ftol (y);
-    float ulp = avrtest_ulpf (y, avrtest_ltof (y0));
+    LL yl = avrtest_ftod64 (y);
+    float ulp = avrtest_ulpf (y, avrtest_d64tof (y0));
+#elif defined (USE_FP64LIB)
+    LL y = FUNC (avrtest_ftod64 (x));
+    LL yl = y;
+    float ulp = avrtest_d64tof (avrtest_ulp_d64 (y, y0));
 #else
     long double y = FUNC (avrtest_ftol (x));
-    long double yl = y;
-    float ulp = avrtest_ltof (avrtest_ulpl (y, y0));
+    LL yl = avrtest_ltod64 (y);
+    float ulp = avrtest_ltof (avrtest_ulp_d64 (y, y0));
 #endif
 
     if (avrtest_cmpf (ulp, 0) == 0)
@@ -249,10 +261,10 @@ UU static float get_delta (float x)
     if (out_fmt == OUT_ulp)
         return ulp;
 
-    long double d = avrtest_subl (yl, y0);
-    long double r = out_fmt == OUT_abs ? d : avrtest_divl (d, y0);
+    LL d = avrtest_sub_d64 (yl, y0);
+    LL r = out_fmt == OUT_abs ? d : avrtest_div_d64 (d, y0);
 
-    return avrtest_ltof (r);
+    return avrtest_d64tof (r);
 }
 
 //////////////////////////////////////////////////////////////////////
