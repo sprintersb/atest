@@ -27,8 +27,6 @@ DIM = 850,500
 PIXX = $(shell bash -c 'cut -d, -f1 <<< "$(DIM)"')
 PIXY = $(shell bash -c 'cut -d, -f2 <<< "$(DIM)"')
 
-afunc := $(shell bash -c 'echo -n avrtest_$${0::-1}l' $(FUNC))
-
 # Thanks to syscalls like avrest_printf, we don't need target functions
 # like printf, hence there should be no need to link libprintf_flt.a.
 ## FLT = -Wl,-u,vfprintf -lprintf_flt # Only needed without avrtest_*printf.
@@ -43,7 +41,7 @@ exit.o: $(exit_c) force
 CC_ARGS = -Os -mmcu=$(MCU) -std=gnu99 -o $@ -I$(AVRTEST_HOME) exit.o -save-temps -dp
 
 plot.elf: plot.c config.h exit.o force
-	$(CC) $< $(CC_ARGS) $(FLT) -DFUNC=$(FUNC) -DAFUNC=$(afunc) $(ARGS)
+	$(CC) $< $(CC_ARGS) $(FLT) $(ARGS)
 	avr-objdump -d $@ > plot.lst
 
 # config.h tries to guess the required float format (IEEE single or double).
