@@ -249,7 +249,7 @@ UU static float get_delta (float x)
 
 void print_deltas (void)
 {
-    printf ("== \"x\" \"%s " stringy (FUNC) "\"\n", s_out);
+    printf ("== \"x\" \"%s " S_FUNC "\"\n", s_out);
 
     for (uint32_t i = 0; i < NX; ++i)
     {
