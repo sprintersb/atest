@@ -49,8 +49,11 @@ case "$2" in
     fun)
 	echo "#define OUT_FUN"
 	;;
+    cyc)
+	echo "#define OUT_CYC"
+	;;
     *)
-	echo "$(basename $0): error: unknown OUT: $2 (rel, abs, ulp, fun)" >&2
+	echo "$(basename $0): error: unknown OUT: $2 (rel, abs, ulp, fun, cyc)" >&2
 	exit 1
 	;;
 esac

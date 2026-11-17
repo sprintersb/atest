@@ -25,6 +25,10 @@ long double&rarr;long double functions from math.h.
 
 Similar like above, but with `OUT=fun`.
 
+### Cycles as a Graph
+
+Similar like above, but with `OUT=cyc`.
+
 ## The maximal relative Error
 
 The `delta` Makefile target in `examples/delta-float` can be used to work out

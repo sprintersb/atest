@@ -36,7 +36,7 @@ float Step = 1.0;
 
 #define S_DELTA "{/symbol D}"
 
-enum { OUT_rel, OUT_abs, OUT_ulp, OUT_fun };
+enum { OUT_rel, OUT_abs, OUT_ulp, OUT_fun, OUT_cyc };
 
 #if defined OUT_ULP
 const int out_fmt = OUT_ulp;
@@ -47,6 +47,9 @@ const char *s_out = "";
 #elif defined OUT_ABS
 const int out_fmt = OUT_abs;
 const char *s_out = "absolute " S_DELTA;
+#elif defined OUT_CYC
+const int out_fmt = OUT_cyc;
+const char *s_out = "cycles ";
 #else
 const int out_fmt = OUT_rel;
 const char *s_out = "relative " S_DELTA;
@@ -208,15 +211,23 @@ static bool get_float (const char *arg, const char *prefix, float *pf)
 //////////////////////////////////////////////////////////////////////
 // The very Routine to determine the Error / Value at x.
 
-UU static float get_func (float x)
+UU NI static float get_func (float x)
 {
+    avrtest_cycles_call ();
+
 #if FLOAT_SIZE == 4
     float y = FUNC (x);
-#else
-    long double y = FUNC (avrtest_ftol (x));
-#endif
+    if (out_fmt == OUT_fun)
+        return y;
+#else // to FLOAT_SIZE == 4
+    long double lx = avrtest_ftol (x);
+    long double y = FUNC (lx);
+    if (out_fmt == OUT_fun)
+        return avrtest_ltof (y);
+#endif // FLOAT_SIZE == 4
 
-    return avrtest_ltof (y);
+    __asm volatile ("" :: "r" (y)); // use y
+    return avrtest_u32tof (avrtest_cycles ());
 }
 
 UU static float get_delta (float x)
@@ -257,7 +268,7 @@ void print_deltas (void)
         float x = avrtest_addf (Lo, off);
         x = avrtest_fmaxf (x, Lo);
         x = avrtest_fminf (x, Hi);
-        float d = out_fmt == OUT_fun
+        float d = out_fmt == OUT_fun || out_fmt == OUT_cyc
             ? get_func (x)
             : get_delta (x);
 
