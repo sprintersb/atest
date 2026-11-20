@@ -85,6 +85,7 @@ enum
     AVRTEST_frexp, AVRTEST_modf, AVRTEST_powi,
     AVRTEST_lrint, AVRTEST_llrint, AVRTEST_lround, AVRTEST_llround,
     AVRTEST_sinpi, AVRTEST_cospi, AVRTEST_tanpi, AVRTEST_exp10, /* MPFR */
+    AVRTEST_expm1, AVRTEST_exp2m1, /* MPFR */
     AVRTEST_u32to, AVRTEST_s32to,
     AVRTEST_u64to, AVRTEST_s64to,
     AVRTEST_cmp, AVRTEST_strto, AVRTEST_pstrto,
@@ -994,6 +995,7 @@ AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
 AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
 AVRTEST_DEFF(exp2) AVRTEST_DEFF(exp10)
 AVRTEST_DEFF(sinpi) AVRTEST_DEFF(cospi) AVRTEST_DEFF(tanpi)
+AVRTEST_DEFF(expm1) AVRTEST_DEFF(exp2m1)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -1089,6 +1091,7 @@ AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
 AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
 AVRTEST_DEFF(exp2) AVRTEST_DEFF(exp10)
 AVRTEST_DEFF(sinpi) AVRTEST_DEFF(cospi) AVRTEST_DEFF(tanpi)
+AVRTEST_DEFF(expm1) AVRTEST_DEFF(exp2m1)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                                \
@@ -1260,6 +1263,7 @@ AVRTEST_DEFF(trunc) AVRTEST_DEFF(ceil)  AVRTEST_DEFF(floor) AVRTEST_DEFF(round)
 AVRTEST_DEFF(log2) AVRTEST_DEFF(log10) AVRTEST_DEFF(fabs) AVRTEST_DEFF(rint)
 AVRTEST_DEFF(exp2) AVRTEST_DEFF(exp10)
 AVRTEST_DEFF(sinpi) AVRTEST_DEFF(cospi) AVRTEST_DEFF(tanpi)
+AVRTEST_DEFF(expm1) AVRTEST_DEFF(exp2m1)
 #undef AVRTEST_DEFF
 
 #define AVRTEST_DEFF(ID)                                \
@@ -1380,6 +1384,8 @@ static AT_INLINE float avrtest_ltof (long double _x)
 #define avrtest_sinpil avrtest_sinpif
 #define avrtest_cospil avrtest_cospif
 #define avrtest_tanpil avrtest_tanpif
+#define avrtest_expm1l avrtest_expm1f
+#define avrtest_exp2m1l avrtest_exp2m1f
 #define avrtest_expl   avrtest_expf
 #define avrtest_exp2l  avrtest_exp2f
 #define avrtest_exp10l avrtest_exp10f

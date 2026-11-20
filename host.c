@@ -1049,6 +1049,9 @@ float_with_mpfr (float x, int fid, const char *name)
     case AVRTEST_sinpi: mpfr_sinpi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_cospi: mpfr_cospi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_tanpi: mpfr_tanpi (xx, xx, MPFR_RNDN); break;
+    case AVRTEST_exp2m1: mpfr_exp2m1 (xx, xx, MPFR_RNDN); break;
+#elif AT_MPFR_VERSION >= 2010
+    case AVRTEST_expm1: mpfr_expm1 (xx, xx, MPFR_RNDN); break;
 #endif // MPFR >= 4.2
     default:
       leave (LEAVE_IEEE32, "misc function %d %sf not supported by MPFR %s\n",
@@ -1137,7 +1140,7 @@ emul_float_misc (uint8_t fid)
           break;                                            \
         }
 
-      _(exp10) _(sinpi) _(cospi) _(tanpi)
+      _(exp10) _(sinpi) _(cospi) _(tanpi) _(expm1) _(exp2m1)
 #undef _
 
     case AVRTEST_strto:
@@ -1633,6 +1636,9 @@ double_with_mpfr (host_double_t x, int fid, const char *name)
     case AVRTEST_sinpi: mpfr_sinpi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_cospi: mpfr_cospi (xx, xx, MPFR_RNDN); break;
     case AVRTEST_tanpi: mpfr_tanpi (xx, xx, MPFR_RNDN); break;
+    case AVRTEST_exp2m1: mpfr_exp2m1 (xx, xx, MPFR_RNDN); break;
+#elif AT_MPFR_VERSION >= 2010
+    case AVRTEST_expm1: mpfr_expm1 (xx, xx, MPFR_RNDN); break;
 #endif // MPFR >= 4.2
     default:
       leave (LEAVE_IEEE64, "misc function %d %sl not supported by MPFR %s\n",
@@ -1723,7 +1729,7 @@ emul_double_misc (uint8_t fid)
           break;                                            \
         }
 
-      _(exp10) _(sinpi) _(cospi) _(tanpi)
+      _(exp10) _(sinpi) _(cospi) _(tanpi) _(expm1) _(exp2m1)
 #undef _
 
     case AVRTEST_strto:
