@@ -1437,7 +1437,10 @@ static AT_INLINE float avrtest_ltof (long double _x)
 static AT_INLINE long double avrtest_modfl (long double x, long double *y) { return avrtest_modff (x, (float*) y); }
 static AT_INLINE long double avrtest_ftol (float x) { return (long double) x; }
 static AT_INLINE float avrtest_ltof (long double x) { return (float) x; }
-
+#if __SIZEOF_LONG_LONG__ == 8
+#define avrtest_ltod64 avrtest_ftod64
+#define avrtest_d64tol avrtest_d64tof
+#endif /* __SIZEOF_LONG_LONG__ == 8 */
 #endif /* long double = 8 */
 #endif /* !__AVR_TINY__ */
 
